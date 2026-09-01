@@ -60,7 +60,7 @@ struct ExploreView: View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 if model.isLoading { ProgressView().padding(.top, 24) }
-                ForEach(model.items) { item in NavigationLink(destination: ItemPlaceholderView(item: item)) { VLItemCard(item: item) }.buttonStyle(.plain) }
+                ForEach(model.items) { item in NavigationLink(destination: ItemDetailView(item: item)) { VLItemCard(item: item) }.buttonStyle(.plain) }
                 if let error = model.errorMessage { ContentUnavailableView("No se pudo actualizar", systemImage: "wifi.exclamationmark", description: Text(error)) }
             }
             .padding(16)
@@ -89,9 +89,4 @@ struct ExploreView: View {
         if case .venue = item { return true }
         return false
     }
-}
-
-struct ItemPlaceholderView: View {
-    let item: ExploreItem
-    var body: some View { ScrollView { VLItemCard(item: item).padding(20) }.navigationTitle(item.title).navigationBarTitleDisplayMode(.inline) }
 }
