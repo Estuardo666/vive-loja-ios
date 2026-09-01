@@ -34,6 +34,21 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "tabs-dynamic-type-accessibility3")
     }
 
+    func testTabsRemainReachableInDarkModeWithMotionAndTransparencyReduced() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTesting",
+            "-AppleInterfaceStyle", "Dark",
+            "-UIAccessibilityReduceMotionEnabled", "YES",
+            "-UIAccessibilityReduceTransparencyEnabled", "YES"
+        ]
+        app.launch()
+
+        XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.tabBars.buttons["Explorar"].exists)
+        attachScreenshot(named: "tabs-dark-reduced-motion-transparency")
+    }
+
     private func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
