@@ -1,3 +1,4 @@
+import CoreLocation
 import XCTest
 @testable import ViveLoja
 
@@ -48,5 +49,15 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertTrue(payload.promotions.isEmpty)
         XCTAssertTrue(payload.routes.isEmpty)
         XCTAssertTrue(payload.collections.isEmpty)
+    }
+
+    func testGeoMathUsesMetersForProximityFilters() {
+        let center = CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422)
+        let nearby = CLLocationCoordinate2D(latitude: -3.99370, longitude: -79.20422)
+        let distant = CLLocationCoordinate2D(latitude: -4.01000, longitude: -79.20422)
+
+        XCTAssertLessThan(GeoMath.distanceMeters(from: center, to: nearby), 100)
+        XCTAssertTrue(GeoMath.contains(nearby, in: 100, around: center))
+        XCTAssertFalse(GeoMath.contains(distant, in: 1_000, around: center))
     }
 }
