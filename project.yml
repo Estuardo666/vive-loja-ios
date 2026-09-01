@@ -1,0 +1,50 @@
+name: ViveLoja
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+configs:
+  Debug: debug
+  Staging: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGNING_ALLOWED: "NO"
+    SWIFT_STRICT_CONCURRENCY: complete
+targets:
+  ViveLoja:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ViveLoja
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.app
+        PRODUCT_NAME: Vive Loja
+        INFOPLIST_KEY_CFBundleDisplayName: Vive Loja
+        INFOPLIST_KEY_NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos.
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Vive Loja usa tu ubicación para mostrar lugares cercanos.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Vive Loja usa tus fotos para publicar contenido.
+        INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
+        SWIFT_EMIT_LOC_STRINGS: YES
+    scheme:
+      testTargets:
+        - ViveLojaTests
+      gatherCoverageData: true
+  ViveLojaTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ViveLojaTests
+    dependencies:
+      - target: ViveLoja
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.tests

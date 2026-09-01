@@ -1,0 +1,23 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+.swiftpm/
+
+# Generated project and reports
+*.xcresult
+*.log
+coverage/
+
+# Secrets and local configuration
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+*.pem
+*.key
+.env*
+!.env.example
+Secrets/

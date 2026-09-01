@@ -1,0 +1,62 @@
+name: iOS CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-test:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 26.2
+        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build
+        run: >-
+          xcodebuild build
+          -project ViveLoja.xcodeproj
+          -scheme ViveLoja
+          -sdk iphonesimulator
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.2'
+          -derivedDataPath DerivedData
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+
+      - name: Test
+        run: >-
+          xcodebuild test
+          -project ViveLoja.xcodeproj
+          -scheme ViveLoja
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.2'
+          -derivedDataPath DerivedData
+          -resultBundlePath TestResults.xcresult
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: |
+            TestResults.xcresult
+            DerivedData/Logs/Test
