@@ -1,4 +1,5 @@
 import MapKit
+import PhotosUI
 import SwiftUI
 
 struct ItemDetailView: View {
@@ -229,6 +230,11 @@ private struct ReviewRow: View {
             }
             if let title = review.title { Text(title).font(.subheadline.weight(.semibold)) }
             if let content = review.content { Text(content).font(.subheadline).foregroundStyle(.secondary) }
+            if !review.photos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72).frame(width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
+                }
+            }
         }
         .padding(12)
         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -244,6 +250,8 @@ private struct ReviewComposerView: View {
     @State private var rating = 5
     @State private var title = ""
     @State private var content = ""
+    @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var isUploadingPhotos = false
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -261,10 +269,14 @@ private struct ReviewComposerView: View {
                 Section("Tu experiencia") {
                     TextField("Título (opcional)", text: $title)
                     TextEditor(text: $content).frame(minHeight: 100)
+                    PhotosPicker(selection: $selectedPhotos, maxSelectionCount: 6, matching: .images, photoLibrary: .shared()) {
+                        Label("Añadir fotos (opcional)", systemImage: "photo.on.rectangle.angled")
+                    }
+                    if !selectedPhotos.isEmpty { Text("\(selectedPhotos.count) foto(s) seleccionada(s)").font(.caption).foregroundStyle(.secondary) }
                 }
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
                 Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }
-                    .disabled(isSaving || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isSaving || isUploadingPhotos || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             .navigationTitle("Escribir reseña")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
@@ -274,11 +286,20 @@ private struct ReviewComposerView: View {
     private func save() async {
         guard let token = session.accessToken else { return }
         isSaving = true; defer { isSaving = false }
-        let request = ReviewRequest(venueId: item.venueID, eventId: item.eventID, rating: rating, title: title.nilIfBlank, content: content.nilIfBlank)
         do {
+            isUploadingPhotos = true
+            var photoURLs: [URL] = []
+            for (index, photo) in selectedPhotos.prefix(6).enumerated() {
+                if let data = try? await photo.loadTransferable(type: Data.self) {
+                    let uploaded: MobileUpload = try await APIClient.shared.upload("/me/uploads", data: data, fileName: "review-\(index).jpg", mimeType: "image/jpeg", bearer: token)
+                    photoURLs.append(uploaded.url)
+                }
+            }
+            isUploadingPhotos = false
+            let request = ReviewRequest(venueId: item.venueID, eventId: item.eventID, rating: rating, title: title.nilIfBlank, content: content.nilIfBlank, photos: photoURLs.isEmpty ? nil : photoURLs)
             let _: MobileReview = try await APIClient.shared.post("/me/reviews", body: request, bearer: token)
             VLFeedback.success(); onSaved(); dismiss()
-        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo enviar la reseña."; VLFeedback.error() }
+        } catch { isUploadingPhotos = false; errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo enviar la reseña."; VLFeedback.error() }
     }
 }
 

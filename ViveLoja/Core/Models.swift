@@ -165,6 +165,12 @@ struct MobileReviewUser: Codable, Hashable, Sendable {
     let image: URL?
 }
 
+struct MobileReviewPhoto: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let url: URL
+    let order: Int
+}
+
 struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let rating: Int
@@ -173,8 +179,9 @@ struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
     let status: String?
     let createdAt: Date
     let user: MobileReviewUser?
+    let photos: [MobileReviewPhoto]
 
-    private enum CodingKeys: String, CodingKey { case id, rating, title, content, comment, status, createdAt, user }
+    private enum CodingKeys: String, CodingKey { case id, rating, title, content, comment, status, createdAt, user, photos }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -189,6 +196,7 @@ struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
         status = try container.decodeIfPresent(String.self, forKey: .status)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         user = try container.decodeIfPresent(MobileReviewUser.self, forKey: .user)
+        photos = try container.decodeIfPresent([MobileReviewPhoto].self, forKey: .photos) ?? []
     }
 }
 
@@ -418,6 +426,7 @@ struct ReviewRequest: Codable, Sendable {
     let rating: Int
     let title: String?
     let content: String?
+    let photos: [URL]?
 }
 
 struct QuestionRequest: Codable, Sendable {
