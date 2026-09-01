@@ -3,3 +3,5 @@
 # XCTest and the CI build/test gate.
 disabled_rules:
   - line_length
+excluded:
+  - scripts

@@ -66,6 +66,13 @@ jobs:
           --path TestResults.xcresult
           --output-path ExportedScreenshots
 
+      - name: Verify snapshot baseline
+        if: success()
+        run: >-
+          xcrun swift scripts/verify_snapshots.swift
+          --baseline ViveLojaUITests/Snapshots
+          --exported ExportedScreenshots
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
