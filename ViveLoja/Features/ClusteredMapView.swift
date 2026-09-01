@@ -9,6 +9,7 @@ struct ClusteredMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedItemID: String?
     let radiusMeters: CLLocationDistance
+    let onRegionChange: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
 
@@ -75,6 +76,7 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            parent.onRegionChange(mapView.region)
             parent.region = mapView.region
         }
 

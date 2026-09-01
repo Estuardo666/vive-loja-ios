@@ -90,7 +90,16 @@ struct ExploreView: View {
 
     private var map: some View {
         ZStack(alignment: .topTrailing) {
-            ClusteredMapView(items: model.items, region: $mapRegion, selectedItemID: $selectedMapItemID, radiusMeters: radiusMeters)
+            ClusteredMapView(
+                items: model.items,
+                region: $mapRegion,
+                selectedItemID: $selectedMapItemID,
+                radiusMeters: radiusMeters,
+                onRegionChange: { newRegion in
+                    guard showMap else { return }
+                    Task { await model.search(region: newRegion, radiusMeters: radiusMeters) }
+                }
+            )
                 .ignoresSafeArea(edges: .bottom)
             Picker("Radio", selection: $radiusMeters) {
                 Text("100 m").tag(CLLocationDistance(100))
