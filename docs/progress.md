@@ -11,7 +11,7 @@
 - [x] Detalle con hidratación remota, guardado local y enlace a Apple Maps.
 - [x] CI macOS 26/Xcode 26.2 unsigned con build, XCTest y artifact `.xcresult`.
 
-Último gate verde: [Actions run 33487048614](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33487048614).
+Último gate verde: [Actions run 33488418114](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33488418114).
 
 ## Seguridad
 
