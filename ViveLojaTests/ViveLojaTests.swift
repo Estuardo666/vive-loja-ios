@@ -71,6 +71,19 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(review.rating, 5)
     }
 
+    func testReviewPhotosDecodeAndDefault() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let withPhoto = try decoder.decode(MobileReview.self, from: Data("""
+        {"id":"r2","rating":4,"content":"Bien","createdAt":"2026-01-01T00:00:00Z","photos":[{"id":"p1","url":"https://example.com/p.jpg","order":0}]}
+        """.utf8))
+        XCTAssertEqual(withPhoto.photos.count, 1)
+        let withoutPhoto = try decoder.decode(MobileReview.self, from: Data("""
+        {"id":"r3","rating":3,"content":"Ok","createdAt":"2026-01-01T00:00:00Z"}
+        """.utf8))
+        XCTAssertTrue(withoutPhoto.photos.isEmpty)
+    }
+
     func testDetailModelsTolerateMissingQuestions() throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
