@@ -130,6 +130,13 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(ExploreItem.event(event).id, "event-e")
     }
 
+    func testUIFixturesUseStableEventDate() {
+        guard case .event(let event) = HomeViewModel.fixtures[1] else {
+            return XCTFail("La fixture esperada debe ser un evento")
+        }
+        XCTAssertEqual(event.startDate, Date(timeIntervalSince1970: 1_800_000_000))
+    }
+
     func testSavedStorePersistsToggle() {
         let suiteName = "ViveLojaTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
