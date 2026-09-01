@@ -126,7 +126,7 @@ struct HomeView: View {
                                 .padding(14)
                                 .vlGlass(tint: VLTheme.coral.opacity(0.1))
                                 .accessibilityElement(children: .combine)
-                                .accessibilityLabel("(promotion.title), (promotion.venue.name)")
+                                .accessibilityLabel("\(promotion.title), \(promotion.venue.name)")
                             }
                         }
                     }

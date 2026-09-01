@@ -149,7 +149,7 @@ struct ItemDetailView: View {
                         HStack {
                             Text(dayName(hours.dayOfWeek)).font(.subheadline.weight(.semibold))
                             Spacer()
-                            Text(hours.isClosed ? "Cerrado" : "(hours.openTime) – (hours.closeTime)")
+                            Text(hours.isClosed ? "Cerrado" : "\(hours.openTime) – \(hours.closeTime)")
                                 .font(.subheadline).foregroundStyle(hours.isClosed ? .secondary : .primary)
                         }
                     }
