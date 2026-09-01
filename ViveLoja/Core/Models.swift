@@ -32,6 +32,76 @@ struct MobileInterests: Decodable, Sendable {
     let preferences: [String]
 }
 
+struct MobileCollectionItem: Decodable, Identifiable, Sendable {
+    let id: String
+    let venueId: String?
+    let eventId: String?
+    let postId: String?
+    let routeId: String?
+    let note: String?
+    let order: Int
+    let createdAt: Date
+    let venue: CollectionVenue?
+    let event: CollectionEvent?
+    let post: CollectionPost?
+    let route: CollectionRoute?
+}
+
+struct CollectionVenue: Decodable, Sendable { let id: String; let name: String; let slug: String; let image: URL? }
+struct CollectionEvent: Decodable, Sendable { let id: String; let title: String; let slug: String; let image: URL? }
+struct CollectionPost: Decodable, Sendable { let id: String; let title: String; let slug: String; let image: URL? }
+struct CollectionRoute: Decodable, Sendable { let id: String; let title: String; let slug: String; let image: URL? }
+
+struct MobileCollection: Decodable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let description: String?
+    let icon: String?
+    let isPublic: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let items: [MobileCollectionItem]
+}
+
+struct CollectionRequest: Codable, Sendable {
+    let name: String
+    let description: String?
+    let icon: String?
+    let isPublic: Bool?
+}
+
+struct CollectionItemRequest: Codable, Sendable {
+    let kind: String
+    let itemId: String
+    let note: String?
+    let order: Int?
+}
+
+struct CollectionItemKey: Codable, Sendable {
+    let kind: String
+    let itemId: String
+}
+
+struct MobileCheckIn: Decodable, Identifiable, Sendable {
+    let id: String
+    let venueId: String
+    let lat: Double
+    let lng: Double
+    let note: String?
+    let photoUrl: URL?
+    let createdAt: Date
+    let venue: CollectionVenue
+}
+
+struct CheckInRequest: Codable, Sendable {
+    let venueId: String
+    let lat: Double
+    let lng: Double
+    let note: String?
+    let photoUrl: URL?
+}
+
 struct InterestsRequest: Codable, Sendable {
     let categoryIds: [String]
     let preferences: [String]
