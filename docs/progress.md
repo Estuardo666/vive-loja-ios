@@ -14,7 +14,7 @@
 - [x] CI macOS 26/Xcode 26.2 unsigned con build, XCTest y artifact `.xcresult`.
 - [x] Sign in with Apple preparado: nonce criptográfico, identity token y nombre enviados al endpoint móvil.
 
-Último gate verde: [Actions run 33490802291](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33490802291).
+Último gate verde: [Actions run 33491270997](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33491270997).
 
 ## Seguridad
 
