@@ -452,6 +452,27 @@ struct CreateEventRequest: Codable, Sendable {
     let venueId: String?
 }
 
+struct CreateVenueRequest: Codable, Sendable {
+    let name: String; let description: String; let location: String; let address: String?
+    let phone: String?; let email: String?; let website: String?; let lat: Double?; let lng: Double?
+    let priceRange: String?; let image: URL?; let categoryIds: [String]?
+}
+
+struct CreatePostRequest: Codable, Sendable {
+    let title: String; let excerpt: String?; let content: String; let image: URL?; let categoryId: String
+}
+
+struct CreateRouteStopRequest: Codable, Sendable {
+    let venueId: String?; let title: String; let notes: String?; let duration: String?
+}
+
+struct CreateRouteRequest: Codable, Sendable {
+    let title: String; let description: String; let content: String?; let image: URL?
+    let duration: String?; let difficulty: String?; let type: String; let stops: [CreateRouteStopRequest]?
+}
+
+struct ModeratedDraft: Decodable, Sendable { let id: String; let status: String }
+
 struct CreatedEvent: Codable, Sendable {
     let id: String
     let title: String
