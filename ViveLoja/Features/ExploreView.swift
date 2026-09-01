@@ -12,10 +12,17 @@ final class ExploreViewModel {
     var isLoading = false
     var errorMessage: String?
 
-    func search() async {
+    func search(region: MKCoordinateRegion? = nil, radiusMeters: CLLocationDistance? = nil) async {
         isLoading = true
         defer { isLoading = false }
         var queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "type", value: type), URLQueryItem(name: "take", value: "60")]
+        if let region, let radiusMeters {
+            queryItems += [
+                URLQueryItem(name: "lat", value: String(region.center.latitude)),
+                URLQueryItem(name: "lng", value: String(region.center.longitude)),
+                URLQueryItem(name: "radius", value: String(radiusMeters)),
+            ]
+        }
         queryItems.removeAll { $0.value?.isEmpty == true }
         do {
             let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
@@ -48,6 +55,14 @@ struct ExploreView: View {
             } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") } }
             .task { await model.search() }
             .onChange(of: model.type) { _, _ in Task { await model.search() } }
+            .onChange(of: radiusMeters) { _, _ in
+                guard showMap else { return }
+                Task { await model.search(region: mapRegion, radiusMeters: radiusMeters) }
+            }
+            .onChange(of: mapRegion) { _, newRegion in
+                guard showMap else { return }
+                Task { await model.search(region: newRegion, radiusMeters: radiusMeters) }
+            }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
                     NavigationStack { ItemDetailView(item: item) }
