@@ -20,6 +20,24 @@ final class ReservationsViewModel {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus reservas."
         }
     }
+
+    func cancel(_ reservation: MobileReservation, reason: String? = nil, accessToken: String?) async -> Bool {
+        guard let accessToken else { return false }
+        do {
+            let updated: MobileReservation = try await APIClient.shared.patch(
+                "/me/reservations/\(reservation.id)",
+                body: CancelReservationRequest(status: "CANCELLED", cancelReason: reason),
+                bearer: accessToken
+            )
+            if let index = reservations.firstIndex(where: { $0.id == updated.id }) { reservations[index] = updated }
+            VLFeedback.success()
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cancelar la reserva."
+            VLFeedback.error()
+            return false
+        }
+    }
 }
 
 struct ReservationsView: View {
@@ -46,6 +64,13 @@ struct ReservationsView: View {
                     }
                     .padding(.vertical, 6)
                     .accessibilityElement(children: .combine)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if reservation.status.uppercased() != "CANCELLED" {
+                            Button("Cancelar", role: .destructive) {
+                                Task { _ = await model.cancel(reservation, accessToken: session.accessToken) }
+                            }
+                        }
+                    }
                 }
                 .listStyle(.insetGrouped)
             }

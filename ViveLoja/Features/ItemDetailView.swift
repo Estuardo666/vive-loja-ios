@@ -7,28 +7,37 @@ struct ItemDetailView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var resolvedItem: ExploreItem?
+    @State private var venueDetail: VenueDetail?
+    @State private var eventDetail: EventDetail?
     @State private var reminderScheduled = false
+    @State private var showReviewComposer = false
+    @State private var showQuestionComposer = false
+    @State private var actionMessage: String?
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                VLAsyncImage(url: imageURL, height: 250).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                gallery
                 VStack(alignment: .leading, spacing: 10) {
                     Text(displayedItem.title).font(.largeTitle.weight(.bold))
                     Text(location).font(.headline).foregroundStyle(.secondary)
                     Text(description).font(.body)
+                    if let rating = averageRating {
+                        Label(String(format: "%.1f · %d reseñas", rating, reviewCount), systemImage: "star.fill")
+                            .font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.coral)
+                    }
                 }
-                HStack(spacing: 12) {
-                    Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
-                        Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
-                    }.buttonStyle(.borderedProminent).tint(VLTheme.indigo)
-                    ShareLink(item: "\(displayedItem.title) — Vive Loja") { Label("Compartir", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered)
-                }
+                actionBar
                 if case .event(let event) = displayedItem {
                     Button {
                         Task {
-                            if reminderScheduled { LocalReminderScheduler.shared.cancel(eventID: event.id); reminderScheduled = false }
-                            else if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil { reminderScheduled = true }
+                            if reminderScheduled {
+                                LocalReminderScheduler.shared.cancel(eventID: event.id)
+                                reminderScheduled = false
+                            } else if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
+                                reminderScheduled = true
+                                VLFeedback.success()
+                            }
                         }
                     } label: {
                         Label(reminderScheduled ? "Recordatorio activo" : "Recordarme", systemImage: reminderScheduled ? "bell.fill" : "bell")
@@ -36,45 +45,273 @@ struct ItemDetailView: View {
                     .buttonStyle(.bordered)
                     .tint(VLTheme.coral)
                 }
-                if let coordinate = displayedItem.coordinate {
-                    Map(initialPosition: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))) {
-                        Marker(displayedItem.title, coordinate: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng))
-                    }.frame(height: 200).clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    Button("Abrir en Apple Maps", systemImage: "map") {
-                        openURL(URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)")!)
-                    }.buttonStyle(.bordered)
-                }
-            }.padding(20)
+                servicesSection
+                reviewsSection
+                questionsSection
+                mapSection
+                if let actionMessage { Text(actionMessage).font(.footnote).foregroundStyle(.secondary) }
+            }
+            .padding(20)
         }
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .task { await loadDetail() }
+        .sheet(isPresented: $showReviewComposer) {
+            ReviewComposerView(item: displayedItem) { Task { await loadDetail() } }
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showQuestionComposer) {
+            QuestionComposerView(item: displayedItem) { Task { await loadDetail() } }
+                .presentationDetents([.medium, .large])
+        }
     }
 
     private var displayedItem: ExploreItem { resolvedItem ?? item }
+
+    private var gallery: some View {
+        Group {
+            if !detailMedia.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(detailMedia) { media in
+                            VLAsyncImage(url: media.url, height: 250)
+                                .frame(width: 330)
+                                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                                .accessibilityLabel(media.alt ?? "Fotografía de \(displayedItem.title)")
+                        }
+                    }
+                }
+            } else {
+                VLAsyncImage(url: imageURL, height: 250)
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            }
+        }
+    }
+
+    private var actionBar: some View {
+        HStack(spacing: 12) {
+            Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
+                Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(VLTheme.indigo)
+            ShareLink(item: shareURL) { Label("Compartir", systemImage: "square.and.arrow.up") }
+                .buttonStyle(.bordered)
+            if session.user != nil {
+                Menu {
+                    Button("Escribir reseña", systemImage: "star") { showReviewComposer = true }
+                    Button("Hacer pregunta", systemImage: "questionmark.bubble") { showQuestionComposer = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle").accessibilityLabel("Más acciones")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var servicesSection: some View {
+        if !detailServices.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Servicios").font(.title2.weight(.semibold))
+                ForEach(detailServices) { service in
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(service.name).font(.subheadline.weight(.semibold))
+                            if let description = service.description { Text(description).font(.caption).foregroundStyle(.secondary) }
+                        }
+                    } icon: { Image(systemName: "checkmark.seal.fill").foregroundStyle(VLTheme.emerald) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var reviewsSection: some View {
+        if !detailReviews.isEmpty || session.user != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Opiniones").font(.title2.weight(.semibold))
+                    Spacer()
+                    if session.user != nil { Button("Escribir", systemImage: "plus") { showReviewComposer = true }.font(.subheadline.weight(.semibold)) }
+                }
+                if detailReviews.isEmpty {
+                    Text("Sé la primera persona en compartir su experiencia.").font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(detailReviews) { review in ReviewRow(review: review) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var questionsSection: some View {
+        if !detailQuestions.isEmpty || session.user != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Preguntas").font(.title2.weight(.semibold))
+                    Spacer()
+                    if session.user != nil { Button("Preguntar", systemImage: "plus") { showQuestionComposer = true }.font(.subheadline.weight(.semibold)) }
+                }
+                if detailQuestions.isEmpty {
+                    Text("Pregunta algo útil para la comunidad.").font(.subheadline).foregroundStyle(.secondary)
+                } else {
+                    ForEach(detailQuestions) { question in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(question.content).font(.subheadline.weight(.semibold))
+                            if let answer = question.answer { Label(answer, systemImage: "arrow.turn.down.right").font(.subheadline).foregroundStyle(.secondary) }
+                            else { Text("Pendiente de respuesta").font(.caption).foregroundStyle(.secondary) }
+                        }
+                        .padding(12)
+                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var mapSection: some View {
+        if let coordinate = displayedItem.coordinate {
+            Map(initialPosition: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))) {
+                Marker(displayedItem.title, coordinate: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng))
+            }
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            Button("Abrir en Apple Maps", systemImage: "map") { openURL(URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)")!) }
+                .buttonStyle(.bordered)
+        }
+    }
 
     private func loadDetail() async {
         do {
             switch item {
             case .venue(let value):
-                let detail: ExploreVenue = try await APIClient.shared.get("/venues/\(value.slug)")
-                resolvedItem = .venue(detail)
+                let detail: VenueDetail = try await APIClient.shared.get("/venues/\(value.slug)")
+                venueDetail = detail
+                resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
             case .event(let value):
-                let detail: ExploreEvent = try await APIClient.shared.get("/events/\(value.slug)")
-                resolvedItem = .event(detail)
+                let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
+                eventDetail = detail
+                resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
             }
-        } catch {
-            // Fixtures remain visible when the device is offline or the item was removed.
+        } catch { actionMessage = (error as? LocalizedError)?.errorDescription }
+    }
+
+    private var imageURL: URL? { switch displayedItem { case .venue(let value): return value.image; case .event(let value): return value.image } }
+    private var location: String { switch displayedItem { case .venue(let value): return value.location ?? "Loja"; case .event(let value): return value.location ?? "Loja" } }
+    private var description: String { switch displayedItem { case .venue(let value): return value.description ?? "Descubre este lugar en Loja."; case .event(let value): return value.description ?? "Un evento para vivir Loja." } }
+    private var detailMedia: [MobileMedia] { switch displayedItem { case .venue: return venueDetail?.media ?? []; case .event: return eventDetail?.media ?? [] } }
+    private var detailServices: [MobileService] { switch displayedItem { case .venue: return venueDetail?.services ?? []; case .event: return [] } }
+    private var detailReviews: [MobileReview] { switch displayedItem { case .venue: return venueDetail?.reviews ?? []; case .event: return eventDetail?.reviews ?? [] } }
+    private var detailQuestions: [MobileQuestion] { switch displayedItem { case .venue: return venueDetail?.questions ?? []; case .event: return eventDetail?.questions ?? [] } }
+    private var averageRating: Double? { switch displayedItem { case .venue(let value): return value.avgRating; case .event(let value): return value.avgRating } }
+    private var reviewCount: Int { switch displayedItem { case .venue(let value): return value.reviewCount; case .event(let value): return value.reviewCount } }
+    private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
+}
+
+private struct ReviewRow: View {
+    let review: MobileReview
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                ForEach(1...5, id: \.self) { index in Image(systemName: index <= review.rating ? "star.fill" : "star").font(.caption).foregroundStyle(VLTheme.coral) }
+                if let name = review.user?.name { Text(name).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
+                Spacer()
+                Text(review.createdAt.formatted(date: .abbreviated, time: .omitted)).font(.caption2).foregroundStyle(.tertiary)
+            }
+            if let title = review.title { Text(title).font(.subheadline.weight(.semibold)) }
+            if let content = review.content { Text(content).font(.subheadline).foregroundStyle(.secondary) }
+        }
+        .padding(12)
+        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct ReviewComposerView: View {
+    let item: ExploreItem
+    let onSaved: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var session
+    @State private var rating = 5
+    @State private var title = ""
+    @State private var content = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Puntuación") {
+                    HStack {
+                        ForEach(1...5, id: \.self) { value in
+                            Button { rating = value } label: { Image(systemName: value <= rating ? "star.fill" : "star").foregroundStyle(VLTheme.coral).font(.title2) }
+                                .buttonStyle(.plain).accessibilityLabel("\(value) estrellas")
+                        }
+                    }
+                }
+                Section("Tu experiencia") {
+                    TextField("Título (opcional)", text: $title)
+                    TextEditor(text: $content).frame(minHeight: 100)
+                }
+                if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+                Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }
+                    .disabled(isSaving || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .navigationTitle("Escribir reseña")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
         }
     }
 
-    private var imageURL: URL? {
-        switch displayedItem { case .venue(let value): return value.image; case .event(let value): return value.image }
+    private func save() async {
+        guard let token = session.accessToken else { return }
+        isSaving = true; defer { isSaving = false }
+        let request = ReviewRequest(venueId: item.venueID, eventId: item.eventID, rating: rating, title: title.nilIfBlank, content: content.nilIfBlank)
+        do {
+            let _: MobileReview = try await APIClient.shared.post("/me/reviews", body: request, bearer: token)
+            VLFeedback.success(); onSaved(); dismiss()
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo enviar la reseña."; VLFeedback.error() }
     }
-    private var location: String {
-        switch displayedItem { case .venue(let value): return value.location ?? "Loja"; case .event(let value): return value.location ?? "Loja" }
+}
+
+private struct QuestionComposerView: View {
+    let item: ExploreItem
+    let onSaved: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var session
+    @State private var content = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Pregunta") { TextEditor(text: $content).frame(minHeight: 130) }
+                if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
+                Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar pregunta", systemImage: "paperplane.fill") } }
+                    .disabled(isSaving || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).count < 5)
+            }
+            .navigationTitle("Hacer pregunta")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
+        }
     }
-    private var description: String {
-        switch displayedItem { case .venue(let value): return value.description ?? "Descubre este lugar en Loja."; case .event(let value): return value.description ?? "Un evento para vivir Loja." }
+
+    private func save() async {
+        guard let token = session.accessToken else { return }
+        isSaving = true; defer { isSaving = false }
+        let request = QuestionRequest(venueId: item.venueID, eventId: item.eventID, content: content.trimmingCharacters(in: .whitespacesAndNewlines))
+        do {
+            let _: MobileQuestion = try await APIClient.shared.post("/me/questions", body: request, bearer: token)
+            VLFeedback.success(); onSaved(); dismiss()
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo enviar la pregunta."; VLFeedback.error() }
     }
+}
+
+private extension ExploreItem {
+    var venueID: String? { if case .venue(let value) = self { return value.id }; return nil }
+    var eventID: String? { if case .event(let value) = self { return value.id }; return nil }
+}
+
+private extension String {
+    var nilIfBlank: String? { let value = trimmingCharacters(in: .whitespacesAndNewlines); return value.isEmpty ? nil : value }
 }

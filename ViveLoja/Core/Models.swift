@@ -65,6 +65,111 @@ struct ExploreEvent: Codable, Identifiable, Hashable, Sendable {
     let avgRating: Double?; let reviewCount: Int; let categories: [Category]
 }
 
+struct MobileMedia: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let url: URL
+    let alt: String?
+    let type: String
+    let order: Int
+}
+
+struct MobileService: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let description: String?
+}
+
+struct MobileReviewUser: Codable, Hashable, Sendable {
+    let id: String
+    let name: String?
+    let image: URL?
+}
+
+struct MobileReview: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let rating: Int
+    let title: String?
+    let content: String?
+    let status: String?
+    let createdAt: Date
+    let user: MobileReviewUser?
+
+    private enum CodingKeys: String, CodingKey { case id, rating, title, content, comment, status, createdAt, user }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        rating = try container.decode(Int.self, forKey: .rating)
+        title = try container.decodeIfPresent(String.self, forKey: .title)
+        if let value = try container.decodeIfPresent(String.self, forKey: .content) {
+            content = value
+        } else {
+            content = try container.decodeIfPresent(String.self, forKey: .comment)
+        }
+        status = try container.decodeIfPresent(String.self, forKey: .status)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        user = try container.decodeIfPresent(MobileReviewUser.self, forKey: .user)
+    }
+}
+
+struct MobileQuestion: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let content: String
+    let answer: String?
+    let answerBy: String?
+    let answeredAt: Date?
+    let status: String
+    let createdAt: Date
+    let user: MobileReviewUser?
+}
+
+struct VenueDetail: Codable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let description: String
+    let image: URL?
+    let location: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let featured: Bool
+    let phone: String?
+    let website: URL?
+    let priceRange: String?
+    let avgRating: Double?
+    let reviewCount: Int
+    let verified: Bool
+    let categories: [Category]
+    let media: [MobileMedia]
+    let services: [MobileService]
+    let reviews: [MobileReview]
+    let questions: [MobileQuestion]?
+}
+
+struct EventDetail: Codable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let description: String
+    let image: URL?
+    let startDate: Date
+    let endDate: Date?
+    let location: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let featured: Bool
+    let price: Double?
+    let avgRating: Double?
+    let reviewCount: Int
+    let categories: [Category]
+    let media: [MobileMedia]
+    let reviews: [MobileReview]
+    let venue: MobileVenueShort?
+    let questions: [MobileQuestion]?
+}
+
 enum ExploreItem: Identifiable, Hashable, Sendable {
     case venue(ExploreVenue)
     case event(ExploreEvent)
@@ -225,6 +330,25 @@ struct MessageRequest: Codable, Sendable {
     let venueId: String
     let receiverId: String
     let content: String
+}
+
+struct ReviewRequest: Codable, Sendable {
+    let venueId: String?
+    let eventId: String?
+    let rating: Int
+    let title: String?
+    let content: String?
+}
+
+struct QuestionRequest: Codable, Sendable {
+    let venueId: String?
+    let eventId: String?
+    let content: String
+}
+
+struct CancelReservationRequest: Codable, Sendable {
+    let status: String
+    let cancelReason: String?
 }
 
 struct CreateEventRequest: Codable, Sendable {

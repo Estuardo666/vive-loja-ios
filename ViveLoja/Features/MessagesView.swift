@@ -10,25 +10,42 @@ final class MessagesViewModel {
 
     func load(accessToken: String?) async {
         guard let accessToken else { conversations = []; return }
-        isLoading = true
-        defer { isLoading = false }
+        isLoading = true; defer { isLoading = false }
         do {
             conversations = try await APIClient.shared.get("/me/messages", bearer: accessToken)
             errorMessage = nil
-        } catch {
-            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus mensajes."
-        }
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus mensajes." }
+    }
+}
+
+@MainActor
+@Observable
+final class ConversationViewModel {
+    var messages: [MobileMessagePreview] = []
+    var isLoading = false
+    var isSending = false
+    var errorMessage: String?
+
+    func load(conversation: MobileConversation, accessToken: String?) async {
+        guard let accessToken else { messages = []; return }
+        isLoading = true; defer { isLoading = false }
+        do {
+            messages = try await APIClient.shared.get("/me/messages/\(conversation.id)", bearer: accessToken)
+            let _: MarkedReadResponse = try await APIClient.shared.patch("/me/messages/\(conversation.id)", body: ReadReceipt(read: true), bearer: accessToken)
+            errorMessage = nil
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar la conversación." }
     }
 
     func send(_ content: String, to conversation: MobileConversation, accessToken: String?) async -> Bool {
         guard let accessToken, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        isSending = true; defer { isSending = false }
         do {
-            let _: MobileMessagePreview = try await APIClient.shared.post(
+            let created: MobileMessagePreview = try await APIClient.shared.post(
                 "/me/messages",
                 body: MessageRequest(venueId: conversation.venue.id, receiverId: conversation.participant.id, content: content),
                 bearer: accessToken
             )
-            await load(accessToken: accessToken)
+            messages.append(created)
             VLFeedback.success()
             return true
         } catch {
@@ -42,8 +59,6 @@ final class MessagesViewModel {
 struct MessagesView: View {
     @Environment(SessionStore.self) private var session
     @State private var model = MessagesViewModel()
-    @State private var composer = ""
-    @State private var selectedConversation: MobileConversation?
 
     var body: some View {
         NavigationStack {
@@ -58,7 +73,9 @@ struct MessagesView: View {
                     ContentUnavailableView("Aún no tienes conversaciones", systemImage: "message", description: Text("Escribe a un local desde su detalle para empezar."))
                 } else {
                     List(model.conversations) { conversation in
-                        Button { selectedConversation = conversation } label: {
+                        NavigationLink {
+                            ConversationView(conversation: conversation)
+                        } label: {
                             HStack(spacing: 12) {
                                 Image(systemName: "building.2.crop.circle.fill").font(.title2).foregroundStyle(VLTheme.indigo)
                                 VStack(alignment: .leading, spacing: 4) {
@@ -69,7 +86,6 @@ struct MessagesView: View {
                                 if conversation.unreadCount > 0 { Text("\(conversation.unreadCount)").font(.caption.bold()).padding(6).background(VLTheme.coral, in: Circle()).foregroundStyle(.white) }
                             }
                         }
-                        .buttonStyle(.plain)
                         .accessibilityElement(children: .combine)
                     }
                     .listStyle(.insetGrouped)
@@ -78,24 +94,85 @@ struct MessagesView: View {
             .navigationTitle("Mensajes")
             .refreshable { await model.load(accessToken: session.accessToken) }
             .task(id: session.user?.id) { await model.load(accessToken: session.accessToken) }
-            .sheet(item: $selectedConversation) { conversation in
-                NavigationStack {
-                    VStack(spacing: 16) {
-                        ContentUnavailableView("Conversación con \(conversation.venue.name)", systemImage: "message", description: Text("La vista completa de mensajes se habilitará en el siguiente checkpoint."))
-                        TextField("Escribe un mensaje", text: $composer, axis: .vertical)
-                            .textFieldStyle(.roundedBorder).padding(.horizontal)
-                        Button("Enviar", systemImage: "paperplane.fill") {
-                            Task {
-                                if await model.send(composer, to: conversation, accessToken: session.accessToken) { composer = ""; selectedConversation = nil }
-                            }
-                        }
-                        .buttonStyle(.borderedProminent).tint(VLTheme.indigo)
-                        .disabled(composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                    .padding()
-                    .navigationTitle("Mensaje")
-                }
-            }
         }
     }
 }
+
+struct ConversationView: View {
+    let conversation: MobileConversation
+    @Environment(SessionStore.self) private var session
+    @State private var model = ConversationViewModel()
+    @State private var composer = ""
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if model.isLoading && model.messages.isEmpty {
+                ProgressView("Cargando conversación…").frame(maxHeight: .infinity)
+            } else if let error = model.errorMessage, model.messages.isEmpty {
+                ContentUnavailableView("No se pudo cargar", systemImage: "wifi.exclamationmark", description: Text(error)).frame(maxHeight: .infinity)
+            } else if model.messages.isEmpty {
+                ContentUnavailableView("Sin mensajes", systemImage: "message", description: Text("Escribe para iniciar la conversación.")).frame(maxHeight: .infinity)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(spacing: 10) {
+                            ForEach(model.messages) { message in
+                                MessageBubble(message: message, isMine: message.senderId == session.user?.id)
+                                    .id(message.id)
+                            }
+                        }
+                        .padding(16)
+                    }
+                    .onChange(of: model.messages.count) { _, _ in
+                        if let last = model.messages.last { withAnimation(.snappy) { proxy.scrollTo(last.id, anchor: .bottom) } }
+                    }
+                }
+            }
+            composerBar
+        }
+        .navigationTitle(conversation.venue.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await model.load(conversation: conversation, accessToken: session.accessToken) }
+    }
+
+    private var composerBar: some View {
+        HStack(alignment: .bottom, spacing: 10) {
+            TextField("Escribe un mensaje", text: $composer, axis: .vertical)
+                .textFieldStyle(.roundedBorder).lineLimit(1...4)
+            Button {
+                let draft = composer; composer = ""
+                Task {
+                    if !(await model.send(draft, to: conversation, accessToken: session.accessToken)) { composer = draft }
+                }
+            } label: { Image(systemName: model.isSending ? "hourglass" : "paperplane.fill") }
+                .buttonStyle(.borderedProminent).tint(VLTheme.indigo)
+                .disabled(model.isSending || composer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityLabel("Enviar mensaje")
+        }
+        .padding(12)
+        .background(.bar)
+    }
+}
+
+private struct MessageBubble: View {
+    let message: MobileMessagePreview
+    let isMine: Bool
+
+    var body: some View {
+        HStack {
+            if isMine { Spacer(minLength: 48) }
+            VStack(alignment: isMine ? .trailing : .leading, spacing: 4) {
+                Text(message.content ?? "").font(.body)
+                Text(message.createdAt.formatted(date: .omitted, time: .shortened)).font(.caption2).foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(isMine ? VLTheme.indigo : Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .foregroundStyle(isMine ? .white : .primary)
+            if !isMine { Spacer(minLength: 48) }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct ReadReceipt: Codable, Sendable { let read: Bool }
+private struct MarkedReadResponse: Decodable, Sendable { let markedRead: Int }

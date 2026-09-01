@@ -38,6 +38,7 @@ targets:
     scheme:
       testTargets:
         - ViveLojaTests
+        - ViveLojaUITests
       gatherCoverageData: true
   ViveLojaTests:
     type: bundle.unit-test
@@ -53,3 +54,16 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Vive Loja.app/Vive Loja"
         BUNDLE_LOADER: "$(TEST_HOST)"
+  ViveLojaUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: ViveLojaUITests
+    dependencies:
+      - target: ViveLoja
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: ViveLoja
