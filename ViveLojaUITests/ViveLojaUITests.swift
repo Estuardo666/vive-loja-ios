@@ -21,4 +21,13 @@ final class ViveLojaUITests: XCTestCase {
         explore.tap()
         XCTAssertTrue(app.textFields["explore-search"].waitForExistence(timeout: 5))
     }
+
+    func testTabsRemainReachableWithAccessibilityDynamicType() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility3"]
+        app.launch()
+
+        XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.tabBars.buttons["Cuenta"].exists)
+    }
 }

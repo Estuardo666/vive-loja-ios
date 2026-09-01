@@ -2,6 +2,39 @@ import CoreLocation
 import XCTest
 @testable import ViveLoja
 
+private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        if url.path.hasSuffix("/offline") {
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
+            return
+        }
+        let status = url.path.hasSuffix("/error") ? 401 : 200
+        let body = status == 200
+            ? Data("{\"data\":{\"ok\":true}}".utf8)
+            : Data("{\"error\":{\"code\":\"AUTH_REQUIRED\",\"message\":\"Sesión vencida\"}}".utf8)
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: status,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private struct StubPayload: Decodable, Sendable { let ok: Bool }
+
 @MainActor
 final class ViveLojaTests: XCTestCase {
     func testExploreVenueAndEventHaveStableIdentifiers() {
@@ -92,5 +125,34 @@ final class ViveLojaTests: XCTestCase {
         """.utf8)
         let detail = try decoder.decode(VenueDetail.self, from: data)
         XCTAssertNil(detail.questions)
+    }
+
+    func testAPIClientMapsSuccessServerErrorAndOfflineTransport() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubAPIURLProtocol.self]
+        let client = APIClient(session: URLSession(configuration: configuration))
+
+        let payload: StubPayload = try await client.get("health")
+        XCTAssertTrue(payload.ok)
+
+        do {
+            let _: StubPayload = try await client.get("error")
+            XCTFail("Expected an authentication error")
+        } catch let error as APIError {
+            guard case .server(let code, _, let status) = error else {
+                return XCTFail("Unexpected API error: \(error)")
+            }
+            XCTAssertEqual(code, "AUTH_REQUIRED")
+            XCTAssertEqual(status, 401)
+        }
+
+        do {
+            let _: StubPayload = try await client.get("offline")
+            XCTFail("Expected an offline transport error")
+        } catch let error as APIError {
+            guard case .transport = error else {
+                return XCTFail("Unexpected API error: \(error)")
+            }
+        }
     }
 }
