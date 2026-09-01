@@ -7,6 +7,26 @@ struct MobileUser: Codable, Hashable, Sendable {
     let role: String
 }
 
+struct MobileProfile: Codable, Hashable, Sendable {
+    let id: String
+    let name: String?
+    let email: String
+    let role: String
+    let image: URL?
+    let reputationScore: Int
+    let reviewerLevel: Int
+    let totalReviews: Int
+    let totalCheckIns: Int
+    let totalPhotos: Int
+    let onboardingCompletedAt: Date?
+    let onboardingSkippedAt: Date?
+}
+
+struct ProfileUpdateRequest: Codable, Sendable {
+    let name: String?
+    let image: URL?
+}
+
 struct MobileTokens: Codable, Sendable {
     let accessToken: String
     let refreshToken: String

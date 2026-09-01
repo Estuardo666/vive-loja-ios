@@ -67,6 +67,10 @@ actor APIClient {
         try await request(path, method: "POST", query: [], body: Optional<String>.none, bearer: bearer)
     }
 
+    func patch<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
+        try await request(path, method: "PATCH", query: [], body: body, bearer: bearer)
+    }
+
     func delete<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
         try await request(path, method: "DELETE", query: [], body: body, bearer: bearer)
     }
