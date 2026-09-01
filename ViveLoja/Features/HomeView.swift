@@ -79,12 +79,21 @@ struct HomeView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Loja está viva").font(.system(size: 38, weight: .bold, design: .rounded)).tracking(-1.2)
+            Text("Loja está viva")
+                .font(.largeTitle.weight(.bold))
+                .fontDesign(.rounded)
+                .tracking(-1.2)
+                .minimumScaleFactor(0.75)
             Text("Descubre eventos, locales y planes cerca de ti.").font(.title3).foregroundStyle(.secondary)
             NavigationLink(destination: ExploreView()) {
-                Label("Explorar el mapa", systemImage: "map.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                Label("Explorar el mapa", systemImage: "map.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .foregroundStyle(.white)
+                    .background(VLTheme.indigo, in: Capsule())
             }
-            .buttonStyle(.borderedProminent).tint(VLTheme.indigo)
+            .buttonStyle(.plain)
         }
         .padding(20).vlGlass(tint: VLTheme.indigo.opacity(0.12), radius: 26)
     }
