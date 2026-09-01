@@ -6,6 +6,10 @@ import SwiftUI
 final class HomeViewModel {
     var featured: [ExploreItem] = HomeViewModel.fixtures
     var categories: [Category] = []
+    var latestVenues: [ExploreVenue] = []
+    var relatedEvents: [ExploreEvent] = []
+    var posts: [MobilePost] = []
+    var promotions: [MobilePromotion] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -17,8 +21,14 @@ final class HomeViewModel {
         defer { isLoading = false }
         do {
             let payload: HomePayload = try await APIClient.shared.get("/home")
-            featured = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
+            let featuredVenues = payload.featuredVenues ?? payload.venues
+            let featuredEvents = payload.featuredEvents ?? payload.events
+            featured = featuredVenues.map(ExploreItem.venue) + featuredEvents.map(ExploreItem.event)
             categories = payload.categories
+            latestVenues = payload.latestVenues ?? featuredVenues
+            relatedEvents = payload.relatedEvents ?? []
+            posts = payload.posts ?? []
+            promotions = payload.promotions ?? []
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
     }
 
@@ -45,6 +55,78 @@ struct HomeView: View {
                                         VLItemCard(item: item).frame(width: 265)
                                     }.buttonStyle(.plain)
                                 }
+                            }
+                        }
+                    }
+                    if !model.latestVenues.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Últimos locales", action: nil)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(model.latestVenues) { venue in
+                                        NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
+                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !model.relatedEvents.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Eventos relacionados", action: nil)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(model.relatedEvents) { event in
+                                        NavigationLink(destination: ItemDetailView(item: .event(event))) {
+                                            VLItemCard(item: .event(event)).frame(width: 265)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if !model.posts.isEmpty || !model.promotions.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Actualidad en Loja", action: nil)
+                            if !model.posts.isEmpty {
+                                NavigationLink(destination: ContentHubView()) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "text.book.closed.fill")
+                                            .font(.title2)
+                                            .foregroundStyle(VLTheme.indigo)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(model.posts[0].title).font(.headline).lineLimit(2)
+                                            Text("Ver historias, promociones y rutas")
+                                                .font(.subheadline).foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(14)
+                                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Abrir actualidad de Loja")
+                            }
+                            ForEach(model.promotions.prefix(3)) { promotion in
+                                HStack(spacing: 12) {
+                                    Image(systemName: "tag.fill")
+                                        .font(.title3)
+                                        .foregroundStyle(VLTheme.coral)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(promotion.title).font(.headline).lineLimit(2)
+                                        Text(promotion.venue.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.coral)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(14)
+                                .vlGlass(tint: VLTheme.coral.opacity(0.1))
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("(promotion.title), (promotion.venue.name)")
                             }
                         }
                     }

@@ -176,6 +176,23 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertTrue(payload.collections.isEmpty)
     }
 
+    func testHomePayloadKeepsEditorialSectionsBackwardCompatible() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let legacy = try decoder.decode(HomePayload.self, from: Data("""
+        {"venues":[],"events":[],"categories":[],"pageInfo":null}
+        """.utf8))
+        XCTAssertNil(legacy.latestVenues)
+        XCTAssertNil(legacy.posts)
+
+        let enriched = try decoder.decode(HomePayload.self, from: Data("""
+        {"venues":[],"events":[],"categories":[],"pageInfo":null,"featuredVenues":[],"featuredEvents":[],"latestVenues":[],"relatedEvents":[],"posts":[],"promotions":[]}
+        """.utf8))
+        XCTAssertEqual(enriched.latestVenues?.count, 0)
+        XCTAssertEqual(enriched.posts?.count, 0)
+        XCTAssertEqual(enriched.promotions?.count, 0)
+    }
+
     func testGeoMathUsesMetersForProximityFilters() {
         let center = CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422)
         let nearby = CLLocationCoordinate2D(latitude: -3.99370, longitude: -79.20422)

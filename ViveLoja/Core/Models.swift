@@ -279,7 +279,19 @@ enum ExploreItem: Identifiable, Hashable, Sendable {
 
 struct ExplorePageInfo: Codable, Sendable { let hasMoreVenues: Bool; let hasMoreEvents: Bool; let nextVenueSkip: Int; let nextEventSkip: Int }
 struct ExplorePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let pageInfo: ExplorePageInfo? }
-struct HomePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let categories: [Category]; let pageInfo: ExplorePageInfo? }
+struct HomePayload: Codable, Sendable {
+    let venues: [ExploreVenue]
+    let events: [ExploreEvent]
+    let categories: [Category]
+    let pageInfo: ExplorePageInfo?
+    // Optional fields keep older backend deployments and cached responses compatible.
+    let featuredVenues: [ExploreVenue]?
+    let featuredEvents: [ExploreEvent]?
+    let latestVenues: [ExploreVenue]?
+    let relatedEvents: [ExploreEvent]?
+    let posts: [MobilePost]?
+    let promotions: [MobilePromotion]?
+}
 
 struct MobileTag: Codable, Hashable, Sendable { let id: String; let name: String; let slug: String }
 struct MobilePost: Codable, Identifiable, Hashable, Sendable {
