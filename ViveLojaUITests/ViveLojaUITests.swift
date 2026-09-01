@@ -53,7 +53,7 @@ final class ViveLojaUITests: XCTestCase {
 
     func testContentAndVenueDetailRemainReachableInDarkMode() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-AppleInterfaceStyle", "Dark"]
+        app.launchArguments = ["-uiTesting", "-uiTesting-dark"]
         app.launch()
 
         let content = app.buttons["Todo lo que pasa en Loja"]
@@ -172,7 +172,7 @@ final class ViveLojaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-uiTesting",
-            "-AppleInterfaceStyle", "Dark",
+            "-uiTesting-dark",
             "-UIAccessibilityReduceMotionEnabled", "YES",
             "-UIAccessibilityReduceTransparencyEnabled", "YES"
         ]

@@ -7,6 +7,11 @@ struct ViveLojaApp: App {
     @State private var saved = SavedStore()
     @State private var deepLinkRouter = DeepLinkRouter()
 
+    private var uiTestingColorScheme: ColorScheme? {
+        guard ProcessInfo.processInfo.arguments.contains("-uiTesting-dark") else { return nil }
+        return .dark
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -15,6 +20,7 @@ struct ViveLojaApp: App {
                 .environment(deepLinkRouter)
                 .onOpenURL { deepLinkRouter.handle($0) }
                 .task { await session.restore() }
+                .preferredColorScheme(uiTestingColorScheme)
         }
     }
 }
