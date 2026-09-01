@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33507432287](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33507432287) (build unsigned, XCTest/UI smoke, wizards, colecciones, check-in y fotos de reseña).
+Último gate verde: [Actions run 33508706584](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33508706584) (build unsigned, XCTest/UI smoke, screenshots, errores offline/401 y Dynamic Type, wizards, colecciones, check-in y fotos de reseña).
 
 ## Seguridad
 
@@ -50,6 +50,7 @@
 - [x] Wizards de evento, local, artículo y ruta; todos crean borradores `PENDING`.
 - [x] Onboarding de intereses y preferencias conectado a `/me/interests`.
 - [x] Decodificación XCTest de reseñas con fotos y compatibilidad con payload legado (`comment`).
+- [x] APIClient XCTest con URLProtocol para éxito, 401 y modo offline; UI smoke adjunta capturas claras y Dynamic Type de accesibilidad.
 
 ## Siguiente checkpoint
 
