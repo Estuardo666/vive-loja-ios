@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33540266729](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33540266729) (SwiftLint sin warnings de aislamiento, build unsigned, 15 XCTest + 13 UI tests, matriz Dynamic Type default/XS/Accessibility3/Accessibility5, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas, recuperación UI y capturas ampliadas dark mode/Dynamic Type).
+Último gate verde: [Actions run 33546960854](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33546960854) sobre `8658000` (SwiftLint sin warnings de aislamiento, build unsigned, 15 XCTest + 13 UI tests, matriz Dynamic Type default/XS/Accessibility3/Accessibility5, exportación de attachments a los artifacts `ios-test-results`/`ios-screenshots`, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas, recuperación UI y capturas ampliadas dark mode/Dynamic Type). El harness oscuro usa `-uiTesting-dark` y sólo aplica `.preferredColorScheme(.dark)` durante UI testing para que las capturas sean deterministas sin afectar producción.
 
 ## Seguridad
 
@@ -37,7 +37,7 @@
 - [x] Navegación principal con tabs, sheets y deep links públicos.
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
 - [x] Contenido móvil adicional conectado al backend (promociones, rutas y colecciones).
-- [ ] Snapshots comparativas exhaustivas claro/oscuro; UI smoke ya adjunta capturas claras y oscuras.
+- [ ] Snapshots comparativas exhaustivas claro/oscuro; UI smoke ya exporta capturas claras y oscuras en `ios-screenshots` y el baseline pixelado sigue pendiente.
 - [x] Dynamic Type de accesibilidad verificado con `UICTContentSizeCategoryAccessibility3` y `Accessibility5`; la matriz automatizada del Simulator cubre default, `XS`, `Accessibility3` y `Accessibility5`; queda pendiente la validación completa en dispositivo.
 - [x] Carga incremental de historias con `postSkip` y metadatos de continuación.
 - [x] Perfil y reservas consumen contratos móviles autenticados.
@@ -67,4 +67,4 @@
 
 ## Siguiente checkpoint
 
-Siguiente gate: cerrar snapshots comparativas claro/oscuro y la matriz completa de accesibilidad en dispositivo; las pruebas de red lenta, modo avión, sesión vencida y retry SSE ya tienen cobertura automatizada. La distribución firmada queda para Codemagic/TestFlight con credenciales externas.
+Siguiente gate: cerrar snapshots comparativas claro/oscuro con baseline revisado y la matriz completa de accesibilidad en dispositivo; las pruebas de red lenta, modo avión, sesión vencida y retry SSE ya tienen cobertura automatizada. La distribución firmada queda para Codemagic/TestFlight con credenciales externas.
