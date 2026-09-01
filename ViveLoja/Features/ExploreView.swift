@@ -8,6 +8,18 @@ import SwiftUI
 final class ExploreViewModel {
     var query = ""
     var type = "all"
+    var minRating: Double?
+    var openNow = false
+    var verified = false
+    var hasPromotions = false
+    var hasUpcomingEvents = false
+    var priceRange: String?
+    var services: [String] = []
+    var foodTypes: [String] = []
+    var eventDatePreset: String?
+    var eventPrice: String?
+    var eventMaxPrice: Double?
+    var eventType: String?
     var items: [ExploreItem] = HomeViewModel.fixtures
     var isLoading = false
     var errorMessage: String?
@@ -16,6 +28,18 @@ final class ExploreViewModel {
         isLoading = true
         defer { isLoading = false }
         var queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "type", value: type), URLQueryItem(name: "take", value: "60")]
+        if let minRating { queryItems.append(URLQueryItem(name: "minRating", value: String(minRating))) }
+        if openNow { queryItems.append(URLQueryItem(name: "openNow", value: "true")) }
+        if verified { queryItems.append(URLQueryItem(name: "verified", value: "true")) }
+        if hasPromotions { queryItems.append(URLQueryItem(name: "hasPromotions", value: "true")) }
+        if hasUpcomingEvents { queryItems.append(URLQueryItem(name: "hasUpcomingEvents", value: "true")) }
+        if let priceRange { queryItems.append(URLQueryItem(name: "priceRange", value: priceRange)) }
+        if !services.isEmpty { queryItems.append(URLQueryItem(name: "services", value: services.joined(separator: ","))) }
+        if !foodTypes.isEmpty { queryItems.append(URLQueryItem(name: "foodTypes", value: foodTypes.joined(separator: ","))) }
+        if let eventDatePreset { queryItems.append(URLQueryItem(name: "eventDatePreset", value: eventDatePreset)) }
+        if let eventPrice { queryItems.append(URLQueryItem(name: "eventPrice", value: eventPrice)) }
+        if let eventMaxPrice { queryItems.append(URLQueryItem(name: "eventMaxPrice", value: String(eventMaxPrice))) }
+        if let eventType { queryItems.append(URLQueryItem(name: "eventType", value: eventType)) }
         if let region, let radiusMeters {
             queryItems += [
                 URLQueryItem(name: "lat", value: String(region.center.latitude)),
@@ -29,6 +53,18 @@ final class ExploreViewModel {
             items = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
     }
+
+    var activeFilterCount: Int {
+        [minRating != nil, openNow, verified, hasPromotions, hasUpcomingEvents, priceRange != nil,
+         !services.isEmpty, !foodTypes.isEmpty, eventDatePreset != nil, eventPrice != nil,
+         eventMaxPrice != nil, eventType != nil].filter { $0 }.count
+    }
+
+    func resetFilters() {
+        minRating = nil; openNow = false; verified = false; hasPromotions = false; hasUpcomingEvents = false
+        priceRange = nil; services = []; foodTypes = []; eventDatePreset = nil; eventPrice = nil
+        eventMaxPrice = nil; eventType = nil
+    }
 }
 
 struct ExploreView: View {
@@ -38,6 +74,7 @@ struct ExploreView: View {
     @State private var selectedMapItemID: String?
     @State private var radiusMeters: CLLocationDistance = 1_000
     @State private var showMap = false
+    @State private var showFilters = false
 
     var body: some View {
         NavigationStack {
@@ -50,9 +87,22 @@ struct ExploreView: View {
                 if showMap { map } else { list }
             }
             .navigationTitle("Explorar")
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button {
-                if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
-            } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showFilters = true
+                    } label: {
+                        Label(
+                            model.activeFilterCount > 0 ? "Filtros \(model.activeFilterCount)" : "Filtros",
+                            systemImage: model.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
+                        )
+                    }
+                    .accessibilityLabel("Filtros de exploración")
+                }
+                ToolbarItem(placement: .topBarTrailing) { Button {
+                    if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
+                } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") }
+            }
             .task { if !isUITesting { await model.search() } }
             .onChange(of: model.type) { _, _ in Task { await model.search() } }
             .onChange(of: radiusMeters) { _, _ in
@@ -63,6 +113,12 @@ struct ExploreView: View {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
                     NavigationStack { ItemDetailView(item: item) }
                 }
+            }
+            .sheet(isPresented: $showFilters) {
+                ExploreFiltersView(model: model) {
+                    Task { await model.search(region: showMap ? mapRegion : nil, radiusMeters: showMap ? radiusMeters : nil) }
+                }
+                .presentationDetents([.medium, .large])
             }
         }
     }
@@ -120,4 +176,61 @@ struct ExploreView: View {
     }
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
+}
+
+private struct ExploreFiltersView: View {
+    @Bindable var model: ExploreViewModel
+    let onApply: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Generales") {
+                    Picker("Calificación mínima", selection: Binding(get: { model.minRating ?? 0 }, set: { model.minRating = $0 == 0 ? nil : $0 })) {
+                        Text("Cualquiera").tag(Double(0))
+                        Text("3 estrellas").tag(Double(3))
+                        Text("4 estrellas").tag(Double(4))
+                        Text("4.5 estrellas").tag(Double(4.5))
+                    }
+                    Toggle("Abierto ahora", isOn: $model.openNow)
+                    Toggle("Verificados", isOn: $model.verified)
+                    Toggle("Con promociones", isOn: $model.hasPromotions)
+                    Toggle("Con próximos eventos", isOn: $model.hasUpcomingEvents)
+                }
+                Section("Locales") {
+                    Picker("Precio", selection: Binding(get: { model.priceRange ?? "" }, set: { model.priceRange = $0.isEmpty ? nil : $0 })) {
+                        Text("Cualquiera").tag("")
+                        Text("$").tag("$"); Text("$$").tag("$$"); Text("$$$").tag("$$$"); Text("$$$$").tag("$$$$")
+                    }
+                    Picker("Servicio", selection: Binding(get: { model.services.first ?? "" }, set: { model.services = $0.isEmpty ? [] : [$0] })) {
+                        Text("Cualquiera").tag("")
+                        Text("Reservas").tag("Reservas"); Text("Delivery").tag("Delivery"); Text("Wi-Fi").tag("Wi-Fi")
+                    }
+                }
+                Section("Eventos") {
+                    Picker("Precio del evento", selection: Binding(get: { model.eventPrice ?? "" }, set: { model.eventPrice = $0.isEmpty ? nil : $0 })) {
+                        Text("Cualquiera").tag(""); Text("Gratis").tag("free"); Text("De pago").tag("paid")
+                    }
+                    Picker("Fecha", selection: Binding(get: { model.eventDatePreset ?? "" }, set: { model.eventDatePreset = $0.isEmpty ? nil : $0 })) {
+                        Text("Cualquiera").tag(""); Text("Hoy").tag("today"); Text("Mañana").tag("tomorrow"); Text("Este fin de semana").tag("thisWeekend")
+                    }
+                    TextField("Precio máximo", value: Binding(
+                        get: { model.eventMaxPrice ?? 0 },
+                        set: { model.eventMaxPrice = $0 == 0 ? nil : $0 }
+                    ), format: .number)
+                        .keyboardType(.decimalPad)
+                }
+            }
+            .navigationTitle("Filtros")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Restablecer") { model.resetFilters() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Aplicar") { onApply(); dismiss() }
+                }
+            }
+        }
+    }
 }

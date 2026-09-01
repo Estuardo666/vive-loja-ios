@@ -24,6 +24,21 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "explore-default")
     }
 
+    func testExploreFiltersSheetIsReachable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+        let explore = app.tabBars.buttons["Explorar"]
+        XCTAssertTrue(explore.waitForExistence(timeout: 8))
+        explore.tap()
+        let filters = app.buttons["Filtros de exploración"]
+        XCTAssertTrue(filters.waitForExistence(timeout: 5))
+        filters.tap()
+        XCTAssertTrue(app.navigationBars["Filtros"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["Abierto ahora"].exists)
+        attachScreenshot(named: "explore-filters")
+    }
+
     func testTabsRemainReachableWithAccessibilityDynamicType() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility3"]
