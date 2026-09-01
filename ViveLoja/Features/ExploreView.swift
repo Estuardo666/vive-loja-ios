@@ -59,10 +59,6 @@ struct ExploreView: View {
                 guard showMap else { return }
                 Task { await model.search(region: mapRegion, radiusMeters: radiusMeters) }
             }
-            .onChange(of: mapRegion) { _, newRegion in
-                guard showMap else { return }
-                Task { await model.search(region: newRegion, radiusMeters: radiusMeters) }
-            }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
                     NavigationStack { ItemDetailView(item: item) }
