@@ -12,8 +12,9 @@
 - [x] Guardados con persistencia local y sincronización opcional contra `/me/favorites` cuando hay sesión.
 - [x] Blog público desde `/content`, categorías dinámicas y estados vacío/error/offline.
 - [x] CI macOS 26/Xcode 26.2 unsigned con build, XCTest y artifact `.xcresult`.
+- [x] Sign in with Apple preparado: nonce criptográfico, identity token y nombre enviados al endpoint móvil.
 
-Último gate verde: [Actions run 33488418114](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33488418114).
+Último gate verde: [Actions run 33490802291](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33490802291).
 
 ## Seguridad
 
