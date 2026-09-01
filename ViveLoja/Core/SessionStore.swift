@@ -10,6 +10,7 @@ final class SessionStore {
     private(set) var accessToken: String?
     private var refreshToken: String?
     private(set) var isRestoring = true
+    var isSessionExpired = false
     var errorMessage: String?
 
     init(api: APIClient = .shared, keychain: any SecureKeyValueStore = KeychainStore()) {
@@ -23,6 +24,10 @@ final class SessionStore {
             user = MobileUser(id: "ui-test-user", name: "Usuario de prueba", email: "demo@viveloja.test", role: "USER")
             accessToken = "ui-testing-access-token"
             refreshToken = "ui-testing-refresh-token"
+            return
+        }
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting-expired-session") {
+            isSessionExpired = true
             return
         }
         guard let access = keychain.read("accessToken"), let refresh = keychain.read("refreshToken") else { return }
@@ -50,6 +55,7 @@ final class SessionStore {
         } catch let error as APIError {
             if case .server(_, _, let status) = error, status == 401 {
                 clear()
+                isSessionExpired = true
             }
             errorMessage = error.errorDescription ?? "Tu sesión ya no es válida."
             return false
@@ -81,6 +87,7 @@ final class SessionStore {
 
     private func persist(_ tokens: MobileTokens) {
         accessToken = tokens.accessToken; refreshToken = tokens.refreshToken; user = tokens.user; errorMessage = nil
+        isSessionExpired = false
         VLFeedback.success()
         try? keychain.save(tokens.accessToken, for: "accessToken")
         try? keychain.save(tokens.refreshToken, for: "refreshToken")

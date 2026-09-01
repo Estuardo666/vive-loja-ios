@@ -2,13 +2,22 @@ import SwiftUI
 
 struct RootView: View {
     @Environment(SessionStore.self) private var session
+    @State private var showAuth = false
 
     var body: some View {
+        @Bindable var session = session
         Group {
             if session.isRestoring { ProgressView("Cargando Vive Loja…") }
             else { MainTabView() }
         }
         .tint(VLTheme.indigo)
+        .alert("Sesión vencida", isPresented: $session.isSessionExpired) {
+            Button("Iniciar sesión") { showAuth = true }
+            Button("Ahora no", role: .cancel) { }
+        } message: {
+            Text("Vuelve a iniciar sesión para continuar usando tus funciones personales.")
+        }
+        .sheet(isPresented: $showAuth) { AuthView() }
     }
 }
 

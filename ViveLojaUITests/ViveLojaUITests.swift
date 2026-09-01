@@ -147,6 +147,20 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "creation-wizards-fixture")
     }
 
+    func testExpiredSessionOffersSignInRecovery() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-uiTesting-expired-session"]
+        app.launch()
+
+        let alert = app.alerts["Sesión vencida"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 8))
+        XCTAssertTrue(alert.buttons["Iniciar sesión"].exists)
+        alert.buttons["Iniciar sesión"].tap()
+        XCTAssertTrue(app.navigationBars["Cuenta"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Bienvenido de vuelta"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "expired-session-recovery")
+    }
+
     private func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
