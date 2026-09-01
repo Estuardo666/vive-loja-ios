@@ -94,6 +94,24 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertFalse(GeoMath.contains(distant, in: 1_000, around: center))
     }
 
+    func testExploreFiltersCountAndReset() {
+        let model = ExploreViewModel()
+        XCTAssertEqual(model.activeFilterCount, 0)
+
+        model.minRating = 4
+        model.openNow = true
+        model.services = ["Delivery"]
+        model.eventDatePreset = "thisWeekend"
+        XCTAssertEqual(model.activeFilterCount, 4)
+
+        model.resetFilters()
+        XCTAssertEqual(model.activeFilterCount, 0)
+        XCTAssertNil(model.minRating)
+        XCTAssertFalse(model.openNow)
+        XCTAssertTrue(model.services.isEmpty)
+        XCTAssertNil(model.eventDatePreset)
+    }
+
     func testReviewAcceptsLegacyCommentField() throws {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601

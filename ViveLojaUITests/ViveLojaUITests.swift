@@ -39,6 +39,31 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "explore-filters")
     }
 
+    func testExploreMapAndFilterApplyAreReachable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        let explore = app.tabBars.buttons["Explorar"]
+        XCTAssertTrue(explore.waitForExistence(timeout: 8))
+        explore.tap()
+
+        let mapButton = app.buttons["Ver mapa"]
+        XCTAssertTrue(mapButton.waitForExistence(timeout: 5))
+        mapButton.tap()
+        XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 8))
+
+        let filters = app.buttons["Filtros de exploración"]
+        XCTAssertTrue(filters.waitForExistence(timeout: 5))
+        filters.tap()
+        let openNow = app.switches["Abierto ahora"]
+        XCTAssertTrue(openNow.waitForExistence(timeout: 5))
+        openNow.tap()
+        app.buttons["Aplicar"].tap()
+        XCTAssertTrue(app.navigationBars["Explorar"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "explore-map-filter-applied")
+    }
+
     func testTabsRemainReachableWithAccessibilityDynamicType() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility3"]
