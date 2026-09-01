@@ -85,7 +85,7 @@ struct MobileReviewUser: Codable, Hashable, Sendable {
     let image: URL?
 }
 
-struct MobileReview: Codable, Identifiable, Hashable, Sendable {
+struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
     let id: String
     let rating: Int
     let title: String?
