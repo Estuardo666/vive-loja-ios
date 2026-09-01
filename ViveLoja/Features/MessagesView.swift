@@ -168,6 +168,7 @@ struct MessagesView: View {
 struct ConversationView: View {
     let conversation: MobileConversation
     @Environment(SessionStore.self) private var session
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model = ConversationViewModel()
     @State private var composer = ""
     @State private var showBlockConfirmation = false
@@ -227,6 +228,16 @@ struct ConversationView: View {
         .task { await model.load(conversation: conversation, accessToken: session.accessToken) }
         .onAppear { model.startStream(accessToken: session.accessToken) }
         .onDisappear { model.stopStream() }
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active:
+                model.startStream(accessToken: session.accessToken)
+            case .inactive, .background:
+                model.stopStream()
+            @unknown default:
+                break
+            }
+        }
         .confirmationDialog("¿Bloquear a este usuario?", isPresented: $showBlockConfirmation, titleVisibility: .visible) {
             Button("Bloquear", role: .destructive) {
                 Task { await model.setBlocked(true, conversation: conversation, accessToken: session.accessToken) }
