@@ -429,6 +429,17 @@ struct MessageReportResponse: Decodable, Sendable {
     let reported: Bool
 }
 
+struct MessageBlockRequest: Codable, Sendable {
+    let venueId: String
+    let userId: String
+    let reason: String?
+}
+
+struct MessageBlockResponse: Decodable, Sendable {
+    let blocked: Bool
+    let removed: Bool?
+}
+
 struct ReviewRequest: Codable, Sendable {
     let venueId: String?
     let eventId: String?

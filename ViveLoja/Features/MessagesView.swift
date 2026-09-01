@@ -27,6 +27,7 @@ final class ConversationViewModel {
     var isSending = false
     var errorMessage: String?
     var feedbackMessage: String?
+    var isBlocked = false
     private var streamTask: Task<Void, Never>?
 
     func load(conversation: MobileConversation, accessToken: String?) async {
@@ -70,6 +71,25 @@ final class ConversationViewModel {
             VLFeedback.success()
         } catch {
             feedbackMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo reportar el mensaje."
+            VLFeedback.error()
+        }
+    }
+
+    func setBlocked(_ blocked: Bool, conversation: MobileConversation, accessToken: String?) async {
+        guard let accessToken else { return }
+        let request = MessageBlockRequest(venueId: conversation.venue.id, userId: conversation.participant.id, reason: "Desde iOS")
+        do {
+            let response: MessageBlockResponse
+            if blocked {
+                response = try await APIClient.shared.post("/me/messages/block", body: request, bearer: accessToken)
+            } else {
+                response = try await APIClient.shared.delete("/me/messages/block", body: request, bearer: accessToken)
+            }
+            isBlocked = response.blocked
+            feedbackMessage = response.blocked ? "Usuario bloqueado." : "Usuario desbloqueado."
+            VLFeedback.success()
+        } catch {
+            feedbackMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo actualizar el bloqueo."
             VLFeedback.error()
         }
     }
@@ -150,6 +170,7 @@ struct ConversationView: View {
     @Environment(SessionStore.self) private var session
     @State private var model = ConversationViewModel()
     @State private var composer = ""
+    @State private var showBlockConfirmation = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -187,9 +208,33 @@ struct ConversationView: View {
         }
         .navigationTitle(conversation.venue.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    if model.isBlocked {
+                        Button("Desbloquear usuario", systemImage: "lock.open") {
+                            Task { await model.setBlocked(false, conversation: conversation, accessToken: session.accessToken) }
+                        }
+                    } else {
+                        Button("Bloquear usuario", systemImage: "lock") { showBlockConfirmation = true }
+                    }
+                } label: {
+                    Image(systemName: model.isBlocked ? "lock.fill" : "ellipsis.circle")
+                }
+                .accessibilityLabel(model.isBlocked ? "Desbloquear usuario" : "Opciones de conversación")
+            }
+        }
         .task { await model.load(conversation: conversation, accessToken: session.accessToken) }
         .onAppear { model.startStream(accessToken: session.accessToken) }
         .onDisappear { model.stopStream() }
+        .confirmationDialog("¿Bloquear a este usuario?", isPresented: $showBlockConfirmation, titleVisibility: .visible) {
+            Button("Bloquear", role: .destructive) {
+                Task { await model.setBlocked(true, conversation: conversation, accessToken: session.accessToken) }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: {
+            Text("No podrá enviarte nuevos mensajes en este local.")
+        }
         .alert("Reporte", isPresented: Binding(
             get: { model.feedbackMessage != nil },
             set: { if !$0 { model.feedbackMessage = nil } }
