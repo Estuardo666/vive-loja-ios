@@ -67,6 +67,10 @@ actor APIClient {
         try await request(path, method: "POST", query: [], body: Optional<String>.none, bearer: bearer)
     }
 
+    func delete<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
+        try await request(path, method: "DELETE", query: [], body: body, bearer: bearer)
+    }
+
     private func request<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, method: String, query: [URLQueryItem], body: Body?, bearer: String?) async throws -> Value {
         guard var components = URLComponents(url: environment.baseURL.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), resolvingAgainstBaseURL: false) else { throw APIError.invalidURL }
         components.queryItems = query.isEmpty ? nil : query

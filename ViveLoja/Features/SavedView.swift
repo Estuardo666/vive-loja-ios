@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SavedView: View {
     @Environment(SavedStore.self) private var saved
+    @Environment(SessionStore.self) private var session
     private let fixtures = HomeViewModel.fixtures
 
     var body: some View {
@@ -17,13 +18,16 @@ struct SavedView: View {
                                     VLItemCard(item: item)
                                 }
                                 .buttonStyle(.plain)
-                                .contextMenu { Button("Quitar de guardados", systemImage: "heart.slash") { saved.toggle(item) } }
+                                .contextMenu { Button("Quitar de guardados", systemImage: "heart.slash") { saved.toggle(item, accessToken: session.accessToken) } }
                             }
                         }.padding(16)
                     }
                 }
             }
-            .navigationTitle("Guardados")
+        .navigationTitle("Guardados")
+        .task {
+            if let token = session.accessToken { await saved.sync(accessToken: token) }
+        }
         }
     }
 }

@@ -4,6 +4,7 @@ import SwiftUI
 struct ItemDetailView: View {
     let item: ExploreItem
     @Environment(SavedStore.self) private var saved
+    @Environment(SessionStore.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var resolvedItem: ExploreItem?
 
@@ -17,7 +18,7 @@ struct ItemDetailView: View {
                     Text(description).font(.body)
                 }
                 HStack(spacing: 12) {
-                    Button { saved.toggle(displayedItem) } label: {
+                    Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
                         Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
                     }.buttonStyle(.borderedProminent).tint(VLTheme.indigo)
                     ShareLink(item: "\(displayedItem.title) — Vive Loja") { Label("Compartir", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered)

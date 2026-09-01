@@ -71,3 +71,5 @@ struct MobilePost: Codable, Identifiable, Hashable, Sendable {
 }
 struct MobileAuthor: Codable, Hashable, Sendable { let id: String; let name: String? }
 struct ContentPayload: Codable, Sendable { let posts: [MobilePost]; let categories: [Category] }
+struct FavoriteRequest: Codable, Sendable { let kind: String; let itemId: String }
+struct FavoriteRecord: Codable, Sendable { let id: String; let kind: String; let itemId: String; let createdAt: Date? }
