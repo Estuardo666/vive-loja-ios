@@ -1,0 +1,45 @@
+workflows:
+  ios-simulator:
+    name: Vive Loja iOS (unsigned)
+    instance_type: mac_mini_m2
+    max_build_duration: 35
+    environment:
+      xcode: 26.2
+      vars:
+        VL_API_BASE_URL: https://viveloja.com/api/mobile/v1
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen
+      - name: Install SwiftLint
+        script: |
+          brew install swiftlint
+      - name: Generate project
+        script: |
+          xcodegen generate
+      - name: Lint Swift
+        script: |
+          swiftlint lint --quiet
+      - name: Build unsigned simulator app
+        script: |
+          xcodebuild build \
+            -project ViveLoja.xcodeproj \
+            -scheme ViveLoja \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+      - name: Run XCTest and UI tests
+        script: |
+          xcodebuild test \
+            -project ViveLoja.xcodeproj \
+            -scheme ViveLoja \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+    artifacts:
+      - TestResults.xcresult
+      - DerivedData/Logs/Test
