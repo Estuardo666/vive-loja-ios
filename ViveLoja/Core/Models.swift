@@ -444,7 +444,27 @@ struct ContentPayload: Codable, Sendable {
     private enum CodingKeys: String, CodingKey { case posts, categories, promotions, routes, collections }
 }
 struct FavoriteRequest: Codable, Sendable { let kind: String; let itemId: String }
-struct FavoriteRecord: Codable, Sendable { let id: String; let kind: String; let itemId: String; let createdAt: Date? }
+struct FavoriteSummary: Codable, Hashable, Sendable {
+    let kind: String
+    let id: String
+    let title: String
+    let slug: String
+    let description: String?
+    let image: URL?
+    let subtitle: String?
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let startDate: Date?
+}
+
+struct FavoriteRecord: Codable, Sendable {
+    let id: String
+    let kind: String
+    let itemId: String
+    let createdAt: Date?
+    let item: FavoriteSummary?
+}
 
 struct MobileEventShort: Codable, Hashable, Sendable {
     let id: String

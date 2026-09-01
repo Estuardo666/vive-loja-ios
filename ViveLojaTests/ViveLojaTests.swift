@@ -154,6 +154,20 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertFalse(restored.contains(item))
     }
 
+    func testFavoriteRecordDecodesEnrichedSummaryAndLegacyShape() throws {
+        let enriched = Data("""
+        {"id":"fav-1","kind":"venue","itemId":"venue-1","createdAt":"2026-09-01T12:00:00Z","item":{"kind":"venue","id":"venue-1","title":"Café Loja","slug":"cafe-loja","description":"Café de altura","image":"https://example.com/cafe.jpg","subtitle":"Centro histórico","address":"Calle Bolívar","lat":-4.0079,"lng":-79.2045,"startDate":null}}
+        """.utf8)
+        let legacy = Data("""{"id":"fav-2","kind":"event","itemId":"event-2","createdAt":null}""".utf8)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+
+        let record = try decoder.decode(FavoriteRecord.self, from: enriched)
+        XCTAssertEqual(record.item?.title, "Café Loja")
+        XCTAssertEqual(record.item?.image?.absoluteString, "https://example.com/cafe.jpg")
+        XCTAssertNil(try decoder.decode(FavoriteRecord.self, from: legacy).item)
+    }
+
     func testProductionAPIUsesCanonicalMobilePath() {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }
