@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33510269508](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33510269508) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, errores offline/401 y Dynamic Type, wizards, colecciones, check-in y fotos de reseña).
+Último gate verde: [Actions run 33513652243](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33513652243) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, filtros, moderación de mensajes, errores offline/401 y Dynamic Type, wizards, colecciones, check-in y fotos de reseña).
 
 ## Seguridad
 
@@ -52,6 +52,8 @@
 - [x] Decodificación XCTest de reseñas con fotos y compatibilidad con payload legado (`comment`).
 - [x] APIClient XCTest con URLProtocol para éxito, 401 y modo offline; UI smoke adjunta capturas claras y Dynamic Type de accesibilidad.
 - [x] SwiftLint integrado en GitHub Actions con reglas de estilo activas y excepción documentada sólo para longitud de línea.
+- [x] Exploración iOS expone filtros paridad backend (rating, abierto, verificado, promociones, servicios, precio y fechas).
+- [x] Mensajería iOS permite reportar y bloquear/desbloquear participantes con confirmación y feedback háptico.
 
 ## Siguiente checkpoint
 
