@@ -28,6 +28,8 @@ Gate funcional previo: [Actions run 33546960854](https://github.com/Estuardo666/
 
 El gate de accesibilidad de tabs también quedó verde en [Actions run 33555197439](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33555197439), sobre `1f307b4`: build unsigned, SwiftLint, 15 XCTest y 14 UI tests sin fallos. `testMainTabsPassAccessibilityAudit` valida el auditor de accesibilidad de Xcode; la portada usa una fuente escalable y la acción del mapa una superficie opaca de alto contraste. Los avisos de telemetría del runner y la advertencia de deprecación de Node.js 20 pertenecen a la infraestructura de GitHub y no afectan el resultado.
 
+El run documental `33557290693` detectó una aserción flakey en `testExploreMapAndFilterApplyAreReachable`: `MKMapView` no siempre se expone como el tipo `maps`, aunque el flujo sí llegaba a filtros. El wrapper ahora publica el identificador estable `explore-map` y el test consulta ese identificador (`10c0ab9`). La corrección pasa en [Actions run 33558418250](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33558418250): 15 XCTest y 14 UI tests sin fallos, incluido mapa→filtros y auditoría de accesibilidad.
+
 El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a los flujos de tabs, explorar/mapa, hub de contenido, detalle, Dynamic Type, dark mode, sesión vencida y wizards autenticados. Las dimensiones y nombres esperados están presentes; el baseline pixelado comparativo sigue deliberadamente pendiente hasta revisar una captura aprobada en el mismo dispositivo objetivo.
 
 ## Seguridad
