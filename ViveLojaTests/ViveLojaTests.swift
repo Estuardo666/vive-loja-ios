@@ -31,4 +31,13 @@ final class ViveLojaTests: XCTestCase {
     func testProductionAPIUsesCanonicalMobilePath() {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }
+
+    func testDeepLinksResolveToPublicDetails() {
+        let router = DeepLinkRouter()
+        router.handle(URL(string: "https://viveloja.com/locales/cafe-loja")!)
+        XCTAssertEqual(router.destination, .venue(slug: "cafe-loja"))
+
+        router.handle(URL(string: "viveloja://eventos/musica-en-vivo")!)
+        XCTAssertEqual(router.destination, .event(slug: "musica-en-vivo"))
+    }
 }
