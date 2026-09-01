@@ -60,4 +60,24 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertTrue(GeoMath.contains(nearby, in: 100, around: center))
         XCTAssertFalse(GeoMath.contains(distant, in: 1_000, around: center))
     }
+
+    func testReviewAcceptsLegacyCommentField() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let review = try decoder.decode(MobileReview.self, from: Data("""
+        {"id":"r1","rating":5,"comment":"Muy recomendado","createdAt":"2026-01-01T00:00:00Z"}
+        """.utf8))
+        XCTAssertEqual(review.content, "Muy recomendado")
+        XCTAssertEqual(review.rating, 5)
+    }
+
+    func testDetailModelsTolerateMissingQuestions() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let data = Data("""
+        {"id":"v1","name":"Café","slug":"cafe","description":"Desc","image":null,"location":"Loja","address":null,"lat":null,"lng":null,"featured":false,"phone":null,"website":null,"priceRange":null,"avgRating":null,"reviewCount":0,"verified":false,"categories":[],"media":[],"services":[],"reviews":[]}
+        """.utf8)
+        let detail = try decoder.decode(VenueDetail.self, from: data)
+        XCTAssertNil(detail.questions)
+    }
 }

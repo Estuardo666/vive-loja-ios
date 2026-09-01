@@ -22,6 +22,8 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: ViveLoja
+    resources:
+      - path: ViveLoja/PrivacyInfo.xcprivacy
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.app
@@ -35,6 +37,7 @@ targets:
         INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
         SWIFT_EMIT_LOC_STRINGS: YES
+        CODE_SIGN_ENTITLEMENTS: ViveLoja/ViveLoja.entitlements
     scheme:
       testTargets:
         - ViveLojaTests
