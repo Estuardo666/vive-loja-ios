@@ -132,7 +132,7 @@ struct ContentHubView: View {
         }
         .navigationTitle("Descubre Loja")
         .refreshable { await model.load() }
-        .task { await model.load() }
+        .task { if !isUITesting { await model.load() } }
     }
 
     @ViewBuilder
@@ -154,6 +154,8 @@ struct ContentHubView: View {
         default: return true
         }
     }
+
+    private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 }
 
 struct BlogView: View {

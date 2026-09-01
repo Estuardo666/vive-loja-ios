@@ -24,6 +24,19 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "explore-default")
     }
 
+    func testContentHubIsReachableWithoutNetwork() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        let content = app.buttons["Todo lo que pasa en Loja"]
+        XCTAssertTrue(content.waitForExistence(timeout: 8))
+        content.tap()
+        XCTAssertTrue(app.navigationBars["Descubre Loja"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Aún no hay contenido"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "content-hub-empty-fixture")
+    }
+
     func testExploreFiltersSheetIsReachable() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
