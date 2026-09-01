@@ -22,13 +22,28 @@ final class MessagesViewModel {
 @MainActor
 @Observable
 final class ConversationViewModel {
+    enum StreamStatus: Equatable, Sendable {
+        case idle
+        case connecting
+        case connected
+        case reconnecting
+    }
+
     var messages: [MobileMessagePreview] = []
     var isLoading = false
     var isSending = false
     var errorMessage: String?
     var feedbackMessage: String?
     var isBlocked = false
+    private(set) var streamStatus: StreamStatus = .idle
     private var streamTask: Task<Void, Never>?
+    private let streamSession: URLSession
+    private let streamURL: URL
+
+    init(streamSession: URLSession = .shared, streamURL: URL? = nil) {
+        self.streamSession = streamSession
+        self.streamURL = streamURL ?? URL(string: "https://viveloja.com/api/mobile/v1/me/messages/stream")!
+    }
 
     func load(conversation: MobileConversation, accessToken: String?) async {
         guard let accessToken else { messages = []; return }
@@ -95,24 +110,44 @@ final class ConversationViewModel {
     }
 
     func startStream(accessToken: String?) {
-        guard let accessToken else { return }
+        guard let accessToken else {
+            stopStream()
+            return
+        }
         streamTask?.cancel()
+        streamStatus = .connecting
         streamTask = Task { [weak self] in
-            guard let url = URL(string: "https://viveloja.com/api/mobile/v1/me/messages/stream") else { return }
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-            do {
-                let (bytes, _) = try await URLSession.shared.bytes(for: request)
-                for try await line in bytes.lines {
-                    guard line.hasPrefix("data: "), let payload = String(line.dropFirst(6)).data(using: .utf8), let message = try? JSONDecoder.viveLoja.decode(MobileMessagePreview.self, from: payload) else { continue }
-                    guard let self, !self.messages.contains(where: { $0.id == message.id }) else { continue }
-                    self.messages.append(message)
+            guard let self else { return }
+            var retryDelay: UInt64 = 1_000_000_000
+            while !Task.isCancelled {
+                var request = URLRequest(url: self.streamURL)
+                request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                do {
+                    let (bytes, response) = try await self.streamSession.bytes(for: request)
+                    guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                        throw APIError.transport("El stream de mensajes no está disponible.")
+                    }
+                    self.streamStatus = .connected
+                    retryDelay = 1_000_000_000
+                    for try await line in bytes.lines {
+                        guard line.hasPrefix("data: "), let payload = String(line.dropFirst(6)).data(using: .utf8), let message = try? JSONDecoder.viveLoja.decode(MobileMessagePreview.self, from: payload) else { continue }
+                        guard !self.messages.contains(where: { $0.id == message.id }) else { continue }
+                        self.messages.append(message)
+                    }
+                    if !Task.isCancelled { self.streamStatus = .reconnecting }
+                } catch is CancellationError {
+                    return
+                } catch {
+                    if Task.isCancelled { return }
+                    self.streamStatus = .reconnecting
                 }
-            } catch is CancellationError {
-                return
-            } catch {
-                // Foreground streaming is best-effort; the next refresh remains authoritative.
+                do {
+                    try await Task.sleep(nanoseconds: retryDelay)
+                } catch {
+                    return
+                }
+                retryDelay = min(retryDelay * 2, 30_000_000_000)
             }
         }
     }
@@ -120,6 +155,7 @@ final class ConversationViewModel {
     func stopStream() {
         streamTask?.cancel()
         streamTask = nil
+        streamStatus = .idle
     }
 }
 
@@ -204,6 +240,14 @@ struct ConversationView: View {
                         if let last = model.messages.last { withAnimation(.snappy) { proxy.scrollTo(last.id, anchor: .bottom) } }
                     }
                 }
+            }
+            if model.streamStatus == .connecting || model.streamStatus == .reconnecting {
+                Label("Reconectando mensajes…", systemImage: "wifi.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
             }
             composerBar
         }

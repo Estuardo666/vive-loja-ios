@@ -35,6 +35,52 @@ private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
 
 private struct StubPayload: Decodable, Sendable { let ok: Bool }
 
+private final class SSEStubURLProtocol: URLProtocol, @unchecked Sendable {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var attempts = 0
+
+    static func reset() {
+        lock.lock(); defer { lock.unlock() }
+        attempts = 0
+    }
+
+    static var attemptCount: Int {
+        lock.lock(); defer { lock.unlock() }
+        return attempts
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        Self.lock.lock()
+        Self.attempts += 1
+        let attempt = Self.attempts
+        Self.lock.unlock()
+
+        guard let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        if attempt == 1 {
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "text/event-stream"]
+            )!
+            let body = Data("event: connected\ndata: {\"ignored\":true}\n\n".utf8)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
+            client?.urlProtocolDidFinishLoading(self)
+        } else {
+            client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
+        }
+    }
+
+    override func stopLoading() {}
+}
+
 @MainActor
 final class ViveLojaTests: XCTestCase {
     func testExploreVenueAndEventHaveStableIdentifiers() {
@@ -172,5 +218,26 @@ final class ViveLojaTests: XCTestCase {
                 return XCTFail("Unexpected API error: \(error)")
             }
         }
+    }
+
+    func testConversationStreamRetriesAfterDisconnectAndCanStop() async throws {
+        SSEStubURLProtocol.reset()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SSEStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        let model = ConversationViewModel(
+            streamSession: session,
+            streamURL: URL(string: "https://example.test/messages/stream")!
+        )
+
+        model.startStream(accessToken: "test-token")
+        for _ in 0..<30 where SSEStubURLProtocol.attemptCount < 2 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        XCTAssertGreaterThanOrEqual(SSEStubURLProtocol.attemptCount, 2)
+        XCTAssertEqual(model.streamStatus, .reconnecting)
+
+        model.stopStream()
+        XCTAssertEqual(model.streamStatus, .idle)
     }
 }
