@@ -71,7 +71,7 @@ struct CreateEventView: View {
                 DatePicker("Fecha y hora", selection: $model.date, in: .now..., displayedComponents: [.date, .hourAndMinute])
             }
             Section("Imagen") {
-                PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared) {
+                PhotosPicker(selection: $selectedPhoto, matching: .images, photoLibrary: .shared()) {
                     Label(model.isUploading ? "Subiendo…" : (model.imageURL == nil ? "Añadir portada" : "Cambiar portada"), systemImage: "photo.badge.plus")
                 }
                 .disabled(model.isUploading || session.accessToken == nil)

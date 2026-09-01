@@ -27,6 +27,16 @@ struct ProfileUpdateRequest: Codable, Sendable {
     let image: URL?
 }
 
+struct MobileInterests: Decodable, Sendable {
+    let categories: [Category]
+    let preferences: [String]
+}
+
+struct InterestsRequest: Codable, Sendable {
+    let categoryIds: [String]
+    let preferences: [String]
+}
+
 struct MobileTokens: Codable, Sendable {
     let accessToken: String
     let refreshToken: String

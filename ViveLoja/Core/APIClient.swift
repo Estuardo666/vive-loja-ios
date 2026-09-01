@@ -71,6 +71,10 @@ actor APIClient {
         try await request(path, method: "PATCH", query: [], body: body, bearer: bearer)
     }
 
+    func put<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
+        try await request(path, method: "PUT", query: [], body: body, bearer: bearer)
+    }
+
     func upload<Value: Decodable & Sendable>(_ path: String, data: Data, fileName: String, mimeType: String, bearer: String? = nil) async throws -> Value {
         guard var components = URLComponents(url: environment.baseURL.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), resolvingAgainstBaseURL: false), let url = components.url else { throw APIError.invalidURL }
         components.queryItems = nil
