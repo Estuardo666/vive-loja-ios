@@ -60,8 +60,8 @@ struct HomeView: View {
                             }
                         }
                     }
-                    NavigationLink(destination: BlogView()) {
-                        Label("Historias de Loja", systemImage: "text.book.closed.fill")
+                    NavigationLink(destination: ContentHubView()) {
+                        Label("Todo lo que pasa en Loja", systemImage: "sparkles")
                             .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(16)

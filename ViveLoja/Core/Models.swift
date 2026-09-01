@@ -75,6 +75,72 @@ struct MobilePost: Codable, Identifiable, Hashable, Sendable {
     let category: Category?; let author: MobileAuthor?; let tags: [MobileTag]
 }
 struct MobileAuthor: Codable, Hashable, Sendable { let id: String; let name: String? }
-struct ContentPayload: Codable, Sendable { let posts: [MobilePost]; let categories: [Category] }
+struct MobileVenueSummary: Codable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let location: String?
+    let address: String?
+}
+struct MobilePromotion: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let description: String
+    let image: URL?
+    let discount: String?
+    let validFrom: Date
+    let validUntil: Date
+    let terms: String?
+    let featured: Bool
+    let venue: MobileVenueSummary
+}
+struct MobileRouteStop: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let notes: String?
+    let duration: String?
+    let order: Int
+    let venue: MobileVenueShort?
+}
+struct MobileVenueShort: Codable, Hashable, Sendable { let id: String; let name: String; let slug: String }
+struct MobileRoute: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let description: String
+    let image: URL?
+    let duration: String?
+    let difficulty: String?
+    let type: String
+    let featured: Bool
+    let stops: [MobileRouteStop]
+}
+struct MobileCollection: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let description: String?
+    let icon: String?
+    let itemCount: Int
+    let user: MobileAuthor?
+}
+struct ContentPayload: Codable, Sendable {
+    let posts: [MobilePost]
+    let categories: [Category]
+    let promotions: [MobilePromotion]
+    let routes: [MobileRoute]
+    let collections: [MobileCollection]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        posts = try container.decodeIfPresent([MobilePost].self, forKey: .posts) ?? []
+        categories = try container.decodeIfPresent([Category].self, forKey: .categories) ?? []
+        promotions = try container.decodeIfPresent([MobilePromotion].self, forKey: .promotions) ?? []
+        routes = try container.decodeIfPresent([MobileRoute].self, forKey: .routes) ?? []
+        collections = try container.decodeIfPresent([MobileCollection].self, forKey: .collections) ?? []
+    }
+
+    private enum CodingKeys: String, CodingKey { case posts, categories, promotions, routes, collections }
+}
 struct FavoriteRequest: Codable, Sendable { let kind: String; let itemId: String }
 struct FavoriteRecord: Codable, Sendable { let id: String; let kind: String; let itemId: String; let createdAt: Date? }

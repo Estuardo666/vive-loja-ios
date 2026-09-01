@@ -5,6 +5,9 @@ import SwiftUI
 @Observable
 final class BlogViewModel {
     var posts: [MobilePost] = []
+    var promotions: [MobilePromotion] = []
+    var routes: [MobileRoute] = []
+    var collections: [MobileCollection] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -14,8 +17,107 @@ final class BlogViewModel {
         do {
             let payload: ContentPayload = try await APIClient.shared.get("/content")
             posts = payload.posts
+            promotions = payload.promotions
+            routes = payload.routes
+            collections = payload.collections
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar el blog."
+        }
+    }
+}
+
+struct ContentHubView: View {
+    @State private var model = BlogViewModel()
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 26) {
+                contentSection("Historias", icon: "text.book.closed.fill") {
+                    ForEach(model.posts.prefix(6)) { post in
+                        VStack(alignment: .leading, spacing: 8) {
+                            VLAsyncImage(url: post.image, height: 130)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            Text(post.title).font(.headline)
+                            if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                        }
+                        .padding(12)
+                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    }
+                }
+                contentSection("Promociones activas", icon: "tag.fill") {
+                    ForEach(model.promotions) { promotion in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(promotion.title).font(.headline)
+                            Text(promotion.venue.name).font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.coral)
+                            Text(promotion.description).font(.subheadline).foregroundStyle(.secondary).lineLimit(3)
+                            if let discount = promotion.discount { Label(discount, systemImage: "sparkles").font(.caption.weight(.semibold)) }
+                        }
+                        .padding(14)
+                        .vlGlass(tint: VLTheme.coral.opacity(0.1))
+                    }
+                }
+                contentSection("Rutas para descubrir", icon: "figure.hiking") {
+                    ForEach(model.routes) { route in
+                        HStack(spacing: 12) {
+                            Image(systemName: "map.fill").font(.title2).foregroundStyle(VLTheme.emerald)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(route.title).font(.headline)
+                                Text([route.duration, route.difficulty].compactMap { $0 }.joined(separator: " · "))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text("\(route.stops.count) paradas").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        }
+                        .padding(14)
+                        .vlGlass(tint: VLTheme.emerald.opacity(0.1))
+                    }
+                }
+                contentSection("Colecciones de la comunidad", icon: "square.stack.3d.up.fill") {
+                    ForEach(model.collections) { collection in
+                        HStack(spacing: 12) {
+                            Text(collection.icon ?? "✨").font(.title2)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(collection.name).font(.headline)
+                                Text("\(collection.itemCount) guardados")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                        .padding(14)
+                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                }
+                if !model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty && model.errorMessage == nil {
+                    ContentUnavailableView("Aún no hay contenido", systemImage: "sparkles", description: Text("Vuelve pronto para descubrir Loja."))
+                }
+                if let error = model.errorMessage {
+                    ContentUnavailableView("Sin conexión", systemImage: "wifi.exclamationmark", description: Text(error))
+                }
+            }
+            .padding(16)
+        }
+        .navigationTitle("Descubre Loja")
+        .refreshable { await model.load() }
+        .task { await model.load() }
+    }
+
+    @ViewBuilder
+    private func contentSection<Content: View>(_ title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        if !contentIsEmpty(title) {
+            VStack(alignment: .leading, spacing: 12) {
+                Label(title, systemImage: icon).font(.title2.weight(.semibold))
+                content()
+            }
+        }
+    }
+
+    private func contentIsEmpty(_ title: String) -> Bool {
+        switch title {
+        case "Historias": return model.posts.isEmpty
+        case "Promociones activas": return model.promotions.isEmpty
+        case "Rutas para descubrir": return model.routes.isEmpty
+        case "Colecciones de la comunidad": return model.collections.isEmpty
+        default: return true
         }
     }
 }
