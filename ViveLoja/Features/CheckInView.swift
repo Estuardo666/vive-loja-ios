@@ -41,7 +41,8 @@ struct CheckInView: View {
         guard let token = session.accessToken, let coordinate = location.coordinate else { return }
         isSaving = true; defer { isSaving = false }
         do {
-            let _: MobileCheckIn = try await APIClient.shared.post("/me/check-ins", body: CheckInRequest(venueId: venueID, lat: coordinate.lat, lng: coordinate.lng, note: note.nilIfBlank, photoUrl: nil), bearer: token)
+            let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            let _: MobileCheckIn = try await APIClient.shared.post("/me/check-ins", body: CheckInRequest(venueId: venueID, lat: coordinate.lat, lng: coordinate.lng, note: trimmedNote.isEmpty ? nil : trimmedNote, photoUrl: nil), bearer: token)
             VLFeedback.success(); onSaved(); dismiss()
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo registrar el check-in."; VLFeedback.error() }
     }
