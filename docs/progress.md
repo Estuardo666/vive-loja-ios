@@ -31,18 +31,22 @@
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
 - La API de producción se configura por código únicamente con su URL pública; las credenciales permanecen en el backend/hosting.
 
-## CP2/CP3/CP6/CP7 — en curso
+## CP2/CP3/CP5/CP6/CP7/CP8 — en curso
 
 - [x] Navegación principal con tabs, sheets y deep links públicos.
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
 - [x] Contenido móvil adicional conectado al backend (promociones, rutas y colecciones).
-- [ ] Snapshots claro/oscuro, Dynamic Type y UI tests de contenido.
-- [ ] Paginación por cursor/carga incremental.
+- [ ] Snapshots claro/oscuro y Dynamic Type; UI smoke tests de tabs/explorar ya añadidos.
+- [x] Carga incremental de historias con `postSkip` y metadatos de continuación.
 - [x] Perfil y reservas consumen contratos móviles autenticados.
 - [x] Mensajería básica consume inbox y envío autenticado.
-- [ ] Conversación detallada/SSE, cancelación de reservas y reseñas.
+- [x] Conversación detallada, marcado leído y SSE best-effort en foreground.
+- [x] Cancelación de reservas con ventana de seguridad y rollback de favoritos.
+- [x] Detalle con galería/servicios, reseñas y preguntas; formularios autenticados.
 - [x] Primer flujo de creación de evento conectado a `/me/events`.
+- [x] Portada de evento mediante PhotosPicker + upload multipart a R2.
+- [x] Onboarding de intereses y preferencias conectado a `/me/interests`.
 
 ## Siguiente checkpoint
 
-CP4: completar gates de accesibilidad y paginación, después cerrar pruebas geométricas/UI de MapKit.
+Siguiente gate: ejecutar CI del cliente con UI smoke tests; después cerrar snapshots/Dynamic Type y ampliar wizards de creación (local, artículo y ruta).

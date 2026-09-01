@@ -1,4 +1,5 @@
 import Observation
+import PhotosUI
 import SwiftUI
 
 @MainActor
@@ -36,6 +37,21 @@ final class AccountViewModel {
             return false
         }
     }
+
+    func uploadAvatar(_ data: Data, fileName: String, mimeType: String, accessToken: String?) async -> Bool {
+        guard let accessToken else { return false }
+        isSaving = true; defer { isSaving = false }
+        do {
+            let upload: MobileUpload = try await APIClient.shared.upload("/me/uploads", data: data, fileName: fileName, mimeType: mimeType, bearer: accessToken)
+            profile = try await APIClient.shared.patch("/me/profile", body: ProfileUpdateRequest(name: profile?.name, image: upload.url), bearer: accessToken)
+            VLFeedback.success()
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo actualizar tu avatar."
+            VLFeedback.error()
+            return false
+        }
+    }
 }
 
 struct AccountView: View {
@@ -43,6 +59,7 @@ struct AccountView: View {
     @State private var showAuth = false
     @State private var model = AccountViewModel()
     @State private var draftName = ""
+    @State private var selectedAvatar: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
@@ -61,6 +78,10 @@ struct AccountView: View {
                                 Text(user.email).font(.subheadline).foregroundStyle(.secondary)
                             }
                         }
+                        PhotosPicker(selection: $selectedAvatar, matching: .images, photoLibrary: .shared()) {
+                            Label("Cambiar foto de perfil", systemImage: "camera.fill")
+                        }
+                        .disabled(model.isSaving || session.accessToken == nil)
                         if model.isLoading { ProgressView().controlSize(.small) }
                     }
                     Section("Perfil") {
@@ -104,6 +125,14 @@ struct AccountView: View {
             .task(id: session.user?.id) {
                 await model.load(accessToken: session.accessToken)
                 draftName = model.profile?.name ?? session.user?.name ?? ""
+            }
+            .onChange(of: selectedAvatar) { _, item in
+                guard let item else { return }
+                Task {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        _ = await model.uploadAvatar(data, fileName: "avatar.jpg", mimeType: "image/jpeg", accessToken: session.accessToken)
+                    }
+                }
             }
         }
     }
