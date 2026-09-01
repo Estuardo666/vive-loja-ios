@@ -30,6 +30,7 @@
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
 - La API de producción se configura por código únicamente con su URL pública; las credenciales permanecen en el backend/hosting.
+- QA en dispositivo real queda pendiente de un host macOS con Xcode/devicectl y un iPhone emparejado; este workspace Windows sólo puede validar el Simulator de GitHub Actions.
 
 ## CP2/CP3/CP5/CP6/CP7/CP8 — en curso
 
