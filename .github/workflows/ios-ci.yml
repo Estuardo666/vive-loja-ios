@@ -36,7 +36,7 @@ jobs:
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
           -sdk iphonesimulator
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.2'
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
           -derivedDataPath DerivedData
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
@@ -46,7 +46,7 @@ jobs:
           xcodebuild test
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.2'
+          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
           -derivedDataPath DerivedData
           -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
