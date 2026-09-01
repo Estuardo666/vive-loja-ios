@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import SwiftUI
 
@@ -9,17 +10,36 @@ final class BlogViewModel {
     var routes: [MobileRoute] = []
     var collections: [MobileCollection] = []
     var isLoading = false
+    var isLoadingMore = false
+    var canLoadMorePosts = true
     var errorMessage: String?
 
     func load() async {
-        isLoading = true
-        defer { isLoading = false }
+        await loadPage(reset: true)
+    }
+
+    func loadMore() async {
+        guard canLoadMorePosts, !isLoading, !isLoadingMore else { return }
+        await loadPage(reset: false)
+    }
+
+    private func loadPage(reset: Bool) async {
+        if reset { isLoading = true } else { isLoadingMore = true }
+        defer {
+            if reset { isLoading = false } else { isLoadingMore = false }
+        }
+        errorMessage = nil
+        let skip = reset ? 0 : posts.count
         do {
-            let payload: ContentPayload = try await APIClient.shared.get("/content")
-            posts = payload.posts
+            let payload: ContentPayload = try await APIClient.shared.get(
+                "/content",
+                query: [URLQueryItem(name: "limit", value: "12"), URLQueryItem(name: "postSkip", value: String(skip))]
+            )
+            if reset { posts = payload.posts } else { posts.append(contentsOf: payload.posts) }
             promotions = payload.promotions
             routes = payload.routes
             collections = payload.collections
+            canLoadMorePosts = payload.posts.count == 12
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar el blog."
         }
@@ -32,8 +52,11 @@ struct ContentHubView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 26) {
+                if model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty {
+                    ProgressView("Cargando contenido…").frame(maxWidth: .infinity).padding(.top, 20)
+                }
                 contentSection("Historias", icon: "text.book.closed.fill") {
-                    ForEach(model.posts.prefix(6)) { post in
+                    ForEach(Array(model.posts.prefix(6))) { post in
                         VStack(alignment: .leading, spacing: 8) {
                             VLAsyncImage(url: post.image, height: 130)
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -43,6 +66,17 @@ struct ContentHubView: View {
                         .padding(12)
                         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
+                }
+                if model.canLoadMorePosts && !model.posts.isEmpty {
+                    Button {
+                        Task { await model.loadMore() }
+                    } label: {
+                        if model.isLoadingMore { ProgressView() }
+                        else { Label("Cargar más historias", systemImage: "arrow.down.circle") }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.indigo)
                 }
                 contentSection("Promociones activas", icon: "tag.fill") {
                     ForEach(model.promotions) { promotion in

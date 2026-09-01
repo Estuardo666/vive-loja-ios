@@ -40,4 +40,13 @@ final class ViveLojaTests: XCTestCase {
         router.handle(URL(string: "viveloja://eventos/musica-en-vivo")!)
         XCTAssertEqual(router.destination, .event(slug: "musica-en-vivo"))
     }
+
+    func testContentPayloadDefaultsMissingSectionsToEmptyCollections() throws {
+        let payload = try JSONDecoder().decode(ContentPayload.self, from: Data("{}".utf8))
+        XCTAssertTrue(payload.posts.isEmpty)
+        XCTAssertTrue(payload.categories.isEmpty)
+        XCTAssertTrue(payload.promotions.isEmpty)
+        XCTAssertTrue(payload.routes.isEmpty)
+        XCTAssertTrue(payload.collections.isEmpty)
+    }
 }
