@@ -88,7 +88,7 @@ struct MyPublicationsView: View {
     private func publicationSection<Item: Identifiable, Row: View>(
         _ title: String,
         venues: [Item],
-        @ViewBuilder row: (Item) -> Row
+        @ViewBuilder row: @escaping (Item) -> Row
     ) -> some View {
         if !venues.isEmpty {
             Section(title) {
