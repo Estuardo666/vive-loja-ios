@@ -60,6 +60,14 @@ struct HomeView: View {
                             }
                         }
                     }
+                    NavigationLink(destination: BlogView()) {
+                        Label("Historias de Loja", systemImage: "text.book.closed.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.indigo)
                 }
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
             }

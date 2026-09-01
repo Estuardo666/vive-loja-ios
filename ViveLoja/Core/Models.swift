@@ -62,3 +62,12 @@ enum ExploreItem: Identifiable, Hashable, Sendable {
 struct ExplorePageInfo: Codable, Sendable { let hasMoreVenues: Bool; let hasMoreEvents: Bool; let nextVenueSkip: Int; let nextEventSkip: Int }
 struct ExplorePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let pageInfo: ExplorePageInfo? }
 struct HomePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let categories: [Category]; let pageInfo: ExplorePageInfo? }
+
+struct MobileTag: Codable, Hashable, Sendable { let id: String; let name: String; let slug: String }
+struct MobilePost: Codable, Identifiable, Hashable, Sendable {
+    let id: String; let title: String; let slug: String; let excerpt: String?; let image: URL?
+    let status: String; let featured: Bool; let publishedAt: Date?; let createdAt: Date
+    let category: Category?; let author: MobileAuthor?; let tags: [MobileTag]
+}
+struct MobileAuthor: Codable, Hashable, Sendable { let id: String; let name: String? }
+struct ContentPayload: Codable, Sendable { let posts: [MobilePost]; let categories: [Category] }
