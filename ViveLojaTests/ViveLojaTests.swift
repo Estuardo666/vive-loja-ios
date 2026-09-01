@@ -56,7 +56,7 @@ private final class RefreshStubURLProtocol: URLProtocol, @unchecked Sendable {
             ? Data("""
             {"data":{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":3600,"user":{"id":"u1","name":"Demo","email":"demo@viveloja.test","role":"USER"}}}
             """.utf8)
-            : Data("{"error":{"code":"AUTH_REQUIRED","message":"Sesión vencida"}}".utf8)
+            : Data("{\"error\":{\"code\":\"AUTH_REQUIRED\",\"message\":\"Sesión vencida\"}}".utf8)
         let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
