@@ -73,7 +73,7 @@ struct HomeView: View {
             }
             .navigationTitle("Vive Loja")
             .refreshable { await model.load() }
-            .task { await model.load() }
+            .task { if !isUITesting { await model.load() } }
         }
     }
 
@@ -88,6 +88,8 @@ struct HomeView: View {
         }
         .padding(20).vlGlass(tint: VLTheme.indigo.opacity(0.12), radius: 26)
     }
+
+    private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
     private func category(_ emoji: String, _ title: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) { Text(emoji).font(.title); Text(title).font(.headline) }

@@ -19,6 +19,6 @@ final class ViveLojaUITests: XCTestCase {
         let explore = app.tabBars.buttons["Explorar"]
         XCTAssertTrue(explore.waitForExistence(timeout: 8))
         explore.tap()
-        XCTAssertTrue(app.textFields["Lugares, eventos, direcciones…"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["explore-search"].waitForExistence(timeout: 5))
     }
 }

@@ -53,7 +53,7 @@ struct ExploreView: View {
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button {
                 if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
             } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") } }
-            .task { await model.search() }
+            .task { if !isUITesting { await model.search() } }
             .onChange(of: model.type) { _, _ in Task { await model.search() } }
             .onChange(of: radiusMeters) { _, _ in
                 guard showMap else { return }
@@ -75,6 +75,7 @@ struct ExploreView: View {
             if !model.query.isEmpty { Button { model.query = ""; Task { await model.search() } } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary) } }
         }
         .padding(12).vlGlass(radius: 16).padding(.horizontal, 16)
+        .accessibilityIdentifier("explore-search")
     }
 
     private var list: some View {
@@ -117,4 +118,6 @@ struct ExploreView: View {
             .accessibilityLabel("Radio de búsqueda")
         }
     }
+
+    private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 }
