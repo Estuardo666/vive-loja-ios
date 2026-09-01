@@ -10,6 +10,7 @@ xcuserdata/
 *.xcresult
 *.log
 coverage/
+/.qa-artifacts/
 
 # Secrets and local configuration
 *.p8
