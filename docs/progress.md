@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33529119473](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33529119473) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña y retry SSE tras desconexión).
+Último gate verde: [Actions run 33533231695](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33533231695) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas y recuperación UI).
 
 ## Seguridad
 
@@ -60,6 +60,8 @@
 - [x] Hub de contenido navegable con fixtures y estado vacío verificable sin red.
 - [x] Entorno de UI testing autenticado aislado (`-uiTesting-authenticated`) y navegación verificable de los cuatro wizards sin tráfico externo.
 - [x] Workflow Codemagic unsigned reproducible en `codemagic.yaml`; README documenta límites de firma y secretos.
+- [x] `SessionStore.refresh()` rota tokens y limpia credenciales sólo cuando el refresh responde 401; cobertura XCTest con almacenamiento seguro inyectable.
+- [x] Al expirar la sesión, la raíz muestra recuperación accesible hacia inicio de sesión; fixture UI `-uiTesting-expired-session` verificado en CI.
 
 ## Siguiente checkpoint
 
