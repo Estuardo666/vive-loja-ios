@@ -25,8 +25,11 @@ final class ExploreViewModel {
 }
 
 struct ExploreView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model = ExploreViewModel()
-    @State private var cameraPosition: MapCameraPosition = .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)))
+    @State private var mapRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08))
+    @State private var selectedMapItemID: String?
+    @State private var radiusMeters: CLLocationDistance = 1_000
     @State private var showMap = false
 
     var body: some View {
@@ -40,9 +43,16 @@ struct ExploreView: View {
                 if showMap { map } else { list }
             }
             .navigationTitle("Explorar")
-            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { withAnimation(.snappy) { showMap.toggle() } } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") } }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button {
+                if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
+            } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") } }
             .task { await model.search() }
             .onChange(of: model.type) { _, _ in Task { await model.search() } }
+            .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
+                if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
+                    NavigationStack { ItemDetailView(item: item) }
+                }
+            }
         }
     }
 
@@ -68,25 +78,23 @@ struct ExploreView: View {
     }
 
     private var map: some View {
-        Map(position: $cameraPosition) {
-            ForEach(model.items) { item in
-                if let coordinate = item.coordinate {
-                    Annotation(item.title, coordinate: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)) {
-                        Image(systemName: isVenue(item) ? "mappin.circle.fill" : "calendar.circle.fill")
-                            .font(.title2).foregroundStyle(VLTheme.itemColor(item)).background(.background, in: Circle())
-                            .accessibilityLabel(item.title)
-                    }
-                }
+        ZStack(alignment: .topTrailing) {
+            ClusteredMapView(items: model.items, region: $mapRegion, selectedItemID: $selectedMapItemID, radiusMeters: radiusMeters)
+                .ignoresSafeArea(edges: .bottom)
+            Picker("Radio", selection: $radiusMeters) {
+                Text("100 m").tag(CLLocationDistance(100))
+                Text("500 m").tag(CLLocationDistance(500))
+                Text("1 km").tag(CLLocationDistance(1_000))
+                Text("2 km").tag(CLLocationDistance(2_000))
+                Text("3 km").tag(CLLocationDistance(3_000))
+                Text("5 km").tag(CLLocationDistance(5_000))
             }
-            UserAnnotation()
+            .pickerStyle(.menu)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .vlGlass(tint: VLTheme.indigo, radius: 14)
+            .padding(16)
+            .accessibilityLabel("Radio de búsqueda")
         }
-        .mapStyle(.standard(elevation: .realistic))
-        .mapControls { MapUserLocationButton(); MapCompass() }
-        .ignoresSafeArea(edges: .bottom)
-    }
-
-    private func isVenue(_ item: ExploreItem) -> Bool {
-        if case .venue = item { return true }
-        return false
     }
 }
