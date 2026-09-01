@@ -123,19 +123,19 @@ final class ViveLojaUITests: XCTestCase {
         let account = app.tabBars.buttons["Cuenta"]
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
-        let publish = app.buttons["Publicar contenido"]
+        let publish = app.descendants(matching: .any)["creation-hub"]
         XCTAssertTrue(publish.waitForExistence(timeout: 5))
         publish.tap()
         XCTAssertTrue(app.navigationBars["Publicar contenido"].waitForExistence(timeout: 5))
 
         let wizardCases: [(String, String)] = [
-            ("Evento", "Nuevo evento"),
-            ("Local", "Nuevo local"),
-            ("Artículo", "Nuevo artículo"),
-            ("Ruta", "Nueva ruta")
+            ("creation-event", "Nuevo evento"),
+            ("creation-venue", "Nuevo local"),
+            ("creation-post", "Nuevo artículo"),
+            ("creation-route", "Nueva ruta")
         ]
         for (entry, title) in wizardCases {
-            let link = app.buttons[entry]
+            let link = app.descendants(matching: .any)[entry]
             XCTAssertTrue(link.waitForExistence(timeout: 5), "No se encontró el wizard \(entry)")
             link.tap()
             XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), "No se abrió \(title)")

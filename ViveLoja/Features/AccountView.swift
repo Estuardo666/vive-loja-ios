@@ -111,6 +111,7 @@ struct AccountView: View {
                         NavigationLink(destination: CreationHubView()) {
                             Label("Publicar contenido", systemImage: "square.and.pencil")
                         }
+                        .accessibilityIdentifier("creation-hub")
                     }
                     Section {
                         Button("Cerrar sesión", role: .destructive) { session.signOut() }

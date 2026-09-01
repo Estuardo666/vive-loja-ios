@@ -6,10 +6,10 @@ struct CreationHubView: View {
     var body: some View {
         List {
             Section("Publicar en Vive Loja") {
-                NavigationLink(destination: CreateEventView()) { Label("Evento", systemImage: "calendar.badge.plus") }
-                NavigationLink(destination: CreateVenueView()) { Label("Local", systemImage: "storefront") }
-                NavigationLink(destination: CreatePostView()) { Label("Artículo", systemImage: "doc.richtext") }
-                NavigationLink(destination: CreateRouteView()) { Label("Ruta", systemImage: "point.topleft.down.curvedto.point.bottomright.up") }
+                NavigationLink(destination: CreateEventView()) { Label("Evento", systemImage: "calendar.badge.plus") }.accessibilityIdentifier("creation-event")
+                NavigationLink(destination: CreateVenueView()) { Label("Local", systemImage: "storefront") }.accessibilityIdentifier("creation-venue")
+                NavigationLink(destination: CreatePostView()) { Label("Artículo", systemImage: "doc.richtext") }.accessibilityIdentifier("creation-post")
+                NavigationLink(destination: CreateRouteView()) { Label("Ruta", systemImage: "point.topleft.down.curvedto.point.bottomright.up") }.accessibilityIdentifier("creation-route")
             }
             Section { Text("Todo lo que publiques queda pendiente de moderación antes de aparecer en la app.").font(.footnote).foregroundStyle(.secondary) }
         }
