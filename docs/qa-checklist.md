@@ -13,7 +13,7 @@
 
 ## Matriz visual
 
-Ejecutar en iPhone 17 Pro Simulator (iOS 26.2) con modo claro/oscuro, tamaños Dynamic Type `xSmall`, `default` y `accessibility3`, Reduce Motion y Reduce Transparency. Guardar los `.xcresult` y capturas como artifacts de la ejecución de Actions.
+Ejecutar en iPhone 17 Pro Simulator (iOS 26.2) con modo claro/oscuro, tamaños Dynamic Type `xSmall`, `default`, `accessibility3` y `accessibility5`, Reduce Motion y Reduce Transparency. Guardar los `.xcresult` y capturas como artifacts de la ejecución de Actions.
 
 La matriz automatizada actual cubre default, `XS`, `Accessibility3` y `Accessibility5` y comprueba los tabs, controles principales y labels accesibles: [Actions run 33540266729](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33540266729) (15 XCTest + 13 UI tests, 0 fallos). La validación final de VoiceOver, tamaños extremos y navegación táctil debe repetirse en un iPhone físico antes de firmar.
 
