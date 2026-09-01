@@ -57,7 +57,7 @@ struct ItemDetailView: View {
         }
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await loadDetail() }
+        .task { if !isUITesting { await loadDetail() } }
         .sheet(isPresented: $showReviewComposer) {
             ReviewComposerView(item: displayedItem) { Task { await loadDetail() } }
                 .presentationDetents([.medium, .large])
@@ -216,6 +216,7 @@ struct ItemDetailView: View {
     private var averageRating: Double? { switch displayedItem { case .venue(let value): return value.avgRating; case .event(let value): return value.avgRating } }
     private var reviewCount: Int { switch displayedItem { case .venue(let value): return value.reviewCount; case .event(let value): return value.reviewCount } }
     private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
+    private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 }
 
 private struct ReviewRow: View {
