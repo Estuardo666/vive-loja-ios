@@ -104,9 +104,12 @@ struct ExploreView: View {
                 } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") }
             }
             .task { if !isUITesting { await model.search() } }
-            .onChange(of: model.type) { _, _ in Task { await model.search() } }
+            .onChange(of: model.type) { _, _ in
+                guard !isUITesting else { return }
+                Task { await model.search() }
+            }
             .onChange(of: radiusMeters) { _, _ in
-                guard showMap else { return }
+                guard showMap, !isUITesting else { return }
                 Task { await model.search(region: mapRegion, radiusMeters: radiusMeters) }
             }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
@@ -116,7 +119,9 @@ struct ExploreView: View {
             }
             .sheet(isPresented: $showFilters) {
                 ExploreFiltersView(model: model) {
-                    Task { await model.search(region: showMap ? mapRegion : nil, radiusMeters: showMap ? radiusMeters : nil) }
+                    if !isUITesting {
+                        Task { await model.search(region: showMap ? mapRegion : nil, radiusMeters: showMap ? radiusMeters : nil) }
+                    }
                 }
                 .presentationDetents([.medium, .large])
             }
@@ -153,7 +158,7 @@ struct ExploreView: View {
                 selectedItemID: $selectedMapItemID,
                 radiusMeters: radiusMeters,
                 onRegionChange: { newRegion in
-                    guard showMap else { return }
+                    guard showMap, !isUITesting else { return }
                     Task { await model.search(region: newRegion, radiusMeters: radiusMeters) }
                 }
             )
