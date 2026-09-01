@@ -66,4 +66,4 @@
 
 ## Siguiente checkpoint
 
-Siguiente gate: cerrar snapshots/Dynamic Type y pruebas de red lenta/modo avión; la distribución firmada queda para Codemagic/TestFlight con credenciales externas.
+Siguiente gate: cerrar snapshots comparativas claro/oscuro y la matriz completa de accesibilidad en dispositivo; las pruebas de red lenta, modo avión, sesión vencida y retry SSE ya tienen cobertura automatizada. La distribución firmada queda para Codemagic/TestFlight con credenciales externas.
