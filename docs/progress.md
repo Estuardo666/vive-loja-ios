@@ -22,7 +22,7 @@
 - [x] Wizard de publicación de eventos con fecha futura, validación y estado pendiente de moderación.
 - [x] Accesibilidad base en tarjetas/categorías y feedback háptico de selección, éxito y error.
 
-Último gate verde: [Actions run 33496720473](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33496720473).
+Último gate verde: [Actions run 33498255289](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33498255289).
 
 ## Seguridad
 
