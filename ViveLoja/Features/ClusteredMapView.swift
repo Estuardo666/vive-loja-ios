@@ -81,8 +81,8 @@ struct ClusteredMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKCircleRenderer(circle: circle)
-            renderer.fillColor = UIColor(VLTheme.indigo.withAlphaComponent(0.08))
-            renderer.strokeColor = UIColor(VLTheme.indigo.withAlphaComponent(0.45))
+            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.08)
+            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.45)
             renderer.lineWidth = 1.5
             return renderer
         }
