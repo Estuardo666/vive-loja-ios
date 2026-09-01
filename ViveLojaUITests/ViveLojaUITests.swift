@@ -242,7 +242,6 @@ final class ViveLojaUITests: XCTestCase {
         publications.tap()
         XCTAssertTrue(app.navigationBars["Mis publicaciones"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aún no has publicado"].waitForExistence(timeout: 5))
-        attachScreenshot(named: "my-publications-empty-fixture")
     }
 
     func testExpiredSessionOffersSignInRecovery() {

@@ -68,7 +68,20 @@ struct MyPublicationsView: View {
             }
 
             if !model.isLoading && model.isEmpty && model.errorMessage == nil {
-                ContentUnavailableView("Aún no has publicado", systemImage: "square.and.pencil", description: Text("Tus eventos, locales, artículos y rutas aparecerán aquí."))
+                ContentUnavailableView {
+                    VStack(spacing: 12) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 44))
+                            .foregroundStyle(.secondary)
+                        Text("Aún no has publicado")
+                            .font(.title2.weight(.semibold))
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
+                    }
+                } description: {
+                    Text("Tus eventos, locales, artículos y rutas aparecerán aquí.")
+                        .multilineTextAlignment(.center)
+                }
             }
         }
         .overlay {
