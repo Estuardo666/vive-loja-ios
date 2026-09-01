@@ -26,6 +26,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.app
         PRODUCT_NAME: Vive Loja
+        PRODUCT_MODULE_NAME: ViveLoja
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Vive Loja
         INFOPLIST_KEY_NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos.
