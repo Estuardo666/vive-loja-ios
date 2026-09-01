@@ -1,0 +1,5 @@
+# The project intentionally keeps several SwiftUI declarations compact.
+# Line length remains informational while correctness is enforced by Xcode,
+# XCTest and the CI build/test gate.
+disabled_rules:
+  - line_length
