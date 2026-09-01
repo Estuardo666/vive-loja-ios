@@ -34,6 +34,8 @@ El checkpoint documental posterior [Actions run 33559121283](https://github.com/
 
 El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a los flujos de tabs, explorar/mapa, hub de contenido, detalle, Dynamic Type, dark mode, sesión vencida y wizards autenticados. Las dimensiones y nombres esperados están presentes; el baseline pixelado comparativo sigue deliberadamente pendiente hasta revisar una captura aprobada en el mismo dispositivo objetivo.
 
+El baseline pixelado quedó revisado y versionado en `ViveLojaUITests/Snapshots/` a partir de las capturas del run [33562298241](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33562298241) (iPhone 17 Pro, iOS 26.2). El workflow ahora exporta el `manifest.json` y ejecuta `scripts/verify_snapshots.swift`: compara los 13 attachments, ignora únicamente 180 px superiores y 120 px inferiores del chrome variable del Simulator, y falla con más de 1% de diferencia media o 2% de píxeles modificados. El checkpoint [33563829823](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33563829823), sobre `e2039a1`, pasó build, SwiftLint, 16 XCTest, 14 UI tests y `Snapshot baseline OK`.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
@@ -45,7 +47,7 @@ El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a 
 - [x] Navegación principal con tabs, sheets y deep links públicos.
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
 - [x] Contenido móvil adicional conectado al backend (promociones, rutas y colecciones).
-- [ ] Snapshots comparativas exhaustivas claro/oscuro; UI smoke ya exporta capturas claras y oscuras en `ios-screenshots`, el auditor de accesibilidad pasa en Simulator y el baseline pixelado sigue pendiente.
+- [x] Snapshots comparativas exhaustivas claro/oscuro; 13 capturas baseline versionadas y verificadas en CI con tolerancia documentada; UI smoke exporta capturas claras y oscuras en `ios-screenshots`.
 - [x] Dynamic Type de accesibilidad verificado con `UICTContentSizeCategoryAccessibility3` y `Accessibility5`; la matriz automatizada del Simulator cubre default, `XS`, `Accessibility3` y `Accessibility5`; queda pendiente la validación completa en dispositivo.
 - [x] Carga incremental de historias con `postSkip` y metadatos de continuación.
 - [x] Perfil y reservas consumen contratos móviles autenticados.
@@ -76,4 +78,4 @@ El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a 
 
 ## Siguiente checkpoint
 
-Siguiente gate: cerrar snapshots comparativas claro/oscuro con baseline revisado y la matriz completa de accesibilidad en dispositivo; las pruebas de red lenta, modo avión, sesión vencida y retry SSE ya tienen cobertura automatizada. La distribución firmada queda para Codemagic/TestFlight con credenciales externas.
+Siguiente gate: completar la matriz de accesibilidad en dispositivo físico y validar la distribución firmada; snapshots claro/oscuro, red lenta, modo avión, sesión vencida y retry SSE ya tienen cobertura automatizada. La distribución queda para Codemagic/TestFlight con credenciales externas.
