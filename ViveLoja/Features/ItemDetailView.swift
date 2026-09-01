@@ -12,6 +12,7 @@ struct ItemDetailView: View {
     @State private var reminderScheduled = false
     @State private var showReviewComposer = false
     @State private var showQuestionComposer = false
+    @State private var showCheckIn = false
     @State private var actionMessage: String?
 
     var body: some View {
@@ -64,6 +65,12 @@ struct ItemDetailView: View {
             QuestionComposerView(item: displayedItem) { Task { await loadDetail() } }
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $showCheckIn) {
+            if case .venue(let venue) = displayedItem {
+                CheckInView(venueID: venue.id) { actionMessage = "Check-in registrado. ¡Gracias por compartir tu visita!" }
+                    .presentationDetents([.medium, .large])
+            }
+        }
     }
 
     private var displayedItem: ExploreItem { resolvedItem ?? item }
@@ -101,6 +108,7 @@ struct ItemDetailView: View {
                 Menu {
                     Button("Escribir reseña", systemImage: "star") { showReviewComposer = true }
                     Button("Hacer pregunta", systemImage: "questionmark.bubble") { showQuestionComposer = true }
+                    if case .venue = displayedItem { Button("Registrar check-in", systemImage: "checkmark.seal") { showCheckIn = true } }
                 } label: {
                     Image(systemName: "ellipsis.circle").accessibilityLabel("Más acciones")
                 }
