@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class SessionStore {
-    private let keychain: KeychainStore
+    private let keychain: any SecureKeyValueStore
     private let api: APIClient
     private(set) var user: MobileUser?
     private(set) var accessToken: String?
@@ -12,7 +12,7 @@ final class SessionStore {
     private(set) var isRestoring = true
     var errorMessage: String?
 
-    init(api: APIClient = .shared, keychain: KeychainStore = KeychainStore()) {
+    init(api: APIClient = .shared, keychain: any SecureKeyValueStore = KeychainStore()) {
         self.api = api
         self.keychain = keychain
     }

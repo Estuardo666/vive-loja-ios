@@ -1,7 +1,13 @@
 import Foundation
 import Security
 
-struct KeychainStore: Sendable {
+protocol SecureKeyValueStore: Sendable {
+    func save(_ value: String, for key: String) throws
+    func read(_ key: String) -> String?
+    func delete(_ key: String)
+}
+
+struct KeychainStore: SecureKeyValueStore, Sendable {
     let service: String
 
     init(service: String = "com.viveloja.app") { self.service = service }

@@ -38,6 +38,14 @@ private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
 
 private struct StubPayload: Decodable, Sendable { let ok: Bool }
 
+private final class MemoryKeychainStore: SecureKeyValueStore, @unchecked Sendable {
+    private var values: [String: String] = [:]
+
+    func save(_ value: String, for key: String) throws { values[key] = value }
+    func read(_ key: String) -> String? { values[key] }
+    func delete(_ key: String) { values.removeValue(forKey: key) }
+}
+
 private final class RefreshStubURLProtocol: URLProtocol, @unchecked Sendable {
     nonisolated(unsafe) private static var statusCode = 200
 
@@ -267,7 +275,7 @@ final class ViveLojaTests: XCTestCase {
         RefreshStubURLProtocol.setStatusCode(200)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RefreshStubURLProtocol.self]
-        let keychain = KeychainStore(service: "ViveLojaRefreshTests-\(UUID().uuidString)")
+        let keychain = MemoryKeychainStore()
         try keychain.save("old-access", for: "accessToken")
         try keychain.save("old-refresh", for: "refreshToken")
         let client = APIClient(session: URLSession(configuration: configuration))
@@ -286,7 +294,7 @@ final class ViveLojaTests: XCTestCase {
         defer { RefreshStubURLProtocol.setStatusCode(200) }
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RefreshStubURLProtocol.self]
-        let keychain = KeychainStore(service: "ViveLojaExpiredTests-\(UUID().uuidString)")
+        let keychain = MemoryKeychainStore()
         try keychain.save("old-access", for: "accessToken")
         try keychain.save("old-refresh", for: "refreshToken")
         let client = APIClient(session: URLSession(configuration: configuration))
