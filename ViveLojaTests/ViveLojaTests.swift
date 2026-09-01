@@ -158,7 +158,7 @@ final class ViveLojaTests: XCTestCase {
         let enriched = Data("""
         {"id":"fav-1","kind":"venue","itemId":"venue-1","createdAt":"2026-09-01T12:00:00Z","item":{"kind":"venue","id":"venue-1","title":"Café Loja","slug":"cafe-loja","description":"Café de altura","image":"https://example.com/cafe.jpg","subtitle":"Centro histórico","address":"Calle Bolívar","lat":-4.0079,"lng":-79.2045,"startDate":null}}
         """.utf8)
-        let legacy = Data("""{"id":"fav-2","kind":"event","itemId":"event-2","createdAt":null}""".utf8)
+        let legacy = Data(#"{"id":"fav-2","kind":"event","itemId":"event-2","createdAt":null}"#.utf8)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
 
