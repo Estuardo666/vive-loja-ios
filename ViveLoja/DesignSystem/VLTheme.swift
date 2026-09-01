@@ -16,13 +16,23 @@ enum VLTheme {
 struct VLGlassModifier: ViewModifier {
     let tint: Color?
     let radius: CGFloat
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
-        content
-            .padding(1)
-            .glassEffect(.regular.tint(tint), in: shape)
-            .clipShape(shape)
+        Group {
+            if reduceTransparency {
+                content
+                    .padding(1)
+                    .background(Color(uiColor: .secondarySystemBackground), in: shape)
+                    .clipShape(shape)
+            } else {
+                content
+                    .padding(1)
+                    .glassEffect(.regular.tint(tint), in: shape)
+                    .clipShape(shape)
+            }
+        }
     }
 }
 
