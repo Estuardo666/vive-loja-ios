@@ -420,6 +420,15 @@ struct MessageRequest: Codable, Sendable {
     let content: String
 }
 
+struct MessageReportRequest: Codable, Sendable {
+    let messageId: String
+    let reason: String
+}
+
+struct MessageReportResponse: Decodable, Sendable {
+    let reported: Bool
+}
+
 struct ReviewRequest: Codable, Sendable {
     let venueId: String?
     let eventId: String?

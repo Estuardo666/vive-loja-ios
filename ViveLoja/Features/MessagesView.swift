@@ -26,6 +26,7 @@ final class ConversationViewModel {
     var isLoading = false
     var isSending = false
     var errorMessage: String?
+    var feedbackMessage: String?
     private var streamTask: Task<Void, Never>?
 
     func load(conversation: MobileConversation, accessToken: String?) async {
@@ -54,6 +55,22 @@ final class ConversationViewModel {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo enviar el mensaje."
             VLFeedback.error()
             return false
+        }
+    }
+
+    func report(_ message: MobileMessagePreview, reason: String, accessToken: String?) async {
+        guard let accessToken else { return }
+        do {
+            let _: MessageReportResponse = try await APIClient.shared.post(
+                "/me/messages/report",
+                body: MessageReportRequest(messageId: message.id, reason: reason),
+                bearer: accessToken
+            )
+            feedbackMessage = "Gracias. Revisaremos este mensaje."
+            VLFeedback.success()
+        } catch {
+            feedbackMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo reportar el mensaje."
+            VLFeedback.error()
         }
     }
 
@@ -149,6 +166,14 @@ struct ConversationView: View {
                             ForEach(model.messages) { message in
                                 MessageBubble(message: message, isMine: message.senderId == session.user?.id)
                                     .id(message.id)
+                                    .contextMenu {
+                                        Menu("Reportar mensaje", systemImage: "exclamationmark.bubble") {
+                                            reportButton(for: message, reason: "SPAM", title: "Spam")
+                                            reportButton(for: message, reason: "HARASSMENT", title: "Acoso")
+                                            reportButton(for: message, reason: "SCAM", title: "Estafa")
+                                            reportButton(for: message, reason: "OTHER", title: "Otro motivo")
+                                        }
+                                    }
                             }
                         }
                         .padding(16)
@@ -165,6 +190,20 @@ struct ConversationView: View {
         .task { await model.load(conversation: conversation, accessToken: session.accessToken) }
         .onAppear { model.startStream(accessToken: session.accessToken) }
         .onDisappear { model.stopStream() }
+        .alert("Reporte", isPresented: Binding(
+            get: { model.feedbackMessage != nil },
+            set: { if !$0 { model.feedbackMessage = nil } }
+        )) {
+            Button("Aceptar", role: .cancel) { model.feedbackMessage = nil }
+        } message: {
+            Text(model.feedbackMessage ?? "")
+        }
+    }
+
+    private func reportButton(for message: MobileMessagePreview, reason: String, title: String) -> some View {
+        Button(title, systemImage: "flag") {
+            Task { await model.report(message, reason: reason, accessToken: session.accessToken) }
+        }
     }
 
     private var composerBar: some View {
