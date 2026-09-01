@@ -8,6 +8,10 @@ configs:
   Debug: debug
   Staging: debug
   Release: release
+configFiles:
+  Debug: Config/Debug.xcconfig
+  Staging: Config/Staging.xcconfig
+  Release: Config/Release.xcconfig
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -36,6 +40,7 @@ targets:
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Vive Loja usa tus fotos para publicar contenido.
         INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
+        INFOPLIST_KEY_VL_API_BASE_URL: "$(VL_API_BASE_URL)"
         SWIFT_EMIT_LOC_STRINGS: YES
         CODE_SIGN_ENTITLEMENTS: ViveLoja/ViveLoja.entitlements
     scheme:

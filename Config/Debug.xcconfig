@@ -1,0 +1,2 @@
+// Local development uses the public backend until a dedicated staging host exists.
+VL_API_BASE_URL = https://viveloja.com/api/mobile/v1

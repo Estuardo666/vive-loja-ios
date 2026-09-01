@@ -1,0 +1,2 @@
+// Override VL_API_BASE_URL in CI/Codemagic when a staging deployment is available.
+VL_API_BASE_URL = https://viveloja.com/api/mobile/v1
