@@ -58,6 +58,14 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
 
+      - name: Export screenshot attachments
+        if: always()
+        continue-on-error: true
+        run: >-
+          xcrun xcresulttool export attachments
+          --path TestResults.xcresult
+          --output-path ExportedScreenshots
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,3 +74,11 @@ jobs:
           path: |
             TestResults.xcresult
             DerivedData/Logs/Test
+
+      - name: Upload exported screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshots
+          if-no-files-found: ignore
+          path: ExportedScreenshots
