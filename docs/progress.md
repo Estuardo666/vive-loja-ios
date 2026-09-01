@@ -26,6 +26,8 @@
 
 Último gate verde: [Actions run 33546960854](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33546960854) sobre `8658000` (SwiftLint sin warnings de aislamiento, build unsigned, 15 XCTest + 13 UI tests, matriz Dynamic Type default/XS/Accessibility3/Accessibility5, exportación de attachments a los artifacts `ios-test-results`/`ios-screenshots`, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas, recuperación UI y capturas ampliadas dark mode/Dynamic Type). El harness oscuro usa `-uiTesting-dark` y sólo aplica `.preferredColorScheme(.dark)` durante UI testing para que las capturas sean deterministas sin afectar producción.
 
+El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a los flujos de tabs, explorar/mapa, hub de contenido, detalle, Dynamic Type, dark mode, sesión vencida y wizards autenticados. Las dimensiones y nombres esperados están presentes; el baseline pixelado comparativo sigue deliberadamente pendiente hasta revisar una captura aprobada en el mismo dispositivo objetivo.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
