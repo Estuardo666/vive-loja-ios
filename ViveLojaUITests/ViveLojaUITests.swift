@@ -197,6 +197,7 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "expired-session-recovery")
     }
 
+    @MainActor
     private func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name
