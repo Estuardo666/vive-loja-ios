@@ -36,7 +36,8 @@
 - [x] Navegación principal con tabs, sheets y deep links públicos.
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
 - [x] Contenido móvil adicional conectado al backend (promociones, rutas y colecciones).
-- [ ] Snapshots claro/oscuro y Dynamic Type; UI smoke tests de tabs/explorar ya añadidos.
+- [ ] Snapshots comparativas exhaustivas claro/oscuro; UI smoke ya adjunta capturas claras y oscuras.
+- [x] Dynamic Type de accesibilidad verificado con `UICTContentSizeCategoryAccessibility3`; queda pendiente la matriz completa en dispositivo.
 - [x] Carga incremental de historias con `postSkip` y metadatos de continuación.
 - [x] Perfil y reservas consumen contratos móviles autenticados.
 - [x] Mensajería básica consume inbox y envío autenticado.
