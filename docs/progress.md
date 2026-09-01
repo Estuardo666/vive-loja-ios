@@ -42,7 +42,7 @@ El baseline pixelado quedó revisado y versionado en `ViveLojaUITests/Snapshots/
 - La API de producción se configura por código únicamente con su URL pública; las credenciales permanecen en el backend/hosting.
 - QA en dispositivo real queda pendiente de un host macOS con Xcode/devicectl y un iPhone emparejado; este workspace Windows sólo puede validar el Simulator de GitHub Actions.
 
-## CP2/CP3/CP5/CP6/CP7/CP8 — en curso
+## CP2/CP3/CP5/CP6/CP7/CP8 — funcionalidades implementadas; gates externos pendientes
 
 - [x] Navegación principal con tabs, sheets y deep links públicos.
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
