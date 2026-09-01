@@ -123,6 +123,9 @@ final class ViveLojaUITests: XCTestCase {
         let account = app.tabBars.buttons["Cuenta"]
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
+        let accountList = app.collectionViews.firstMatch
+        XCTAssertTrue(accountList.waitForExistence(timeout: 5))
+        accountList.swipeUp()
         let publish = app.descendants(matching: .any)["creation-hub"]
         XCTAssertTrue(publish.waitForExistence(timeout: 5))
         publish.tap()
