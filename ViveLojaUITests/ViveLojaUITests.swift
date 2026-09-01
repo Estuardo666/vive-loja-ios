@@ -114,7 +114,7 @@ final class ViveLojaUITests: XCTestCase {
         let mapButton = app.buttons["Ver mapa"]
         XCTAssertTrue(mapButton.waitForExistence(timeout: 5))
         mapButton.tap()
-        XCTAssertTrue(app.maps.firstMatch.waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any)["explore-map"].waitForExistence(timeout: 8))
 
         let filters = app.buttons["Filtros de exploración"]
         XCTAssertTrue(filters.waitForExistence(timeout: 5))

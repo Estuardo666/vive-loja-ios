@@ -15,6 +15,7 @@ struct ClusteredMapView: UIViewRepresentable {
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView(frame: .zero)
+        mapView.accessibilityIdentifier = "explore-map"
         mapView.delegate = context.coordinator
         mapView.pointOfInterestFilter = .includingAll
         mapView.showsCompass = true
