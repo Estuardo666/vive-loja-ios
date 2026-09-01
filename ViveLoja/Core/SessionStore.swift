@@ -14,6 +14,12 @@ final class SessionStore {
 
     func restore() async {
         defer { isRestoring = false }
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting-authenticated") {
+            user = MobileUser(id: "ui-test-user", name: "Usuario de prueba", email: "demo@viveloja.test", role: "USER")
+            accessToken = "ui-testing-access-token"
+            refreshToken = "ui-testing-refresh-token"
+            return
+        }
         guard let access = keychain.read("accessToken"), let refresh = keychain.read("refreshToken") else { return }
         accessToken = access; refreshToken = refresh
         if let stored = keychain.read("user"), let data = stored.data(using: .utf8), let decoded = try? JSONDecoder().decode(MobileUser.self, from: data) { user = decoded }

@@ -115,6 +115,35 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "tabs-dark-reduced-motion-transparency")
     }
 
+    func testCreationWizardsAreReachableWithFixtureSession() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-uiTesting-authenticated"]
+        app.launch()
+
+        let account = app.tabBars.buttons["Cuenta"]
+        XCTAssertTrue(account.waitForExistence(timeout: 8))
+        account.tap()
+        let publish = app.buttons["Publicar contenido"]
+        XCTAssertTrue(publish.waitForExistence(timeout: 5))
+        publish.tap()
+        XCTAssertTrue(app.navigationBars["Publicar contenido"].waitForExistence(timeout: 5))
+
+        let wizardCases: [(String, String)] = [
+            ("Evento", "Nuevo evento"),
+            ("Local", "Nuevo local"),
+            ("Artículo", "Nuevo artículo"),
+            ("Ruta", "Nueva ruta")
+        ]
+        for (entry, title) in wizardCases {
+            let link = app.buttons[entry]
+            XCTAssertTrue(link.waitForExistence(timeout: 5), "No se encontró el wizard \(entry)")
+            link.tap()
+            XCTAssertTrue(app.navigationBars[title].waitForExistence(timeout: 5), "No se abrió \(title)")
+            app.navigationBars[title].buttons.element(boundBy: 0).tap()
+        }
+        attachScreenshot(named: "creation-wizards-fixture")
+    }
+
     private func attachScreenshot(named name: String) {
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = name

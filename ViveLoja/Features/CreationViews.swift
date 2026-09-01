@@ -70,7 +70,15 @@ struct CreatePostView: View {
             Section { if let errorMessage { Text(errorMessage).foregroundStyle(.red) }; Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }.disabled(!isValid || isSaving) }
         }
         .navigationTitle("Nuevo artículo")
-        .task { if let home: HomePayload = try? await APIClient.shared.get("/home") { categories = home.categories; if categoryID.isEmpty { categoryID = categories.first?.id ?? "" } } }
+        .task {
+            if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+                categories = [Category(id: "ui-test-category", name: "Cultura", slug: "cultura", icon: "music.note", color: nil)]
+                categoryID = categories[0].id
+            } else if let home: HomePayload = try? await APIClient.shared.get("/home") {
+                categories = home.categories
+                if categoryID.isEmpty { categoryID = categories.first?.id ?? "" }
+            }
+        }
     }
     private func save() async { guard let token = session.accessToken else { return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/posts", body: CreatePostRequest(title: title.trimmed, excerpt: nil, content: content.trimmed, image: nil, categoryId: categoryID), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar el artículo."; VLFeedback.error() } }
 }

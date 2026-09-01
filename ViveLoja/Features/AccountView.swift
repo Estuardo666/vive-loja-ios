@@ -125,6 +125,7 @@ struct AccountView: View {
             .navigationTitle("Cuenta")
             .sheet(isPresented: $showAuth) { AuthView() }
             .task(id: session.user?.id) {
+                guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
                 await model.load(accessToken: session.accessToken)
                 draftName = model.profile?.name ?? session.user?.name ?? ""
             }
