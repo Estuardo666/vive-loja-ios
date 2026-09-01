@@ -195,3 +195,34 @@ struct ReservationRequest: Codable, Sendable {
     let partySize: Int
     let notes: String?
 }
+
+struct MobileParticipant: Codable, Hashable, Sendable {
+    let id: String
+    let name: String?
+    let image: URL?
+}
+
+struct MobileMessagePreview: Codable, Hashable, Sendable {
+    let id: String
+    let venueId: String
+    let senderId: String
+    let receiverId: String
+    let content: String?
+    let images: [String]
+    let isRead: Bool
+    let createdAt: Date
+}
+
+struct MobileConversation: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let venue: MobileVenueShort
+    let participant: MobileParticipant
+    let lastMessage: MobileMessagePreview?
+    let unreadCount: Int
+}
+
+struct MessageRequest: Codable, Sendable {
+    let venueId: String
+    let receiverId: String
+    let content: String
+}

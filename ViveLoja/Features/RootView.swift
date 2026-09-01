@@ -24,7 +24,7 @@ struct MainTabView: View {
             HomeView().tabItem { Label("Inicio", systemImage: "house.fill") }.tag(Tab.home)
             ExploreView().tabItem { Label("Explorar", systemImage: "map.fill") }.tag(Tab.explore)
             SavedView().tabItem { Label("Guardados", systemImage: "heart.fill") }.tag(Tab.saved)
-            MessagesPlaceholderView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
+            MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
             AccountView().tabItem { Label("Cuenta", systemImage: "person.crop.circle") }.tag(Tab.account)
         }
         .sheet(item: $deepLinkRouter.destination) { destination in
@@ -32,8 +32,6 @@ struct MainTabView: View {
         }
     }
 }
-
-struct MessagesPlaceholderView: View { var body: some View { ContentUnavailableView("Tus mensajes", systemImage: "message", description: Text("Las conversaciones con locales aparecerán aquí.")) } }
 
 private struct DeepLinkDestinationView: View {
     let destination: DeepLinkRouter.Destination
