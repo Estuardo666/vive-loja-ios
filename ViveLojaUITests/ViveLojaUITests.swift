@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class ViveLojaUITests: XCTestCase {
     func testMainTabsAreReachableWithoutNetwork() {
         let app = XCUIApplication()
