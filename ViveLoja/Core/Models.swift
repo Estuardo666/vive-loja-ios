@@ -307,7 +307,7 @@ struct MobileParticipant: Codable, Hashable, Sendable {
     let image: URL?
 }
 
-struct MobileMessagePreview: Codable, Hashable, Sendable {
+struct MobileMessagePreview: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let venueId: String
     let senderId: String
@@ -351,6 +351,13 @@ struct CancelReservationRequest: Codable, Sendable {
     let cancelReason: String?
 }
 
+struct MobileUpload: Decodable, Sendable {
+    let key: String
+    let url: URL
+    let contentType: String
+    let size: Int
+}
+
 struct CreateEventRequest: Codable, Sendable {
     let title: String
     let description: String
@@ -361,6 +368,7 @@ struct CreateEventRequest: Codable, Sendable {
     let lat: Double?
     let lng: Double?
     let price: Double?
+    let image: URL?
     let venueId: String?
 }
 

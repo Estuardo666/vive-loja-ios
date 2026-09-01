@@ -71,6 +71,38 @@ actor APIClient {
         try await request(path, method: "PATCH", query: [], body: body, bearer: bearer)
     }
 
+    func upload<Value: Decodable & Sendable>(_ path: String, data: Data, fileName: String, mimeType: String, bearer: String? = nil) async throws -> Value {
+        guard var components = URLComponents(url: environment.baseURL.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), resolvingAgainstBaseURL: false), let url = components.url else { throw APIError.invalidURL }
+        components.queryItems = nil
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
+        let safeFileName = fileName.replacingOccurrences(of: "\"", with: "")
+        var body = Data()
+        body.append(Data("--\(boundary)\r\n".utf8))
+        body.append(Data("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFileName)\"\r\n".utf8))
+        body.append(Data("Content-Type: \(mimeType)\r\n\r\n".utf8))
+        body.append(data)
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        request.httpBody = body
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await session.data(for: request) }
+        catch { throw APIError.transport(error.localizedDescription) }
+        guard let http = response as? HTTPURLResponse else { throw APIError.transport("Respuesta inválida del servicio.") }
+        guard (200..<300).contains(http.statusCode) else {
+            let envelope = try? decoder.decode(APIErrorEnvelope.self, from: data)
+            throw APIError.server(code: envelope?.error.code ?? "HTTP_\(http.statusCode)", message: envelope?.error.message ?? "No se pudo subir el archivo.", status: http.statusCode)
+        }
+        do {
+            if let wrapped = try? decoder.decode(APIEnvelope<Value>.self, from: data) { return wrapped.data }
+            return try decoder.decode(Value.self, from: data)
+        } catch { throw APIError.decoding(error.localizedDescription) }
+    }
+
     func delete<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
         try await request(path, method: "DELETE", query: [], body: body, bearer: bearer)
     }
