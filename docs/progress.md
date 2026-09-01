@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33533231695](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33533231695) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas y recuperación UI).
+Último gate verde: [Actions run 33534662397](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33534662397) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña, retry SSE tras desconexión, rotación/limpieza de sesiones expiradas, recuperación UI y capturas ampliadas dark mode/Dynamic Type).
 
 ## Seguridad
 
