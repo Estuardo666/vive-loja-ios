@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33499547785](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33499547785).
+Último gate verde: [Actions run 33499833392](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33499833392).
 
 ## Seguridad
 
