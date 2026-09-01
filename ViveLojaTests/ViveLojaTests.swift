@@ -254,6 +254,30 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertNil(detail.questions)
     }
 
+    func testVenueDetailDecodesHoursMenuProductsAndPromotions() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let detail = try decoder.decode(VenueDetail.self, from: Data("""
+        {
+          "id":"v1","name":"Café","slug":"cafe","description":"Desc","image":null,
+          "location":"Loja","address":null,"lat":null,"lng":null,"featured":false,
+          "phone":null,"website":null,"priceRange":null,"avgRating":4.5,"reviewCount":2,
+          "verified":true,"categories":[],"media":[],"services":[],"operatingHours":null,
+          "businessHours":[{"id":"h1","dayOfWeek":1,"openTime":"08:00","closeTime":"18:00","isClosed":false}],
+          "menu":[{"id":"m1","name":"Desayunos","order":0,"items":[{"id":"i1","name":"Bolón","description":"Con café","price":3.5,"image":null,"order":0,"isAvailable":true,"isFeatured":true}]}],
+          "products":[{"id":"p1","name":"Café lojano","description":null,"price":2,"image":null,"isAvailable":true,"isFeatured":false,"order":0}],
+          "events":[{"id":"e1","title":"Cata","slug":"cata","startDate":"2026-05-01T18:00:00Z","location":"Café","address":null}],
+          "promotions":[{"id":"promo1","title":"2x1","description":"Dos por uno","image":null,"discount":"50%","validFrom":"2026-04-01T00:00:00Z","validUntil":"2026-05-01T00:00:00Z","terms":null,"featured":true}],
+          "reviews":[],"questions":[]
+        }
+        """.utf8))
+        XCTAssertEqual(detail.businessHours?.count, 1)
+        XCTAssertEqual(detail.menu?.first?.items.first?.name, "Bolón")
+        XCTAssertEqual(detail.products?.first?.price, 2)
+        XCTAssertEqual(detail.events?.first?.title, "Cata")
+        XCTAssertEqual(detail.promotions?.first?.discount, "50%")
+    }
+
     func testAPIClientMapsSuccessServerErrorAndOfflineTransport() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubAPIURLProtocol.self]

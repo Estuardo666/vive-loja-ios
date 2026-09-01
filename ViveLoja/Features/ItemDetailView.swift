@@ -48,6 +48,11 @@ struct ItemDetailView: View {
                     .tint(VLTheme.coral)
                 }
                 servicesSection
+                hoursSection
+                menuSection
+                productsSection
+                promotionsSection
+                venueEventsSection
                 reviewsSection
                 questionsSection
                 mapSection
@@ -135,6 +140,128 @@ struct ItemDetailView: View {
     }
 
     @ViewBuilder
+    private var hoursSection: some View {
+        if case .venue = displayedItem, !detailBusinessHours.isEmpty || venueDetail?.operatingHours != nil {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Horarios").font(.title2.weight(.semibold))
+                if !detailBusinessHours.isEmpty {
+                    ForEach(detailBusinessHours) { hours in
+                        HStack {
+                            Text(dayName(hours.dayOfWeek)).font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text(hours.isClosed ? "Cerrado" : "(hours.openTime) – (hours.closeTime)")
+                                .font(.subheadline).foregroundStyle(hours.isClosed ? .secondary : .primary)
+                        }
+                    }
+                } else if let legacy = venueDetail?.operatingHours {
+                    ForEach(Array(legacyDays(legacy).enumerated()), id: \.offset) { entry in
+                        let day = entry.element.0
+                        let schedule = entry.element.1
+                        HStack {
+                            Text(day).font(.subheadline.weight(.semibold))
+                            Spacer()
+                            Text(schedule ?? "Cerrado").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    if let notes = legacy.notes, !notes.isEmpty {
+                        Text(notes).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(14)
+            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+    }
+
+    @ViewBuilder
+    private var menuSection: some View {
+        if case .venue = displayedItem, !detailMenu.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Menú").font(.title2.weight(.semibold))
+                ForEach(detailMenu) { category in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(category.name).font(.headline)
+                        ForEach(category.items.filter(\.isAvailable)) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).font(.subheadline.weight(.semibold))
+                                    if let description = item.description { Text(description).font(.caption).foregroundStyle(.secondary) }
+                                }
+                                Spacer()
+                                if let price = item.price { Text(price, format: .currency(code: "USD")).font(.subheadline.weight(.semibold)) }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var productsSection: some View {
+        if case .venue = displayedItem, !detailProducts.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Productos").font(.title2.weight(.semibold))
+                ForEach(detailProducts.filter(\.isAvailable)) { product in
+                    HStack(spacing: 10) {
+                        VLAsyncImage(url: product.image, height: 56).frame(width: 72).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(product.name).font(.subheadline.weight(.semibold))
+                            if let description = product.description { Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
+                        }
+                        Spacer()
+                        if let price = product.price { Text(price, format: .currency(code: "USD")).font(.caption.weight(.semibold)) }
+                    }
+                    .padding(10)
+                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var promotionsSection: some View {
+        if case .venue = displayedItem, !detailPromotions.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Promociones").font(.title2.weight(.semibold))
+                ForEach(detailPromotions) { promotion in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(promotion.title).font(.headline)
+                        if let discount = promotion.discount { Label(discount, systemImage: "tag.fill").font(.caption.weight(.semibold)).foregroundStyle(VLTheme.coral) }
+                        Text(promotion.description).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(14)
+                    .vlGlass(tint: VLTheme.coral.opacity(0.1))
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var venueEventsSection: some View {
+        if case .venue = displayedItem, !detailEvents.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Próximos eventos").font(.title2.weight(.semibold))
+                ForEach(detailEvents) { event in
+                    HStack(spacing: 10) {
+                        Image(systemName: "calendar").foregroundStyle(VLTheme.coral)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(event.title).font(.subheadline.weight(.semibold))
+                            Text(event.startDate.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
     private var reviewsSection: some View {
         if !detailReviews.isEmpty || session.user != nil {
             VStack(alignment: .leading, spacing: 12) {
@@ -211,12 +338,29 @@ struct ItemDetailView: View {
     private var description: String { switch displayedItem { case .venue(let value): return value.description ?? "Descubre este lugar en Loja."; case .event(let value): return value.description ?? "Un evento para vivir Loja." } }
     private var detailMedia: [MobileMedia] { switch displayedItem { case .venue: return venueDetail?.media ?? []; case .event: return eventDetail?.media ?? [] } }
     private var detailServices: [MobileService] { switch displayedItem { case .venue: return venueDetail?.services ?? []; case .event: return [] } }
+    private var detailBusinessHours: [MobileBusinessHours] { venueDetail?.businessHours ?? [] }
+    private var detailMenu: [MobileMenuCategory] { venueDetail?.menu ?? [] }
+    private var detailProducts: [MobileProduct] { venueDetail?.products ?? [] }
+    private var detailPromotions: [MobileVenuePromotion] { venueDetail?.promotions ?? [] }
+    private var detailEvents: [MobileVenueEvent] { venueDetail?.events ?? [] }
     private var detailReviews: [MobileReview] { switch displayedItem { case .venue: return venueDetail?.reviews ?? []; case .event: return eventDetail?.reviews ?? [] } }
     private var detailQuestions: [MobileQuestion] { switch displayedItem { case .venue: return venueDetail?.questions ?? []; case .event: return eventDetail?.questions ?? [] } }
     private var averageRating: Double? { switch displayedItem { case .venue(let value): return value.avgRating; case .event(let value): return value.avgRating } }
     private var reviewCount: Int { switch displayedItem { case .venue(let value): return value.reviewCount; case .event(let value): return value.reviewCount } }
     private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
+
+    private func dayName(_ day: Int) -> String {
+        ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
+    }
+
+    private func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
+        [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
+    }
+}
+
+private extension Array {
+    func safeValue(at index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }
 
 private struct ReviewRow: View {

@@ -159,6 +159,76 @@ struct MobileService: Codable, Identifiable, Hashable, Sendable {
     let description: String?
 }
 
+struct MobileOperatingHours: Codable, Sendable {
+    let id: String
+    let mon: String?
+    let tue: String?
+    let wed: String?
+    let thu: String?
+    let fri: String?
+    let sat: String?
+    let sun: String?
+    let notes: String?
+}
+
+struct MobileBusinessHours: Codable, Identifiable, Sendable {
+    let id: String
+    let dayOfWeek: Int
+    let openTime: String
+    let closeTime: String
+    let isClosed: Bool
+}
+
+struct MobileMenuItem: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let description: String?
+    let price: Double?
+    let image: URL?
+    let order: Int
+    let isAvailable: Bool
+    let isFeatured: Bool
+}
+
+struct MobileMenuCategory: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let order: Int
+    let items: [MobileMenuItem]
+}
+
+struct MobileProduct: Codable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let description: String?
+    let price: Double?
+    let image: URL?
+    let isAvailable: Bool
+    let isFeatured: Bool
+    let order: Int
+}
+
+struct MobileVenuePromotion: Codable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let description: String
+    let image: URL?
+    let discount: String?
+    let validFrom: Date
+    let validUntil: Date
+    let terms: String?
+    let featured: Bool
+}
+
+struct MobileVenueEvent: Codable, Identifiable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let startDate: Date
+    let location: String
+    let address: String?
+}
+
 struct MobileReviewUser: Codable, Hashable, Sendable {
     let id: String
     let name: String?
@@ -231,6 +301,12 @@ struct VenueDetail: Decodable, Sendable {
     let categories: [Category]
     let media: [MobileMedia]
     let services: [MobileService]
+    let operatingHours: MobileOperatingHours?
+    let businessHours: [MobileBusinessHours]?
+    let menu: [MobileMenuCategory]?
+    let products: [MobileProduct]?
+    let events: [MobileVenueEvent]?
+    let promotions: [MobileVenuePromotion]?
     let reviews: [MobileReview]
     let questions: [MobileQuestion]?
 }
