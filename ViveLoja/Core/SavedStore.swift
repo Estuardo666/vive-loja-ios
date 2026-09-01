@@ -24,10 +24,17 @@ final class SavedStore {
         guard let accessToken else { return }
         let request = FavoriteRequest(kind: item.kind, itemId: item.rawID)
         Task {
-            if wasSaved {
-                let _: EmptyResponse? = try? await api.delete("/me/favorites", body: request, bearer: accessToken)
-            } else {
-                let _: FavoriteRecord? = try? await api.post("/me/favorites", body: request, bearer: accessToken)
+            do {
+                if wasSaved {
+                    let _: EmptyResponse = try await api.delete("/me/favorites", body: request, bearer: accessToken)
+                } else {
+                    let _: FavoriteRecord = try await api.post("/me/favorites", body: request, bearer: accessToken)
+                }
+            } catch {
+                // Keep the local optimistic interaction responsive, then roll back if the server rejects it.
+                if wasSaved { ids.insert(item.id) } else { ids.remove(item.id) }
+                defaults.set(Array(ids), forKey: "savedItemIDs")
+                VLFeedback.error()
             }
         }
     }

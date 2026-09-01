@@ -1,3 +1,4 @@
+import Foundation
 import Observation
 import SwiftUI
 
@@ -25,6 +26,7 @@ final class ConversationViewModel {
     var isLoading = false
     var isSending = false
     var errorMessage: String?
+    private var streamTask: Task<Void, Never>?
 
     func load(conversation: MobileConversation, accessToken: String?) async {
         guard let accessToken else { messages = []; return }
@@ -53,6 +55,34 @@ final class ConversationViewModel {
             VLFeedback.error()
             return false
         }
+    }
+
+    func startStream(accessToken: String?) {
+        guard let accessToken else { return }
+        streamTask?.cancel()
+        streamTask = Task { [weak self] in
+            guard let url = URL(string: "https://viveloja.com/api/mobile/v1/me/messages/stream") else { return }
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+            do {
+                let (bytes, _) = try await URLSession.shared.bytes(for: request)
+                for try await line in bytes.lines {
+                    guard line.hasPrefix("data: "), let payload = String(line.dropFirst(6)).data(using: .utf8), let message = try? JSONDecoder.viveLoja.decode(MobileMessagePreview.self, from: payload) else { continue }
+                    guard let self, !self.messages.contains(where: { $0.id == message.id }) else { continue }
+                    self.messages.append(message)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                // Foreground streaming is best-effort; the next refresh remains authoritative.
+            }
+        }
+    }
+
+    func stopStream() {
+        streamTask?.cancel()
+        streamTask = nil
     }
 }
 
@@ -133,6 +163,8 @@ struct ConversationView: View {
         .navigationTitle(conversation.venue.name)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.load(conversation: conversation, accessToken: session.accessToken) }
+        .onAppear { model.startStream(accessToken: session.accessToken) }
+        .onDisappear { model.stopStream() }
     }
 
     private var composerBar: some View {
@@ -176,3 +208,11 @@ private struct MessageBubble: View {
 
 private struct ReadReceipt: Codable, Sendable { let read: Bool }
 private struct MarkedReadResponse: Decodable, Sendable { let markedRead: Int }
+
+private extension JSONDecoder {
+    static var viveLoja: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+}
