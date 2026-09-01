@@ -38,6 +38,27 @@ private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
 
 private struct StubPayload: Decodable, Sendable { let ok: Bool }
 
+private final class RefreshStubURLProtocol: URLProtocol, @unchecked Sendable {
+    override class func canInit(with request: URLRequest) -> Bool { request.url?.path.hasSuffix("/auth/refresh") == true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = request.url else {
+            client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        let body = Data("""
+        {"data":{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":3600,"user":{"id":"u1","name":"Demo","email":"demo@viveloja.test","role":"USER"}}}
+        """.utf8)
+        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        client?.urlProtocol(self, didLoad: body)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 private final class SSEStubURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     nonisolated(unsafe) private static var attempts = 0
@@ -233,6 +254,23 @@ final class ViveLojaTests: XCTestCase {
 
         XCTAssertTrue(payload.ok)
         XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.1)
+    }
+
+    func testSessionStoreRefreshRotatesTokens() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RefreshStubURLProtocol.self]
+        let keychain = KeychainStore(service: "ViveLojaRefreshTests-\(UUID().uuidString)")
+        try keychain.save("old-access", for: "accessToken")
+        try keychain.save("old-refresh", for: "refreshToken")
+        let client = APIClient(session: URLSession(configuration: configuration))
+        let session = SessionStore(api: client, keychain: keychain)
+
+        await session.restore()
+        XCTAssertEqual(session.accessToken, "old-access")
+        let refreshed = await session.refresh()
+        XCTAssertTrue(refreshed)
+        XCTAssertEqual(session.accessToken, "new-access")
+        XCTAssertEqual(session.user?.email, "demo@viveloja.test")
     }
 
     func testConversationStreamRetriesAfterDisconnectAndCanStop() async throws {

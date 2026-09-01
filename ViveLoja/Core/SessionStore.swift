@@ -4,13 +4,18 @@ import Observation
 @MainActor
 @Observable
 final class SessionStore {
-    private let keychain = KeychainStore()
-    private let api = APIClient.shared
+    private let keychain: KeychainStore
+    private let api: APIClient
     private(set) var user: MobileUser?
     private(set) var accessToken: String?
     private var refreshToken: String?
     private(set) var isRestoring = true
     var errorMessage: String?
+
+    init(api: APIClient = .shared, keychain: KeychainStore = KeychainStore()) {
+        self.api = api
+        self.keychain = keychain
+    }
 
     func restore() async {
         defer { isRestoring = false }
@@ -33,6 +38,25 @@ final class SessionStore {
     func register(name: String, email: String, password: String) async -> Bool {
         do { let tokens: MobileTokens = try await api.post("/auth/register", body: RegisterRequest(name: name, email: email, password: password)); persist(tokens); return true }
         catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo crear la cuenta."; return false }
+    }
+
+    @discardableResult
+    func refresh() async -> Bool {
+        guard let refreshToken else { return false }
+        do {
+            let tokens: MobileTokens = try await api.post("/auth/refresh", body: RefreshRequest(refreshToken: refreshToken))
+            persist(tokens)
+            return true
+        } catch let error as APIError {
+            if case .server(_, _, let status) = error, status == 401 {
+                clear()
+            }
+            errorMessage = error.errorDescription ?? "Tu sesión ya no es válida."
+            return false
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo renovar la sesión."
+            return false
+        }
     }
 
     func loginWithApple(identityToken: String, nonce: String?, name: String?) async -> Bool {
