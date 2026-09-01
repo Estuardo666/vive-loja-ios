@@ -50,6 +50,42 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "venue-detail-fixture")
     }
 
+    func testContentAndVenueDetailRemainReachableInDarkMode() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-AppleInterfaceStyle", "Dark"]
+        app.launch()
+
+        let content = app.buttons["Todo lo que pasa en Loja"]
+        XCTAssertTrue(content.waitForExistence(timeout: 8))
+        content.tap()
+        XCTAssertTrue(app.navigationBars["Descubre Loja"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "content-hub-dark-fixture")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+
+        let venue = app.buttons["Café Loja, local, Centro histórico"]
+        XCTAssertTrue(venue.waitForExistence(timeout: 5))
+        venue.tap()
+        XCTAssertTrue(app.navigationBars["Detalle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Café Loja"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "venue-detail-dark-fixture")
+    }
+
+    func testVenueDetailRemainsReachableWithAccessibilityExtraLargeText() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-uiTesting",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility5"
+        ]
+        app.launch()
+
+        let venue = app.buttons["Café Loja, local, Centro histórico"]
+        XCTAssertTrue(venue.waitForExistence(timeout: 8))
+        venue.tap()
+        XCTAssertTrue(app.navigationBars["Detalle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Café Loja"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "venue-detail-accessibility5")
+    }
+
     func testExploreFiltersSheetIsReachable() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
