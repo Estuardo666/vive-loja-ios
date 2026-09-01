@@ -108,6 +108,10 @@ struct AccountView: View {
                         NavigationLink(destination: ReservationsView()) {
                             Label("Mis reservas", systemImage: "calendar.badge.clock")
                         }
+                        NavigationLink(destination: MyPublicationsView()) {
+                            Label("Mis publicaciones", systemImage: "doc.text.magnifyingglass")
+                        }
+                        .accessibilityIdentifier("my-publications")
                         NavigationLink(destination: CreationHubView()) {
                             Label("Publicar contenido", systemImage: "square.and.pencil")
                         }

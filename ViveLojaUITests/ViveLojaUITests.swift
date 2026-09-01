@@ -228,6 +228,22 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "creation-wizards-fixture")
     }
 
+    func testMyPublicationsStatusViewIsReachableWithFixtureSession() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-uiTesting-authenticated"]
+        app.launch()
+
+        let account = app.tabBars.buttons["Cuenta"]
+        XCTAssertTrue(account.waitForExistence(timeout: 8))
+        account.tap()
+        let publications = app.descendants(matching: .any)["my-publications"]
+        XCTAssertTrue(publications.waitForExistence(timeout: 5))
+        publications.tap()
+        XCTAssertTrue(app.navigationBars["Mis publicaciones"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Aún no has publicado"].waitForExistence(timeout: 5))
+        attachScreenshot(named: "my-publications-empty-fixture")
+    }
+
     func testExpiredSessionOffersSignInRecovery() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting", "-uiTesting-expired-session"]

@@ -278,6 +278,25 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(detail.promotions?.first?.discount, "50%")
     }
 
+    func testModerationDraftDTOsDecodeTheirOwnEndpointShapes() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let venue = try decoder.decode(MobileVenueDraft.self, from: Data("""
+        {"id":"v1","name":"Café","slug":"cafe","description":"Un lugar","image":null,"location":"Centro","address":null,"status":"PENDING","createdAt":"2026-01-01T00:00:00Z"}
+        """.utf8))
+        XCTAssertEqual(venue.status, "PENDING")
+
+        let post = try decoder.decode(MobilePostDraft.self, from: Data("""
+        {"id":"p1","title":"Guía","slug":"guia","excerpt":null,"content":"Contenido","image":null,"status":"APPROVED","createdAt":"2026-01-02T00:00:00Z","category":{"id":"c1","name":"Cultura","slug":"cultura","icon":null,"color":null}}
+        """.utf8))
+        XCTAssertEqual(post.category?.slug, "cultura")
+
+        let route = try decoder.decode(MobileRouteDraft.self, from: Data("""
+        {"id":"r1","title":"Centro","slug":"centro","description":"Ruta","content":null,"image":null,"duration":null,"difficulty":null,"type":"cultural","status":"REJECTED","createdAt":"2026-01-03T00:00:00Z","stops":[]}
+        """.utf8))
+        XCTAssertEqual(route.status, "REJECTED")
+    }
+
     func testAPIClientMapsSuccessServerErrorAndOfflineTransport() async throws {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [StubAPIURLProtocol.self]

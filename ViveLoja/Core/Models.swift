@@ -590,6 +590,72 @@ struct CreateRouteRequest: Codable, Sendable {
 
 struct ModeratedDraft: Decodable, Sendable { let id: String; let status: String }
 
+// The moderation list endpoints intentionally expose smaller DTOs than their
+// public detail counterparts. Keeping them separate prevents a missing public
+// field (for example `featured` or `publishedAt`) from breaking decoding.
+struct MobileVenueDraft: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let description: String
+    let image: URL?
+    let location: String
+    let address: String?
+    let status: String
+    let createdAt: Date
+}
+
+struct MobileEventDraft: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let description: String
+    let image: URL?
+    let startDate: Date
+    let endDate: Date?
+    let location: String
+    let address: String?
+    let status: String
+    let createdAt: Date
+    let venue: MobileVenueShort?
+}
+
+struct MobilePostDraft: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let excerpt: String?
+    let content: String
+    let image: URL?
+    let status: String
+    let createdAt: Date
+    let category: Category?
+}
+
+struct MobileRouteStopDraft: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let venueId: String?
+    let order: Int
+    let title: String
+    let notes: String?
+    let duration: String?
+}
+
+struct MobileRouteDraft: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let description: String
+    let content: String?
+    let image: URL?
+    let duration: String?
+    let difficulty: String?
+    let type: String
+    let status: String
+    let createdAt: Date
+    let stops: [MobileRouteStopDraft]
+}
+
 struct CreatedEvent: Codable, Sendable {
     let id: String
     let title: String
