@@ -19,6 +19,8 @@
 - [x] Cuenta conectada a perfil remoto con edición de nombre y estadísticas.
 - [x] Pantalla de reservas autenticadas con estados de carga, vacío, error y refresh.
 - [x] Inbox móvil con conversaciones, unread count y composer básico.
+- [x] Wizard de publicación de eventos con fecha futura, validación y estado pendiente de moderación.
+- [x] Accesibilidad base en tarjetas/categorías y feedback háptico de selección, éxito y error.
 
 Último gate verde: [Actions run 33496720473](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33496720473).
 
@@ -37,6 +39,7 @@
 - [x] Perfil y reservas consumen contratos móviles autenticados.
 - [x] Mensajería básica consume inbox y envío autenticado.
 - [ ] Conversación detallada/SSE, cancelación de reservas y reseñas.
+- [x] Primer flujo de creación de evento conectado a `/me/events`.
 
 ## Siguiente checkpoint
 
