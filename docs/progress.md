@@ -38,7 +38,7 @@
 - [x] Design tokens indigo/coral/emerald, Liquid Glass y fallback Reduce Transparency.
 - [x] Contenido móvil adicional conectado al backend (promociones, rutas y colecciones).
 - [ ] Snapshots comparativas exhaustivas claro/oscuro; UI smoke ya adjunta capturas claras y oscuras.
-- [x] Dynamic Type de accesibilidad verificado con `UICTContentSizeCategoryAccessibility3`; queda pendiente la matriz completa en dispositivo.
+- [x] Dynamic Type de accesibilidad verificado con `UICTContentSizeCategoryAccessibility3` y `Accessibility5`; la matriz automatizada del Simulator cubre default, `XS`, `Accessibility3` y `Accessibility5`; queda pendiente la validación completa en dispositivo.
 - [x] Carga incremental de historias con `postSkip` y metadatos de continuación.
 - [x] Perfil y reservas consumen contratos móviles autenticados.
 - [x] Mensajería básica consume inbox y envío autenticado.

@@ -137,6 +137,37 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "tabs-dynamic-type-accessibility3")
     }
 
+    func testCoreAccessibilityMatrixAcrossDynamicTypeSizes() {
+        let categories: [String?] = [
+            nil,
+            "UICTContentSizeCategoryXS",
+            "UICTContentSizeCategoryAccessibility3",
+            "UICTContentSizeCategoryAccessibility5"
+        ]
+
+        for category in categories {
+            let app = XCUIApplication()
+            app.launchArguments = ["-uiTesting"]
+            if let category {
+                app.launchArguments += ["-UIPreferredContentSizeCategoryName", category]
+            }
+            app.launch()
+
+            XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8))
+            XCTAssertTrue(app.tabBars.buttons["Explorar"].exists)
+            XCTAssertTrue(app.tabBars.buttons["Guardados"].exists)
+            XCTAssertTrue(app.tabBars.buttons["Cuenta"].exists)
+
+            let content = app.buttons["Todo lo que pasa en Loja"]
+            let venue = app.buttons["Café Loja, local, Centro histórico"]
+            XCTAssertTrue(content.exists)
+            XCTAssertTrue(venue.exists)
+            XCTAssertFalse(content.label.isEmpty)
+            XCTAssertFalse(venue.label.isEmpty)
+            app.terminate()
+        }
+    }
+
     func testTabsRemainReachableInDarkModeWithMotionAndTransparencyReduced() {
         let app = XCUIApplication()
         app.launchArguments = [
