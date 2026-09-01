@@ -36,6 +36,10 @@ El `manifest.json` exportado en ese run contiene 13 attachments PNG asociados a 
 
 El baseline pixelado quedó revisado y versionado en `ViveLojaUITests/Snapshots/` a partir de las capturas del run [33562298241](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33562298241) (iPhone 17 Pro, iOS 26.2). El workflow ahora exporta el `manifest.json` y ejecuta `scripts/verify_snapshots.swift`: compara los 13 attachments, ignora únicamente 180 px superiores y 120 px inferiores del chrome variable del Simulator, y falla con más de 1% de diferencia media o 2% de píxeles modificados. El checkpoint [33563829823](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33563829823), sobre `e2039a1`, pasó build, SwiftLint, 16 XCTest, 14 UI tests y `Snapshot baseline OK`.
 
+La paridad de Home queda reflejada en `71b1498`: el cliente presenta locales recientes, eventos relacionados, posts y promociones cuando el backend los entrega, con fallback a los alias legacy. El detalle de local queda reflejado en `3564204`: horarios, menú, productos, promociones y próximos eventos usan DTOs opcionales y se ocultan limpiamente en payloads antiguos.
+
+El gate candidato final [33569436684](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33569436684), sobre `35e24d7`, pasa Build unsigned, SwiftLint, 19 XCTest, 15 UI tests, exportación de `.xcresult`/screenshots y `Snapshot baseline OK` (13 capturas comparadas).
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
@@ -60,6 +64,7 @@ El baseline pixelado quedó revisado y versionado en `ViveLojaUITests/Snapshots/
 - [x] Portada de evento mediante PhotosPicker + upload multipart a R2.
 - [x] Colecciones privadas y check-in de local con validación de proximidad.
 - [x] Wizards de evento, local, artículo y ruta; todos crean borradores `PENDING`.
+- [x] Consulta del estado de publicaciones propias: `MyPublicationsView` carga `/me/venues`, `/me/events`, `/me/posts` y `/me/routes` con DTOs de moderación independientes y estados pendiente/aprobado/rechazado.
 - [x] Onboarding de intereses y preferencias conectado a `/me/interests`.
 - [x] Decodificación XCTest de reseñas con fotos y compatibilidad con payload legado (`comment`).
 - [x] APIClient XCTest con URLProtocol para éxito, 401 y modo offline; UI smoke adjunta capturas claras y Dynamic Type de accesibilidad.
@@ -75,6 +80,7 @@ El baseline pixelado quedó revisado y versionado en `ViveLojaUITests/Snapshots/
 - [x] `SessionStore.refresh()` rota tokens y limpia credenciales sólo cuando el refresh responde 401; cobertura XCTest con almacenamiento seguro inyectable.
 - [x] Al expirar la sesión, la raíz muestra recuperación accesible hacia inicio de sesión; fixture UI `-uiTesting-expired-session` verificado en CI.
 - [x] Auditor de accesibilidad de las tabs principales en Simulator; la portada respeta Dynamic Type y el CTA del mapa supera el contraste WCAG en `33555197439`.
+- [x] Navegación fixture a “Mis publicaciones” y estado vacío; [run 33569436684](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33569436684) sobre `35e24d7` pasa Build, SwiftLint, 19 XCTest, 15 UI tests y `Snapshot baseline OK`.
 
 ## Siguiente checkpoint
 
