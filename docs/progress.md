@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33521328876](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33521328876) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards, colecciones, check-in, fotos de reseña y retry SSE tras desconexión).
+Último gate verde: [Actions run 33529119473](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33529119473) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, hub de contenido, detalle fixture, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards de creación con sesión fixture, colecciones, check-in, fotos de reseña y retry SSE tras desconexión).
 
 ## Seguridad
 
@@ -58,6 +58,8 @@
 - [x] UI smoke de mapa y aplicación de filtros en Simulator; XCTest de conteo/reset de filtros.
 - [x] XCTest de transporte lento y reconexión SSE con URLProtocol; el workflow cancela runs obsoletos del mismo branch.
 - [x] Hub de contenido navegable con fixtures y estado vacío verificable sin red.
+- [x] Entorno de UI testing autenticado aislado (`-uiTesting-authenticated`) y navegación verificable de los cuatro wizards sin tráfico externo.
+- [x] Workflow Codemagic unsigned reproducible en `codemagic.yaml`; README documenta límites de firma y secretos.
 
 ## Siguiente checkpoint
 
