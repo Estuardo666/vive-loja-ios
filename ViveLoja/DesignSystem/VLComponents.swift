@@ -42,7 +42,7 @@ struct VLItemCard: View {
             }
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
-                    Label(item isVenue ? "Local" : "Evento", systemImage: item isVenue ? "mappin.and.ellipse" : "calendar")
+                    Label(isVenue ? "Local" : "Evento", systemImage: isVenue ? "mappin.and.ellipse" : "calendar")
                         .font(.caption.weight(.semibold)).foregroundStyle(VLTheme.itemColor(item))
                     Spacer()
                     Image(systemName: "heart").foregroundStyle(.secondary)
