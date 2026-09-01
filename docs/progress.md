@@ -21,8 +21,10 @@
 - [x] Inbox móvil con conversaciones, unread count y composer básico.
 - [x] Wizard de publicación de eventos con fecha futura, validación y estado pendiente de moderación.
 - [x] Accesibilidad base en tarjetas/categorías y feedback háptico de selección, éxito y error.
+- [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
+- [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33498255289](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33498255289).
+Último gate verde: [Actions run 33499547785](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33499547785).
 
 ## Seguridad
 
