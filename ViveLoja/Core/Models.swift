@@ -17,6 +17,11 @@ struct MobileTokens: Codable, Sendable {
 struct LoginRequest: Codable, Sendable { let email: String; let password: String }
 struct RegisterRequest: Codable, Sendable { let name: String; let email: String; let password: String }
 struct RefreshRequest: Codable, Sendable { let refreshToken: String }
+struct AppleLoginRequest: Codable, Sendable {
+    let identityToken: String
+    let nonce: String?
+    let name: String?
+}
 
 struct Category: Codable, Hashable, Sendable {
     let id: String

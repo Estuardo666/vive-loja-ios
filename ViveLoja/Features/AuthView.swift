@@ -1,4 +1,6 @@
 import AuthenticationServices
+import CryptoKit
+import Security
 import SwiftUI
 
 struct AuthView: View {
@@ -8,6 +10,7 @@ struct AuthView: View {
     @State private var email = ""
     @State private var password = ""
     @State private var isSubmitting = false
+    @State private var appleNonce = ""
 
     enum Mode { case login, register }
 
@@ -36,7 +39,14 @@ struct AuthView: View {
                     .padding(18).vlGlass()
 
                     HStack { Rectangle().frame(height: 1).foregroundStyle(.quaternary); Text("o").foregroundStyle(.secondary); Rectangle().frame(height: 1).foregroundStyle(.quaternary) }
-                    SignInWithAppleButton(.signIn, onRequest: { request in request.requestedScopes = [.fullName, .email] }, onCompletion: { _ in })
+                    SignInWithAppleButton(.signIn, onRequest: { request in
+                        let nonce = Self.randomNonce()
+                        appleNonce = nonce
+                        request.requestedScopes = [.fullName, .email]
+                        request.nonce = Self.sha256(nonce)
+                    }, onCompletion: { result in
+                        Task { @MainActor in await handleApple(result) }
+                    })
                         .signInWithAppleButtonStyle(.black).frame(height: 48).clipShape(RoundedRectangle(cornerRadius: 12))
                     Button(mode == .login ? "¿No tienes cuenta? Regístrate" : "Ya tengo una cuenta") { mode = mode == .login ? .register : .login }
                         .font(.subheadline.weight(.semibold))
@@ -55,4 +65,48 @@ struct AuthView: View {
             else { _ = await session.register(name: name, email: email, password: password) }
         }
     }
+
+    private func handleApple(_ result: Result<ASAuthorization, any Error>) async {
+        do {
+            let authorization = try result.get()
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let identityToken = credential.identityToken,
+                  let token = String(data: identityToken, encoding: .utf8),
+                  !appleNonce.isEmpty else {
+                throw AppleAuthError.invalidCredential
+            }
+            let name = [credential.fullName?.givenName, credential.fullName?.familyName]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
+            isSubmitting = true
+            defer { isSubmitting = false }
+            _ = await session.loginWithApple(identityToken: token, nonce: Self.sha256(appleNonce), name: name.isEmpty ? nil : name)
+        } catch {
+            session.errorMessage = "No se pudo completar el acceso con Apple."
+        }
+    }
+
+    private static func randomNonce(length: Int = 32) -> String {
+        let characters = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remaining = length
+        while remaining > 0 {
+            var byte: UInt8 = 0
+            guard SecRandomCopyBytes(kSecRandomDefault, 1, &byte) == errSecSuccess else {
+                return UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            }
+            if Int(byte) < characters.count {
+                result.append(characters[Int(byte)])
+                remaining -= 1
+            }
+        }
+        return result
+    }
+
+    private static func sha256(_ value: String) -> String {
+        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
 }
+
+private enum AppleAuthError: Error { case invalidCredential }

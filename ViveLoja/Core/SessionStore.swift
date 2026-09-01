@@ -29,6 +29,17 @@ final class SessionStore {
         catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo crear la cuenta."; return false }
     }
 
+    func loginWithApple(identityToken: String, nonce: String?, name: String?) async -> Bool {
+        do {
+            let tokens: MobileTokens = try await api.post("/auth/apple", body: AppleLoginRequest(identityToken: identityToken, nonce: nonce, name: name))
+            persist(tokens)
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo iniciar sesión con Apple."
+            return false
+        }
+    }
+
     func signOut() {
         let token = refreshToken
         clear()
