@@ -27,8 +27,14 @@ jobs:
       - name: Install XcodeGen
         run: HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew install xcodegen
 
+      - name: Install SwiftLint
+        run: HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew install swiftlint
+
       - name: Generate project
         run: xcodegen generate
+
+      - name: Lint Swift
+        run: swiftlint lint --quiet
 
       - name: Build
         run: >-
