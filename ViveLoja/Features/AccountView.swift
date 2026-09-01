@@ -79,7 +79,9 @@ struct AccountView: View {
                     Section("Tu actividad") {
                         Label("Mis favoritos", systemImage: "heart")
                         Label("Mis colecciones", systemImage: "folder")
-                        Label("Mis reservas", systemImage: "calendar.badge.clock")
+                        NavigationLink(destination: ReservationsView()) {
+                            Label("Mis reservas", systemImage: "calendar.badge.clock")
+                        }
                         Label("Mis publicaciones", systemImage: "square.and.pencil")
                     }
                     Section {

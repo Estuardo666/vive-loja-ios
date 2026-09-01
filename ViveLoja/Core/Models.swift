@@ -164,3 +164,34 @@ struct ContentPayload: Codable, Sendable {
 }
 struct FavoriteRequest: Codable, Sendable { let kind: String; let itemId: String }
 struct FavoriteRecord: Codable, Sendable { let id: String; let kind: String; let itemId: String; let createdAt: Date? }
+
+struct MobileEventShort: Codable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+}
+
+struct MobileReservation: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let venueId: String?
+    let eventId: String?
+    let date: Date
+    let time: String
+    let partySize: Int
+    let status: String
+    let notes: String?
+    let cancelReason: String?
+    let createdAt: Date
+    let updatedAt: Date
+    let venue: MobileVenueShort?
+    let event: MobileEventShort?
+}
+
+struct ReservationRequest: Codable, Sendable {
+    let venueId: String?
+    let eventId: String?
+    let date: String
+    let time: String
+    let partySize: Int
+    let notes: String?
+}
