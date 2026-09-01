@@ -15,6 +15,9 @@ private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
             return
         }
+        if url.path.hasSuffix("/slow") {
+            Thread.sleep(forTimeInterval: 0.15)
+        }
         let status = url.path.hasSuffix("/error") ? 401 : 200
         let body = status == 200
             ? Data("{\"data\":{\"ok\":true}}".utf8)
@@ -218,6 +221,18 @@ final class ViveLojaTests: XCTestCase {
                 return XCTFail("Unexpected API error: \(error)")
             }
         }
+    }
+
+    func testAPIClientHandlesSlowTransportWithoutLosingTheRequest() async throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [StubAPIURLProtocol.self]
+        let client = APIClient(session: URLSession(configuration: configuration))
+        let started = Date()
+
+        let payload: StubPayload = try await client.get("slow")
+
+        XCTAssertTrue(payload.ok)
+        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.1)
     }
 
     func testConversationStreamRetriesAfterDisconnectAndCanStop() async throws {
