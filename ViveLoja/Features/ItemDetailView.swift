@@ -7,6 +7,7 @@ struct ItemDetailView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.openURL) private var openURL
     @State private var resolvedItem: ExploreItem?
+    @State private var reminderScheduled = false
 
     var body: some View {
         ScrollView {
@@ -22,6 +23,18 @@ struct ItemDetailView: View {
                         Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
                     }.buttonStyle(.borderedProminent).tint(VLTheme.indigo)
                     ShareLink(item: "\(displayedItem.title) — Vive Loja") { Label("Compartir", systemImage: "square.and.arrow.up") }.buttonStyle(.bordered)
+                }
+                if case .event(let event) = displayedItem {
+                    Button {
+                        Task {
+                            if reminderScheduled { LocalReminderScheduler.shared.cancel(eventID: event.id); reminderScheduled = false }
+                            else if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil { reminderScheduled = true }
+                        }
+                    } label: {
+                        Label(reminderScheduled ? "Recordatorio activo" : "Recordarme", systemImage: reminderScheduled ? "bell.fill" : "bell")
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.coral)
                 }
                 if let coordinate = displayedItem.coordinate {
                     Map(initialPosition: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))) {
