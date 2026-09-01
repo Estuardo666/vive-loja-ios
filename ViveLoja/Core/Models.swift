@@ -52,7 +52,7 @@ struct CollectionEvent: Decodable, Sendable { let id: String; let title: String;
 struct CollectionPost: Decodable, Sendable { let id: String; let title: String; let slug: String; let image: URL? }
 struct CollectionRoute: Decodable, Sendable { let id: String; let title: String; let slug: String; let image: URL? }
 
-struct MobileCollection: Decodable, Identifiable, Sendable {
+struct MobileOwnedCollection: Decodable, Identifiable, Sendable {
     let id: String
     let name: String
     let slug: String

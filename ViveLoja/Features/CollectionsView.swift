@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class CollectionsViewModel {
-    var collections: [MobileCollection] = []
+    var collections: [MobileOwnedCollection] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -20,7 +20,7 @@ final class CollectionsViewModel {
     func create(name: String, accessToken: String?) async -> Bool {
         guard let accessToken else { return false }
         do {
-            let created: MobileCollection = try await APIClient.shared.post("/me/collections", body: CollectionRequest(name: name, description: nil, icon: "bookmark.fill", isPublic: false), bearer: accessToken)
+            let created: MobileOwnedCollection = try await APIClient.shared.post("/me/collections", body: CollectionRequest(name: name, description: nil, icon: "bookmark.fill", isPublic: false), bearer: accessToken)
             collections.insert(created, at: 0)
             VLFeedback.success()
             return true
@@ -75,7 +75,7 @@ struct CollectionsView: View {
 }
 
 private struct CollectionDetailView: View {
-    let collection: MobileCollection
+    let collection: MobileOwnedCollection
     var body: some View {
         List(collection.items) { item in
             HStack(spacing: 12) {
