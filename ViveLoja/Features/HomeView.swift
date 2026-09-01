@@ -5,6 +5,7 @@ import SwiftUI
 @Observable
 final class HomeViewModel {
     var featured: [ExploreItem] = HomeViewModel.fixtures
+    var categories: [Category] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -12,8 +13,9 @@ final class HomeViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            let payload: ExplorePayload = try await APIClient.shared.get("/home")
+            let payload: HomePayload = try await APIClient.shared.get("/home")
             featured = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
+            categories = payload.categories
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
     }
 
@@ -34,16 +36,28 @@ struct HomeView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Destacados", action: nil)
                         ScrollView(.horizontal, showsIndicators: false) {
-                            LazyHStack(spacing: 14) { ForEach(model.featured) { VLItemCard(item: $0).frame(width: 265) } }
+                            LazyHStack(spacing: 14) {
+                                ForEach(model.featured) { item in
+                                    NavigationLink(destination: ItemDetailView(item: item)) {
+                                        VLItemCard(item: item).frame(width: 265)
+                                    }.buttonStyle(.plain)
+                                }
+                            }
                         }
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Explora Loja", action: nil)
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                            category("🍽️", "Restaurantes", VLTheme.coral)
-                            category("🎵", "Eventos", VLTheme.indigo)
-                            category("☕", "Cafeterías", .brown)
-                            category("🌿", "Rutas", VLTheme.emerald)
+                            if model.categories.isEmpty {
+                                category("🍽️", "Restaurantes", VLTheme.coral)
+                                category("🎵", "Eventos", VLTheme.indigo)
+                                category("☕", "Cafeterías", .brown)
+                                category("🌿", "Rutas", VLTheme.emerald)
+                            } else {
+                                ForEach(model.categories.prefix(6), id: \.id) { value in
+                                    category(value.icon ?? "✨", value.name, color(for: value.color))
+                                }
+                            }
                         }
                     }
                 }
@@ -72,5 +86,13 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
             .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.2)) }
+    }
+
+    private func color(for value: String?) -> Color {
+        guard let value else { return VLTheme.indigo }
+        let lowercased = value.lowercased()
+        if lowercased.contains("coral") || lowercased.contains("red") { return VLTheme.coral }
+        if lowercased.contains("green") || lowercased.contains("emerald") { return VLTheme.emerald }
+        return VLTheme.indigo
     }
 }

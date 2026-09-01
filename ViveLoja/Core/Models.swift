@@ -61,3 +61,4 @@ enum ExploreItem: Identifiable, Hashable, Sendable {
 
 struct ExplorePageInfo: Codable, Sendable { let hasMoreVenues: Bool; let hasMoreEvents: Bool; let nextVenueSkip: Int; let nextEventSkip: Int }
 struct ExplorePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let pageInfo: ExplorePageInfo? }
+struct HomePayload: Codable, Sendable { let venues: [ExploreVenue]; let events: [ExploreEvent]; let categories: [Category]; let pageInfo: ExplorePageInfo? }
