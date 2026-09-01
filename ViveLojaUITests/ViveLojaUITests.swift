@@ -168,6 +168,19 @@ final class ViveLojaUITests: XCTestCase {
         }
     }
 
+    @available(iOS 17.0, *)
+    func testMainTabsPassAccessibilityAudit() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["Todo lo que pasa en Loja"].exists)
+        XCTAssertTrue(app.buttons["Café Loja, local, Centro histórico"].exists)
+
+        try app.performAccessibilityAudit()
+    }
+
     func testTabsRemainReachableInDarkModeWithMotionAndTransparencyReduced() {
         let app = XCUIApplication()
         app.launchArguments = [
