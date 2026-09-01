@@ -94,6 +94,8 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
             .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.2)) }
+            .accessibilityElement(children: .combine)
+            .accessibilityHint("Explorar categoría")
     }
 
     private func color(for value: String?) -> Color {

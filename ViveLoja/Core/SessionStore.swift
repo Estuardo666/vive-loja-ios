@@ -51,6 +51,7 @@ final class SessionStore {
 
     private func persist(_ tokens: MobileTokens) {
         accessToken = tokens.accessToken; refreshToken = tokens.refreshToken; user = tokens.user; errorMessage = nil
+        VLFeedback.success()
         try? keychain.save(tokens.accessToken, for: "accessToken")
         try? keychain.save(tokens.refreshToken, for: "refreshToken")
         if let data = try? JSONEncoder().encode(tokens.user), let value = String(data: data, encoding: .utf8) { try? keychain.save(value, for: "user") }

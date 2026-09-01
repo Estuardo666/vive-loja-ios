@@ -54,6 +54,9 @@ struct VLItemCard: View {
         }
         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.quaternary) }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)")
+        .accessibilityHint("Toca para ver el detalle")
     }
 
     private var isVenue: Bool { if case .venue = item { true } else { false } }

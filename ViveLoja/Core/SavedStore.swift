@@ -19,6 +19,7 @@ final class SavedStore {
         let wasSaved = ids.contains(item.id)
         if wasSaved { ids.remove(item.id) } else { ids.insert(item.id) }
         defaults.set(Array(ids), forKey: "savedItemIDs")
+        VLFeedback.selection()
 
         guard let accessToken else { return }
         let request = FavoriteRequest(kind: item.kind, itemId: item.rawID)
