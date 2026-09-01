@@ -82,7 +82,9 @@ struct AccountView: View {
                         NavigationLink(destination: ReservationsView()) {
                             Label("Mis reservas", systemImage: "calendar.badge.clock")
                         }
-                        Label("Mis publicaciones", systemImage: "square.and.pencil")
+                        NavigationLink(destination: CreateEventView()) {
+                            Label("Publicar evento", systemImage: "square.and.pencil")
+                        }
                     }
                     Section {
                         Button("Cerrar sesión", role: .destructive) { session.signOut() }

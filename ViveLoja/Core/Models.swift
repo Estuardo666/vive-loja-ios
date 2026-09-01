@@ -226,3 +226,23 @@ struct MessageRequest: Codable, Sendable {
     let receiverId: String
     let content: String
 }
+
+struct CreateEventRequest: Codable, Sendable {
+    let title: String
+    let description: String
+    let startDate: String
+    let endDate: String?
+    let location: String
+    let address: String?
+    let lat: Double?
+    let lng: Double?
+    let price: Double?
+    let venueId: String?
+}
+
+struct CreatedEvent: Codable, Sendable {
+    let id: String
+    let title: String
+    let slug: String
+    let status: String
+}
