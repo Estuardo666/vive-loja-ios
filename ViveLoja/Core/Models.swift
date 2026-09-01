@@ -123,7 +123,7 @@ struct MobileQuestion: Codable, Identifiable, Hashable, Sendable {
     let user: MobileReviewUser?
 }
 
-struct VenueDetail: Codable, Sendable {
+struct VenueDetail: Decodable, Sendable {
     let id: String
     let name: String
     let slug: String
@@ -147,7 +147,7 @@ struct VenueDetail: Codable, Sendable {
     let questions: [MobileQuestion]?
 }
 
-struct EventDetail: Codable, Sendable {
+struct EventDetail: Decodable, Sendable {
     let id: String
     let title: String
     let slug: String
