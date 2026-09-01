@@ -39,6 +39,10 @@ private final class StubAPIURLProtocol: URLProtocol, @unchecked Sendable {
 private struct StubPayload: Decodable, Sendable { let ok: Bool }
 
 private final class RefreshStubURLProtocol: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) private static var statusCode = 200
+
+    static func setStatusCode(_ value: Int) { statusCode = value }
+
     override class func canInit(with request: URLRequest) -> Bool { request.url?.path.hasSuffix("/auth/refresh") == true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
@@ -47,10 +51,13 @@ private final class RefreshStubURLProtocol: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(.badURL))
             return
         }
-        let body = Data("""
-        {"data":{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":3600,"user":{"id":"u1","name":"Demo","email":"demo@viveloja.test","role":"USER"}}}
-        """.utf8)
-        let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+        let status = Self.statusCode
+        let body = status == 200
+            ? Data("""
+            {"data":{"accessToken":"new-access","refreshToken":"new-refresh","expiresIn":3600,"user":{"id":"u1","name":"Demo","email":"demo@viveloja.test","role":"USER"}}}
+            """.utf8)
+            : Data("{"error":{"code":"AUTH_REQUIRED","message":"Sesión vencida"}}".utf8)
+        let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: body)
         client?.urlProtocolDidFinishLoading(self)
@@ -257,6 +264,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testSessionStoreRefreshRotatesTokens() async throws {
+        RefreshStubURLProtocol.setStatusCode(200)
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RefreshStubURLProtocol.self]
         let keychain = KeychainStore(service: "ViveLojaRefreshTests-\(UUID().uuidString)")
@@ -271,6 +279,26 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertTrue(refreshed)
         XCTAssertEqual(session.accessToken, "new-access")
         XCTAssertEqual(session.user?.email, "demo@viveloja.test")
+    }
+
+    func testSessionStoreClearsExpiredSessionAfterRefresh401() async throws {
+        RefreshStubURLProtocol.setStatusCode(401)
+        defer { RefreshStubURLProtocol.setStatusCode(200) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RefreshStubURLProtocol.self]
+        let keychain = KeychainStore(service: "ViveLojaExpiredTests-\(UUID().uuidString)")
+        try keychain.save("old-access", for: "accessToken")
+        try keychain.save("old-refresh", for: "refreshToken")
+        let client = APIClient(session: URLSession(configuration: configuration))
+        let session = SessionStore(api: client, keychain: keychain)
+
+        await session.restore()
+        let refreshed = await session.refresh()
+
+        XCTAssertFalse(refreshed)
+        XCTAssertNil(session.accessToken)
+        XCTAssertNil(session.user)
+        XCTAssertEqual(session.errorMessage, "Sesión vencida")
     }
 
     func testConversationStreamRetriesAfterDisconnectAndCanStop() async throws {
