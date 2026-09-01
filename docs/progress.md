@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33515464961](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33515464961) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, filtros + mapa, moderación de mensajes, errores offline/401, Dynamic Type, wizards, colecciones, check-in, fotos de reseña y reconexión SSE al volver a foreground).
+Último gate verde: [Actions run 33518867944](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33518867944) (SwiftLint, build unsigned, XCTest/UI smoke, screenshots, filtros + mapa, moderación de mensajes, errores offline/401, transporte lento, Dynamic Type, wizards, colecciones, check-in, fotos de reseña y retry SSE tras desconexión).
 
 ## Seguridad
 
@@ -56,6 +56,7 @@
 - [x] Mensajería iOS permite reportar y bloquear/desbloquear participantes con confirmación y feedback háptico.
 - [x] El stream SSE se detiene en background y se reinicia al volver a foreground; el refresh REST sigue siendo la fuente autoritativa.
 - [x] UI smoke de mapa y aplicación de filtros en Simulator; XCTest de conteo/reset de filtros.
+- [x] XCTest de transporte lento y reconexión SSE con URLProtocol; el workflow cancela runs obsoletos del mismo branch.
 
 ## Siguiente checkpoint
 
