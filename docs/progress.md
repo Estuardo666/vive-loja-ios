@@ -9,6 +9,8 @@
 - [x] Liquid Glass en superficies funcionales y fallback de contenido sólido.
 - [x] MapKit nativo con clustering, selección, radio de proximidad y búsqueda al mover cámara.
 - [x] Detalle con hidratación remota, guardado local y enlace a Apple Maps.
+- [x] Guardados con persistencia local y sincronización opcional contra `/me/favorites` cuando hay sesión.
+- [x] Blog público desde `/content`, categorías dinámicas y estados vacío/error/offline.
 - [x] CI macOS 26/Xcode 26.2 unsigned con build, XCTest y artifact `.xcresult`.
 
 Último gate verde: [Actions run 33488418114](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33488418114).
