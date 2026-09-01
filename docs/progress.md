@@ -24,7 +24,7 @@
 - [x] Distancias Haversine y radios de proximidad cubiertos por XCTest.
 - [x] Recordatorios locales de eventos con UserNotifications y cancelación.
 
-Último gate verde: [Actions run 33499833392](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33499833392).
+Último gate verde: [Actions run 33506128236](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33506128236) (wizards, colecciones y check-in).
 
 ## Seguridad
 
@@ -43,10 +43,13 @@
 - [x] Conversación detallada, marcado leído y SSE best-effort en foreground.
 - [x] Cancelación de reservas con ventana de seguridad y rollback de favoritos.
 - [x] Detalle con galería/servicios, reseñas y preguntas; formularios autenticados.
+- [x] Reseñas con hasta seis fotos mediante upload multipart a R2.
 - [x] Primer flujo de creación de evento conectado a `/me/events`.
 - [x] Portada de evento mediante PhotosPicker + upload multipart a R2.
+- [x] Colecciones privadas y check-in de local con validación de proximidad.
+- [x] Wizards de evento, local, artículo y ruta; todos crean borradores `PENDING`.
 - [x] Onboarding de intereses y preferencias conectado a `/me/interests`.
 
 ## Siguiente checkpoint
 
-Siguiente gate: ejecutar CI del cliente con UI smoke tests; después cerrar snapshots/Dynamic Type y ampliar wizards de creación (local, artículo y ruta).
+Siguiente gate: cerrar snapshots/Dynamic Type y pruebas de red lenta/modo avión; la distribución firmada queda para Codemagic/TestFlight con credenciales externas.
