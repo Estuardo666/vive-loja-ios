@@ -9,6 +9,9 @@ struct ClusteredMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedItemID: String?
     let radiusMeters: CLLocationDistance
+    /// When set (near-me is on) the radius circle stays anchored here instead of
+    /// following the map centre, so panning no longer drags the search area.
+    let circleCenter: CLLocationCoordinate2D?
     let onRegionChange: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -17,7 +20,10 @@ struct ClusteredMapView: UIViewRepresentable {
         let mapView = MKMapView(frame: .zero)
         mapView.accessibilityIdentifier = "explore-map"
         mapView.delegate = context.coordinator
-        mapView.pointOfInterestFilter = .includingAll
+        let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
+        configuration.pointOfInterestFilter = .includingAll
+        mapView.preferredConfiguration = configuration
+        mapView.overrideUserInterfaceStyle = .dark
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.showsUserLocation = true
@@ -32,9 +38,17 @@ struct ClusteredMapView: UIViewRepresentable {
         mapView.removeAnnotations(oldAnnotations)
         mapView.addAnnotations(items.compactMap(MapItemAnnotation.init))
 
-        mapView.removeOverlays(mapView.overlays)
-        let circle = MKCircle(center: region.center, radius: radiusMeters)
-        mapView.addOverlay(circle)
+        let center = circleCenter ?? region.center
+        let existing = mapView.overlays.compactMap { $0 as? MKCircle }.first
+        let needsCircle = existing.map {
+            abs($0.coordinate.latitude - center.latitude) > 0.00001
+                || abs($0.coordinate.longitude - center.longitude) > 0.00001
+                || abs($0.radius - radiusMeters) > 1
+        } ?? true
+        if needsCircle {
+            mapView.removeOverlays(mapView.overlays)
+            mapView.addOverlay(MKCircle(center: center, radius: radiusMeters))
+        }
 
         if !mapView.region.isApproximatelyEqual(to: region) {
             mapView.setRegion(region, animated: true)
@@ -84,9 +98,9 @@ struct ClusteredMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKCircleRenderer(circle: circle)
-            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.08)
-            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.45)
-            renderer.lineWidth = 1.5
+            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.22)
+            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.95)
+            renderer.lineWidth = 3
             return renderer
         }
     }

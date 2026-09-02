@@ -78,7 +78,8 @@ final class ExploreViewModel {
 struct ExploreView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model = ExploreViewModel()
-    @State private var mapRegion = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08))
+    @State private var mapRegion = ExploreView.region(around: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), radiusMeters: 1_000)
+    @State private var nearMeCenter: CLLocationCoordinate2D?
     @State private var selectedMapItemID: String?
     @State private var radiusMeters: CLLocationDistance = 1_000
     @State private var showMap = false
@@ -94,7 +95,6 @@ struct ExploreView: View {
                     Text("Todo").tag("all"); Text("Locales").tag("venues"); Text("Eventos").tag("events")
                 }
                 .pickerStyle(.segmented).padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 6)
-                nearMeBar
                 if showMap { map } else { list }
             }
             .navigationTitle("Explorar")
@@ -120,10 +120,16 @@ struct ExploreView: View {
                 Task { await runSearch() }
             }
             .onChange(of: location.coordinate?.lat) { _, _ in
-                guard useNearMe, !isUITesting else { return }
+                guard useNearMe, let coordinate = location.coordinate else { return }
+                let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
+                nearMeCenter = center
+                withAnimation(reduceMotion ? nil : Animation.snappy) { mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters) }
+                guard !isUITesting else { return }
                 Task { await runSearch() }
             }
             .onChange(of: radiusMeters) { _, _ in
+                let center = nearMeCenter ?? mapRegion.center
+                withAnimation(reduceMotion ? nil : Animation.snappy) { mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters) }
                 guard showMap || useNearMe, !isUITesting else { return }
                 Task { await runSearch() }
             }
@@ -143,6 +149,11 @@ struct ExploreView: View {
         }
     }
 
+    /// Frames the requested radius with margin so the circle is fully visible.
+    static func region(around center: CLLocationCoordinate2D, radiusMeters: CLLocationDistance) -> MKCoordinateRegion {
+        MKCoordinateRegion(center: center, latitudinalMeters: radiusMeters * 2.6, longitudinalMeters: radiusMeters * 2.6)
+    }
+
     private func runSearch() async {
         if useNearMe, let coordinate = location.coordinate {
             await model.search(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), radiusMeters: radiusMeters)
@@ -150,31 +161,6 @@ struct ExploreView: View {
             await model.search(center: mapRegion.center, radiusMeters: radiusMeters)
         } else {
             await model.search()
-        }
-    }
-
-    private var nearMeBar: some View {
-        HStack(spacing: 10) {
-            Button {
-                useNearMe.toggle()
-                if useNearMe { location.requestCurrentLocation() } else { Task { await runSearch() } }
-            } label: {
-                Label("Cerca de mí", systemImage: useNearMe ? "location.fill" : "location").font(.subheadline.weight(.semibold))
-            }
-            .buttonStyle(.bordered)
-            .tint(useNearMe ? VLTheme.indigo : .secondary)
-            .accessibilityIdentifier("explore-near-me")
-            .accessibilityAddTraits(useNearMe ? [.isSelected] : [])
-            if useNearMe || showMap { radiusPicker.pickerStyle(.menu) }
-            if location.isRequesting { ProgressView().controlSize(.small) }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .overlay(alignment: .bottomLeading) {
-            if useNearMe, let message = location.errorMessage {
-                Text(message).font(.caption).foregroundStyle(VLTheme.coral).padding(.horizontal, 16)
-            }
         }
     }
 
@@ -219,18 +205,52 @@ struct ExploreView: View {
                 region: $mapRegion,
                 selectedItemID: $selectedMapItemID,
                 radiusMeters: radiusMeters,
+                circleCenter: useNearMe ? nearMeCenter : nil,
                 onRegionChange: { newRegion in
                     guard showMap, !useNearMe, !isUITesting else { return }
                     Task { await model.search(center: newRegion.center, radiusMeters: radiusMeters) }
                 }
             )
                 .ignoresSafeArea(edges: .bottom)
-            radiusPicker
-                .pickerStyle(.menu)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .vlGlass(tint: VLTheme.indigo, radius: 14)
-                .padding(16)
+            HStack(spacing: 8) {
+                Button {
+                    useNearMe.toggle()
+                    if useNearMe {
+                        location.requestCurrentLocation()
+                    } else {
+                        nearMeCenter = nil
+                        Task { await runSearch() }
+                    }
+                } label: {
+                    Image(systemName: useNearMe ? "location.fill" : "location.viewfinder")
+                        .font(.headline)
+                        .frame(width: 28, height: 22)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                }
+                .vlGlass(tint: useNearMe ? VLTheme.indigo : nil, radius: 14)
+                .accessibilityIdentifier("explore-near-me")
+                .accessibilityLabel("Cerca de mí")
+                .accessibilityAddTraits(useNearMe ? [.isSelected] : [])
+                radiusPicker
+                    .pickerStyle(.menu)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .vlGlass(tint: VLTheme.indigo, radius: 14)
+            }
+            .padding(16)
+            .overlay(alignment: .bottomTrailing) {
+                if location.isRequesting { ProgressView().controlSize(.small).padding(.trailing, 20) }
+            }
+            if useNearMe, let message = location.errorMessage {
+                Text(message)
+                    .font(.caption)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .vlGlass(tint: VLTheme.coral, radius: 12)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 62)
+            }
         }
     }
 
