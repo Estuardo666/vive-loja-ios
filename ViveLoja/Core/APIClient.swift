@@ -129,6 +129,7 @@ actor APIClient {
         request.httpMethod = method
         request.cachePolicy = method == "GET" && bearer == nil ? .useProtocolCachePolicy : .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if bearer != nil { request.setValue("no-store", forHTTPHeaderField: "Cache-Control") }
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
         if let body { request.httpBody = try JSONEncoder().encode(body) }
