@@ -39,7 +39,8 @@ workflows:
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
+            CODE_SIGNING_REQUIRED=NO \
+            ENABLE_TESTABILITY=YES
     artifacts:
       - TestResults.xcresult
       - DerivedData/Logs/Test

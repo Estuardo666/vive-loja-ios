@@ -59,6 +59,7 @@ jobs:
           -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
+          ENABLE_TESTABILITY=YES
 
       - name: Export screenshot attachments
         if: always()
