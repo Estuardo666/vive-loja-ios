@@ -80,6 +80,7 @@ private struct PasswordUpdateResponse: Decodable, Sendable { let updated: Bool }
 
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(ThemeStore.self) private var theme
     @State private var showAuth = false
     @State private var showPasswordSheet = false
     @State private var model = AccountViewModel()
@@ -87,6 +88,8 @@ struct AccountView: View {
     @State private var selectedAvatar: PhotosPickerItem?
 
     var body: some View {
+        @Bindable var theme = theme
+
         NavigationStack {
             List {
                 if let user = session.user {
@@ -123,7 +126,9 @@ struct AccountView: View {
                         Section { Text(error).foregroundStyle(.red) }
                     }
                     Section("Tu actividad") {
-                        Label("Mis favoritos", systemImage: "heart")
+                        NavigationLink(destination: SavedView()) {
+                            Label("Mis favoritos", systemImage: "heart")
+                        }
                         NavigationLink(destination: CollectionsView()) {
                             Label("Mis colecciones", systemImage: "folder")
                         }
@@ -173,6 +178,19 @@ struct AccountView: View {
                         Text("Guarda lugares, recibe recomendaciones y publica en Loja.").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
+                Section("Apariencia") {
+                    Picker("Paleta", selection: $theme.palette) {
+                        ForEach(VLPalette.allCases) { palette in
+                            Text(palette.label).tag(palette)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+                    .accessibilityIdentifier("palette-picker")
+                    Text(theme.palette.detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("Cuenta")
             .toolbarTitleDisplayMode(.inlineLarge)
@@ -183,6 +201,7 @@ struct AccountView: View {
             }
             .task(id: session.user?.id) {
                 guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+                await session.refreshIfNeeded()
                 await model.load(accessToken: session.accessToken)
                 draftName = model.profile?.name ?? session.user?.name ?? ""
             }

@@ -13,6 +13,12 @@ final class SessionStore {
     /// Cached avatar so the tab bar and the map pin can show it without each
     /// screen refetching the profile.
     private(set) var avatarURL: URL?
+    /// When the current access token stops being accepted. Access tokens live
+    /// 15 minutes, so anything restored from disk is almost certainly stale.
+    private(set) var accessTokenExpiry: Date?
+
+    /// UserDefaults is wiped when the app is deleted; the keychain is not.
+    private static let installMarkerKey = "vl.install-marker"
     var isSessionExpired = false
     var errorMessage: String?
 
@@ -33,9 +39,37 @@ final class SessionStore {
             isSessionExpired = true
             return
         }
+        discardKeychainAfterReinstall()
         guard let access = keychain.read("accessToken"), let refresh = keychain.read("refreshToken") else { return }
         accessToken = access; refreshToken = refresh
         if let stored = keychain.read("user"), let data = stored.data(using: .utf8), let decoded = try? JSONDecoder().decode(MobileUser.self, from: data) { user = decoded }
+        // Exchange the stored token before the UI starts making calls with it,
+        // which also validates that the session still exists server-side.
+        await refreshIfNeeded(force: true)
+    }
+
+    /// The keychain survives deleting the app, so a reinstall used to come back
+    /// looking signed in while the server had long since stopped honouring the
+    /// tokens. Drop them the first time each installation runs.
+    private func discardKeychainAfterReinstall() {
+        let defaults = UserDefaults.standard
+        guard !defaults.bool(forKey: Self.installMarkerKey) else { return }
+        defaults.set(true, forKey: Self.installMarkerKey)
+        keychain.delete("accessToken"); keychain.delete("refreshToken"); keychain.delete("user")
+    }
+
+    /// Refreshes when the access token is spent or about to be. Nothing called
+    /// `refresh()` before, so every session silently died after 15 minutes and
+    /// authenticated screens just stopped working.
+    func refreshIfNeeded(force: Bool = false) async {
+        guard refreshToken != nil else { return }
+        if force || accessTokenExpiry == nil {
+            await refresh()
+            return
+        }
+        if let expiry = accessTokenExpiry, expiry.timeIntervalSinceNow < 60 {
+            await refresh()
+        }
     }
 
     func login(email: String, password: String) async -> Bool {
@@ -97,6 +131,7 @@ final class SessionStore {
 
     private func persist(_ tokens: MobileTokens) {
         accessToken = tokens.accessToken; refreshToken = tokens.refreshToken; user = tokens.user; errorMessage = nil
+        accessTokenExpiry = Date().addingTimeInterval(TimeInterval(tokens.expiresIn))
         isSessionExpired = false
         VLFeedback.success()
         Task { await loadAvatar() }
@@ -106,7 +141,7 @@ final class SessionStore {
     }
 
     private func clear() {
-        user = nil; accessToken = nil; refreshToken = nil; avatarURL = nil
+        user = nil; accessToken = nil; refreshToken = nil; avatarURL = nil; accessTokenExpiry = nil
         keychain.delete("accessToken"); keychain.delete("refreshToken"); keychain.delete("user")
     }
 }
