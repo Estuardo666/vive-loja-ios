@@ -48,6 +48,7 @@ struct SavedView: View {
                     localContent
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Guardados")
             .toolbarTitleDisplayMode(.inlineLarge)
             .task(id: session.user?.id) {

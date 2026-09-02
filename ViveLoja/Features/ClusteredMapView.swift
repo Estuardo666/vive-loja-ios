@@ -64,6 +64,8 @@ struct ClusteredMapView: UIViewRepresentable {
     /// rebuild on every pan, which is what made it flicker.
     let circleCenter: CLLocationCoordinate2D
     let userPhotoURL: URL?
+    /// Screen-space projection of the search area, drawn by SwiftUI on top.
+    let projection: MapProjection
     let mapStyle: MapStyleOption
     /// Active route, drawn under the pins. Hides the radius ring while set.
     let route: MKRoute?
@@ -83,7 +85,6 @@ struct ClusteredMapView: UIViewRepresentable {
         mapView.isPitchEnabled = false
         mapView.setRegion(region, animated: false)
         context.coordinator.applyStyle(mapStyle, to: mapView)
-        context.coordinator.syncRadiusRing(on: mapView, center: circleCenter, radius: radiusMeters, hidden: route != nil)
         return mapView
     }
 
@@ -100,8 +101,8 @@ struct ClusteredMapView: UIViewRepresentable {
         if !added.isEmpty { mapView.addAnnotations(added) }
 
         context.coordinator.applyStyle(mapStyle, to: mapView)
-        context.coordinator.syncRadiusRing(on: mapView, center: circleCenter, radius: radiusMeters, hidden: route != nil)
         context.coordinator.syncRoute(on: mapView, route: route)
+        Task { @MainActor in context.coordinator.publishProjection(mapView) }
         context.coordinator.applyGuidance(isGuiding, to: mapView)
         context.coordinator.refreshUserAvatar(on: mapView, url: userPhotoURL)
 
@@ -118,9 +119,6 @@ struct ClusteredMapView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: ClusteredMapView
-        private var ringCenter: CLLocationCoordinate2D?
-        private var ringRadius: CLLocationDistance?
-        private var ringHidden = false
         private var appliedAvatarURL: URL?
         private var appliedStyle: MapStyleOption?
         private var appliedRoute: MKRoute?
@@ -134,28 +132,20 @@ struct ClusteredMapView: UIViewRepresentable {
             mapView.preferredConfiguration = style.configuration
         }
 
-        /// Replaces the ring only when the area it describes actually moved.
-        func syncRadiusRing(on mapView: MKMapView, center: CLLocationCoordinate2D, radius: CLLocationDistance, hidden: Bool) {
-            if hidden {
-                if !ringHidden {
-                    mapView.removeOverlays(mapView.overlays.filter { $0 is MKCircle })
-                    ringHidden = true
-                    ringCenter = nil
-                    ringRadius = nil
-                }
-                return
-            }
-            if !ringHidden, let ringCenter, let ringRadius,
-               abs(ringCenter.latitude - center.latitude) < 0.00001,
-               abs(ringCenter.longitude - center.longitude) < 0.00001,
-               abs(ringRadius - radius) < 1 {
-                return
-            }
-            mapView.removeOverlays(mapView.overlays.filter { $0 is MKCircle })
-            mapView.addOverlay(MKCircle(center: center, radius: radius), level: .aboveRoads)
-            ringHidden = false
-            ringCenter = center
-            ringRadius = radius
+        /// Recomputes where the search area lands on screen. Called on every
+        /// frame of a gesture so the SwiftUI ring stays glued to the map.
+        func publishProjection(_ mapView: MKMapView) {
+            let region = MKCoordinateRegion(
+                center: parent.circleCenter,
+                latitudinalMeters: parent.radiusMeters * 2,
+                longitudinalMeters: parent.radiusMeters * 2
+            )
+            let rect = mapView.convert(region, toRectTo: mapView)
+            guard rect.width.isFinite, rect.height.isFinite else { return }
+            parent.projection.update(
+                center: CGPoint(x: rect.midX, y: rect.midY),
+                radiusPoints: rect.width / 2
+            )
         }
 
         func syncRoute(on mapView: MKMapView, route: MKRoute?) {
@@ -234,6 +224,10 @@ struct ClusteredMapView: UIViewRepresentable {
             parent.selectedItemID = item.id
         }
 
+        func mapViewDidChangeVisibleRegion(_ mapView: MKMapView) {
+            publishProjection(mapView)
+        }
+
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             guard !parent.isGuiding else { return }
             // Writing the region back re-enters updateUIView, so only do it when
@@ -260,13 +254,7 @@ struct ClusteredMapView: UIViewRepresentable {
                 renderer.lineJoin = .round
                 return renderer
             }
-            guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
-            let renderer = MKCircleRenderer(circle: circle)
-            // Outline only. A filled disc over the tiles is what washed the map out.
-            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.06)
-            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.9)
-            renderer.lineWidth = 2.5
-            return renderer
+            return MKOverlayRenderer(overlay: overlay)
         }
     }
 }

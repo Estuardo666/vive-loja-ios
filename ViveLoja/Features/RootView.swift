@@ -40,6 +40,7 @@ struct MainTabView: View {
             MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
             AccountView().tabItem { accountTabLabel }.tag(Tab.account)
         }
+        .vlDismissKeyboardOnTap()
         .task(id: session.avatarURL) { await loadAvatarIcon() }
         .sheet(item: $deepLinkRouter.destination) { destination in
             DeepLinkDestinationView(destination: destination)

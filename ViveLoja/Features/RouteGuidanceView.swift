@@ -4,7 +4,11 @@ import SwiftUI
 enum RouteFormat {
     static func distance(_ meters: CLLocationDistance) -> String {
         if meters < 1_000 { return "\(Int(meters.rounded())) m" }
-        return String(format: "%.1f km", meters / 1_000)
+        let kilometres = meters / 1_000
+        if kilometres >= 10 || kilometres == kilometres.rounded() {
+            return "\(Int(kilometres.rounded())) km"
+        }
+        return String(format: "%.1f km", kilometres)
     }
 
     static func duration(_ seconds: TimeInterval) -> String {

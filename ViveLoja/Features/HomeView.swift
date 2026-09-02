@@ -180,6 +180,7 @@ struct HomeView: View {
                 }
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Vive Loja")
             .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
