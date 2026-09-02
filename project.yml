@@ -8,10 +8,12 @@ configs:
   Debug: debug
   Staging: debug
   Release: release
+  Production: release
 configFiles:
   Debug: Config/Debug.xcconfig
   Staging: Config/Staging.xcconfig
   Release: Config/Release.xcconfig
+  Production: Config/Production.xcconfig
 settings:
   base:
     SWIFT_VERSION: "6.0"
