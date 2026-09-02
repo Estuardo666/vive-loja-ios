@@ -50,6 +50,8 @@ El commit `817255d` añade `VLGlassEffectContainer`, con fallback sólido para R
 
 Los commits `4fcb00f`, `b07fcd0` y `e89ff37` cierran el gate de configuración de producción: XcodeGen expone `Production` como configuración release con `Config/Production.xcconfig`, GitHub Actions compila y prueba explícitamente esa configuración, y Codemagic archiva el IPA unsigned con ella. Las pruebas habilitan `ENABLE_TESTABILITY=YES` únicamente en el comando XCTest para conservar `@testable import` sin alterar el binario de archive. El reintento de `testMainTabsPassAccessibilityAudit` sólo captura el timeout transitorio -56 de XCTest y vuelve a lanzar el auditor; fallos reales siguen propagándose. [CI 33586423762](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33586423762) pasa Generate, SwiftLint, build, 22 XCTest, 15 UI tests, snapshots y artifacts.
 
+El commit `7dbd117` endurece ese reintento: ante el timeout -56 del framework, relanza el fixture de UI hasta tres veces antes de propagar el error. El run anterior `33587815291` reprodujo el timeout; [CI 33588726024](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33588726024) confirma la corrección con Xcode 26.2, configuración `Production`, 22 XCTest, 15 UI tests, auditoría de accesibilidad, snapshots y artefactos.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
