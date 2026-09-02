@@ -19,6 +19,8 @@ final class SessionStore {
 
     /// UserDefaults is wiped when the app is deleted; the keychain is not.
     private static let installMarkerKey = "vl.install-marker"
+    /// The one refresh currently in flight, if any. See `refresh()`.
+    private var refreshTask: Task<Bool, Never>?
     var isSessionExpired = false
     var errorMessage: String?
 
@@ -82,8 +84,26 @@ final class SessionStore {
         catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo crear la cuenta."; return false }
     }
 
+    /// Rotating a refresh token is single-use on the server: the first request
+    /// claims it and every later one with the same token is answered 401. Three
+    /// callers fire at launch — restore, the scene becoming active and the
+    /// account screen loading — so without this the losers of that race each
+    /// saw a 401, cleared the session and sent the user back to the login form
+    /// on every cold start. Collapse them onto one shared task.
     @discardableResult
     func refresh() async -> Bool {
+        if let refreshTask { return await refreshTask.value }
+        let task = Task<Bool, Never> { [weak self] in
+            guard let self else { return false }
+            return await performRefresh()
+        }
+        refreshTask = task
+        let result = await task.value
+        refreshTask = nil
+        return result
+    }
+
+    private func performRefresh() async -> Bool {
         guard let refreshToken else { return false }
         do {
             let tokens: MobileTokens = try await api.post("/auth/refresh", body: RefreshRequest(refreshToken: refreshToken))

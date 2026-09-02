@@ -33,6 +33,29 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      # macos-26 images do not always ship a downloaded iOS runtime, and the
+      # runner's simulator names drift with every image update. Install the
+      # runtime if it is missing, then resolve whatever iPhone actually exists
+      # rather than pinning a model that may not be there.
+      - name: Ensure an iOS simulator runtime
+        run: |
+          if ! xcrun simctl list runtimes | grep -q "iOS "; then
+            xcodebuild -downloadPlatform iOS
+          fi
+          xcrun simctl list runtimes
+
+      - name: Resolve simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available --json | jq -r '.devices | to_entries | map(select(.key | test("iOS"))) | map(.value[]) | map(select(.isAvailable and (.name | test("iPhone")))) | (map(select(.name | test("Pro"))) + .) | .[0].udid')
+          if [ -z "$udid" ] || [ "$udid" = "null" ]; then
+            echo "No available iPhone simulator on this runner" >&2
+            xcrun simctl list devices >&2
+            exit 1
+          fi
+          echo "Using simulator $udid"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
       - name: Lint Swift
         run: swiftlint lint --quiet
 
@@ -43,7 +66,7 @@ jobs:
           -scheme ViveLoja
           -configuration Production
           -sdk iphonesimulator
-          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
+          -destination "id=${{ steps.sim.outputs.udid }}"
           -derivedDataPath DerivedData
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
@@ -55,7 +78,7 @@ jobs:
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
           -configuration Production
-          -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
+          -destination "id=${{ steps.sim.outputs.udid }}"
           -derivedDataPath DerivedData
           -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
