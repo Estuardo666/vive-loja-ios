@@ -23,7 +23,6 @@ struct ClusteredMapView: UIViewRepresentable {
         let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
         configuration.pointOfInterestFilter = .excludingAll
         mapView.preferredConfiguration = configuration
-        mapView.overrideUserInterfaceStyle = .dark
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.showsUserLocation = true
@@ -37,9 +36,14 @@ struct ClusteredMapView: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.parent = self
 
-        let oldAnnotations = mapView.annotations.filter { !($0 is MKUserLocation) }
-        mapView.removeAnnotations(oldAnnotations)
-        mapView.addAnnotations(items.compactMap(MapItemAnnotation.init))
+        let existing = mapView.annotations.compactMap { $0 as? MapItemAnnotation }
+        let existingIDs = Set(existing.map(\.id))
+        let incoming = items.compactMap(MapItemAnnotation.init)
+        let incomingIDs = Set(incoming.map(\.id))
+        let stale = existing.filter { !incomingIDs.contains($0.id) }
+        if !stale.isEmpty { mapView.removeAnnotations(stale) }
+        let added = incoming.filter { !existingIDs.contains($0.id) }
+        if !added.isEmpty { mapView.addAnnotations(added) }
 
         let center = circleCenter ?? region.center
         let existing = mapView.overlays.compactMap { $0 as? MKCircle }.first
@@ -113,7 +117,13 @@ struct ClusteredMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let dim = overlay as? MapDimOverlay {
                 let renderer = MKPolygonRenderer(polygon: dim)
-                renderer.fillColor = UIColor.black.withAlphaComponent(0.55)
+                // Dark theme needs a heavy scrim for the radius circle to read.
+                // Light theme only needs the basemap calmed down.
+                renderer.fillColor = UIColor { traits in
+                    traits.userInterfaceStyle == .dark
+                        ? UIColor.black.withAlphaComponent(0.55)
+                        : UIColor.white.withAlphaComponent(0.30)
+                }
                 renderer.strokeColor = .clear
                 renderer.lineWidth = 0
                 return renderer

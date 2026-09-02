@@ -26,7 +26,7 @@ final class MapImageCache {
 
 /// Map pin showing the venue/event photo instead of a generic marker.
 final class ItemPhotoAnnotationView: MKAnnotationView {
-    private static let diameter: CGFloat = 46
+    private static let diameter: CGFloat = 34
     private let photoView = UIImageView()
     private var loadTask: Task<Void, Never>?
 
@@ -45,7 +45,7 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         addSubview(photoView)
 
         layer.cornerRadius = Self.diameter / 2
-        layer.borderWidth = 3
+        layer.borderWidth = 2.5
         layer.shadowColor = UIColor.black.cgColor
         layer.shadowOpacity = 0.35
         layer.shadowRadius = 4
@@ -60,6 +60,9 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         let tint = UIColor(VLTheme.itemColor(item.item))
         layer.borderColor = tint.cgColor
         photoView.backgroundColor = tint
+        // Re-asserted after dequeue: a recycled view can come back without it,
+        // which is what stopped pins from clustering.
+        clusteringIdentifier = "explore-items"
         showPlaceholder(isVenue: item.isVenue)
 
         loadTask?.cancel()
@@ -75,11 +78,29 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         }
     }
 
+    override func setSelected(_ selected: Bool, animated: Bool) {
+        super.setSelected(selected, animated: animated)
+        let apply = {
+            self.transform = selected ? CGAffineTransform(scaleX: 1.45, y: 1.45) : .identity
+            self.layer.borderWidth = selected ? 3.5 : 2.5
+            self.layer.shadowOpacity = selected ? 0.6 : 0.35
+        }
+        if animated {
+            UIView.animate(withDuration: 0.22, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.4, options: [.beginFromCurrentState], animations: apply)
+        } else {
+            apply()
+        }
+        if selected { superview?.bringSubviewToFront(self) }
+    }
+
     override func prepareForReuse() {
         super.prepareForReuse()
         loadTask?.cancel()
         loadTask = nil
         photoView.image = nil
+        transform = .identity
+        layer.borderWidth = 2.5
+        layer.shadowOpacity = 0.35
     }
 
     private func show(_ image: UIImage) {

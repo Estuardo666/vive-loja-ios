@@ -36,6 +36,9 @@ struct MainTabView: View {
             MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
             AccountView().tabItem { Label("Cuenta", systemImage: "person.crop.circle") }.tag(Tab.account)
         }
+        // Collapses the separate large-title row into the toolbar, removing the
+        // empty band that sat above every screen title.
+        .toolbarTitleDisplayMode(.inlineLarge)
         .sheet(item: $deepLinkRouter.destination) { destination in
             DeepLinkDestinationView(destination: destination)
         }

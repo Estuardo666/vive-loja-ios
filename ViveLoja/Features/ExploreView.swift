@@ -136,9 +136,9 @@ struct ExploreView: View {
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
                     MapItemPeekView(item: item)
-                        .presentationDetents([.height(300), .large])
+                        .presentationDetents([.height(MapItemPeekView.height(for: item))])
                         .presentationDragIndicator(.visible)
-                        .presentationBackgroundInteraction(.enabled(upThrough: .height(300)))
+                        .presentationBackgroundInteraction(.enabled)
                 }
             }
             .sheet(isPresented: $showFilters) {

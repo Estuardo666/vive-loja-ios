@@ -4,41 +4,60 @@ import SwiftUI
 /// type badge, name, date, address and a CTA into the full profile.
 struct MapItemPeekView: View {
     let item: ExploreItem
+    @State private var showFullProfile = false
+
+    /// Detent height for `item`, so the sheet hugs its content instead of
+    /// leaving dead space under the CTA. Events carry one extra row.
+    static func height(for item: ExploreItem) -> CGFloat {
+        if case .event = item { return 238 }
+        return 206
+    }
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
-                    thumbnail
-                    VStack(alignment: .leading, spacing: 6) {
-                        badge
-                        Text(item.title).font(.headline).lineLimit(2)
-                    }
-                    Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 14) {
+                thumbnail
+                VStack(alignment: .leading, spacing: 6) {
+                    badge
+                    Text(item.title).font(.headline).lineLimit(2)
                 }
-                if let startDate {
-                    Label(startDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)), systemImage: "calendar")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }
-                Label(address, systemImage: "mappin.and.ellipse")
-                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-                NavigationLink {
-                    ItemDetailView(item: item)
-                } label: {
-                    HStack {
-                        Text(isVenue ? "Ver local" : "Ver evento").font(.subheadline.weight(.semibold))
-                        Spacer()
-                        Image(systemName: "arrow.right")
-                    }
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(VLTheme.itemColor(item))
-                .accessibilityIdentifier("map-peek-open")
                 Spacer(minLength: 0)
             }
-            .padding(20)
-            .toolbar(.hidden, for: .navigationBar)
+            if let startDate {
+                Label(startDate.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)), systemImage: "calendar")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            Label(address, systemImage: "mappin.and.ellipse")
+                .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            Button {
+                showFullProfile = true
+            } label: {
+                HStack {
+                    Text(isVenue ? "Ver local" : "Ver evento").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Image(systemName: "arrow.right")
+                }
+                .padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(VLTheme.itemColor(item))
+            .accessibilityIdentifier("map-peek-open")
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 18)
+        .padding(.bottom, 12)
+        // Presented from the peek itself so the profile opens full screen without
+        // racing the sheet's own dismissal.
+        .fullScreenCover(isPresented: $showFullProfile) {
+            NavigationStack {
+                ItemDetailView(item: item)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button { showFullProfile = false } label: { Image(systemName: "xmark") }
+                                .accessibilityLabel("Cerrar")
+                        }
+                    }
+            }
         }
     }
 
@@ -48,10 +67,10 @@ struct MapItemPeekView: View {
         } placeholder: {
             ZStack {
                 VLTheme.itemColor(item).opacity(0.25)
-                Image(systemName: isVenue ? "mappin" : "calendar").foregroundStyle(.white)
+                Image(systemName: isVenue ? "mappin" : "calendar").foregroundStyle(VLTheme.itemColor(item))
             }
         }
-        .frame(width: 68, height: 68)
+        .frame(width: 64, height: 64)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

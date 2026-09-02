@@ -1,15 +1,53 @@
 import SwiftUI
+import UIKit
 
+/// Brand palette shared with the web app. Every colour below was checked against
+/// WCAG AA (4.5:1) on both themes' background and surface; the ratio is noted
+/// next to each value so future tweaks can be re-checked.
+///
+/// The raw brand teal (#23D3D3) only reaches 1.85:1 on white, so in the light
+/// theme it is a fill colour behind dark text, never a text or icon colour. A
+/// darkened teal carries the same identity where contrast is required.
 enum VLTheme {
-    static let indigo = Color(red: 0.25, green: 0.25, blue: 0.78)
-    static let coral = Color(red: 0.94, green: 0.32, blue: 0.31)
-    static let emerald = Color(red: 0.10, green: 0.56, blue: 0.38)
+    /// Primary action colour: the web app's `--primary` blue.
+    static let indigo = dynamic(light: 0x1450D2, dark: 0x4E81EF)   // 6.76 / 4.74
+    /// Events.
+    static let coral = dynamic(light: 0xB93E12, dark: 0xFF8A5B)    // 5.58 / 7.50
+    /// Venues, in the logo's teal family.
+    static let emerald = dynamic(light: 0x0B6E70, dark: 0x23D3D3)  // 6.04 / 9.40
+
+    /// Logo teal, for fills and decoration only.
+    static let brand = dynamic(light: 0x23D3D3, dark: 0x23D3D3)
+    /// Text and glyphs drawn on top of `brand`.
+    static let onBrand = dynamic(light: 0x062E3B, dark: 0x062E3B)  // 7.75 on brand
+    /// Logo navy.
+    static let navy = dynamic(light: 0x00567C, dark: 0x7FD4EE)
+
+    static let background = dynamic(light: 0xF7FAFB, dark: 0x0B1114)
+    static let surface = dynamic(light: 0xFFFFFF, dark: 0x131B20)
 
     static func itemColor(_ item: ExploreItem) -> Color {
         switch item {
         case .venue: return emerald
         case .event: return coral
         }
+    }
+
+    private static func dynamic(light: UInt32, dark: UInt32) -> Color {
+        Color(uiColor: UIColor { traits in
+            UIColor(rgb: traits.userInterfaceStyle == .dark ? dark : light)
+        })
+    }
+}
+
+private extension UIColor {
+    convenience init(rgb: UInt32) {
+        self.init(
+            red: CGFloat((rgb >> 16) & 0xFF) / 255,
+            green: CGFloat((rgb >> 8) & 0xFF) / 255,
+            blue: CGFloat(rgb & 0xFF) / 255,
+            alpha: 1
+        )
     }
 }
 
