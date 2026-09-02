@@ -19,6 +19,18 @@ final class SavedViewModel {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus guardados."
         }
     }
+
+    func remove(_ favorite: FavoriteRecord, accessToken: String?) async {
+        guard let accessToken else { return }
+        do {
+            let _: EmptyResponse = try await APIClient.shared.delete("/me/favorites", body: FavoriteRequest(kind: favorite.kind, itemId: favorite.itemId), bearer: accessToken)
+            favorites.removeAll { $0.id == favorite.id }
+            VLFeedback.success()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo quitar el guardado."
+            VLFeedback.error()
+        }
+    }
 }
 
 struct SavedView: View {
@@ -101,6 +113,7 @@ struct SavedView: View {
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("saved-\(favorite.kind)-\(favorite.itemId)")
+            .contextMenu { removeButton(favorite) }
         } else if let item = favorite.item {
             HStack(spacing: 12) {
                 VLAsyncImage(url: item.image, height: 68)
@@ -116,12 +129,20 @@ struct SavedView: View {
             .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("saved-\(favorite.kind)-\(favorite.itemId)")
+            .contextMenu { removeButton(favorite) }
         } else {
             Label("Contenido guardado", systemImage: "bookmark.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
                 .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .accessibilityLabel("Contenido guardado, \(favorite.kind)")
+                .contextMenu { removeButton(favorite) }
+        }
+    }
+
+    private func removeButton(_ favorite: FavoriteRecord) -> some View {
+        Button("Quitar de guardados", role: .destructive) {
+            Task { await model.remove(favorite, accessToken: session.accessToken) }
         }
     }
 }
