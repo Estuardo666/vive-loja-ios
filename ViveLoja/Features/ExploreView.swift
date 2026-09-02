@@ -150,6 +150,13 @@ struct ExploreView: View {
     }
 
     /// Quick category chips on the left, map controls on the right.
+    ///
+    /// The chips used to be `.scrollClipDisabled()`, which let them keep
+    /// drawing past their own bounds — so scrolling slid them underneath the
+    /// glass map controls instead of stopping beside them. They clip now, and
+    /// the controls hold their width: `mapControls` is built from fixed 34pt
+    /// frames, so the priority keeps the scroll view from squeezing it out of
+    /// the row when there are a lot of categories.
     private var controlRow: some View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -158,10 +165,14 @@ struct ExploreView: View {
                         quickChip(for: category)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.leading, 16)
             }
-            .scrollClipDisabled()
-            mapControls.padding(.trailing, 16)
+            // Leaves the last chip clear of the controls rather than letting it
+            // stop hard against them.
+            .contentMargins(.trailing, 10, for: .scrollContent)
+            mapControls
+                .padding(.trailing, 16)
+                .layoutPriority(1)
         }
     }
 
