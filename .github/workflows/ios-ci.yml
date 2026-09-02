@@ -38,7 +38,7 @@ jobs:
 
       - name: Build
         run: >-
-          xcodebuild build
+          xcodebuild build-for-testing
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
           -configuration Production
@@ -47,10 +47,11 @@ jobs:
           -derivedDataPath DerivedData
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
+          ENABLE_TESTABILITY=YES
 
       - name: Test
         run: >-
-          xcodebuild test
+          xcodebuild test-without-building
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
           -configuration Production
@@ -59,7 +60,6 @@ jobs:
           -resultBundlePath TestResults.xcresult
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
-          ENABLE_TESTABILITY=YES
 
       - name: Export screenshot attachments
         if: always()
