@@ -224,13 +224,14 @@ private extension MKMapPoint {
     /// Perpendicular distance to a segment, falling back to the endpoints when
     /// the projection lands outside it.
     func distance(toSegmentFrom start: MKMapPoint, to end: MKMapPoint) -> CLLocationDistance {
-        let dx = end.x - start.x
-        let dy = end.y - start.y
-        if dx == 0, dy == 0 { return distance(to: start) }
-        let t = ((x - start.x) * dx + (y - start.y) * dy) / (dx * dx + dy * dy)
-        if t <= 0 { return distance(to: start) }
-        if t >= 1 { return distance(to: end) }
-        let projection = MKMapPoint(x: start.x + t * dx, y: start.y + t * dy)
+        let deltaX = end.x - start.x
+        let deltaY = end.y - start.y
+        if deltaX == 0, deltaY == 0 { return distance(to: start) }
+        let lengthSquared = deltaX * deltaX + deltaY * deltaY
+        let position = ((x - start.x) * deltaX + (y - start.y) * deltaY) / lengthSquared
+        if position <= 0 { return distance(to: start) }
+        if position >= 1 { return distance(to: end) }
+        let projection = MKMapPoint(x: start.x + position * deltaX, y: start.y + position * deltaY)
         return distance(to: projection)
     }
 }
