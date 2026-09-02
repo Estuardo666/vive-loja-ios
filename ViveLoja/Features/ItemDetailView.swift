@@ -369,7 +369,17 @@ struct ItemDetailView: View {
     private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
-    private func loadFollowing(for venueID: String) async {
+    private func dayName(_ day: Int) -> String {
+        ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
+    }
+
+    private func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
+        [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
+    }
+}
+
+private extension ItemDetailView {
+    func loadFollowing(for venueID: String) async {
         guard let token = session.accessToken else { return }
         do {
             let follows: [MobileFollowingRecord] = try await APIClient.shared.get("/me/following", bearer: token)
@@ -379,7 +389,7 @@ struct ItemDetailView: View {
         }
     }
 
-    private func toggleFollowing() async {
+    func toggleFollowing() async {
         guard let token = session.accessToken, case .venue(let venue) = displayedItem else { return }
         isUpdatingFollowing = true
         defer { isUpdatingFollowing = false }
@@ -398,21 +408,13 @@ struct ItemDetailView: View {
         }
     }
 
-    private func openWhatsApp(phone: String) {
+    func openWhatsApp(phone: String) {
         let digits = phone.filter(\.isNumber)
         guard digits.isEmpty == false, let url = URL(string: "https://wa.me/\(digits)") else {
             actionMessage = "El número de contacto no es válido."
             return
         }
         openURL(url)
-    }
-
-    private func dayName(_ day: Int) -> String {
-        ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
-    }
-
-    private func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
-        [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
     }
 }
 
