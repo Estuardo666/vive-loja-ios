@@ -53,7 +53,15 @@ private struct DeepLinkDestinationView: View {
             ItemDetailView(item: .event(ExploreEvent.placeholder(slug: slug)))
         case .post:
             BlogView()
+        case .watchEvent(let slug):
+            WatchEventDetailView(event: MobileWatchEvent.placeholder(slug: slug))
         }
+    }
+}
+
+private extension MobileWatchEvent {
+    static func placeholder(slug: String) -> MobileWatchEvent {
+        MobileWatchEvent(id: "deep-link-watch-\(slug)", name: "Cargando…", slug: slug, type: "OTHER", description: nil, image: nil, matchDate: .now, matchTime: nil, competition: nil, performers: [], featured: false, viewCount: 0, venueCount: nil)
     }
 }
 

@@ -8,12 +8,14 @@ final class DeepLinkRouter {
         case venue(slug: String)
         case event(slug: String)
         case post(slug: String)
+        case watchEvent(slug: String)
 
         var id: String {
             switch self {
             case .venue(let slug): return "venue:\(slug)"
             case .event(let slug): return "event:\(slug)"
             case .post(let slug): return "post:\(slug)"
+            case .watchEvent(let slug): return "watch-event:\(slug)"
             }
         }
     }
@@ -41,6 +43,7 @@ final class DeepLinkRouter {
         case "local", "locales", "venue", "venues": destination = .venue(slug: slug)
         case "evento", "eventos", "event": destination = .event(slug: slug)
         case "blog", "post", "posts": destination = .post(slug: slug)
+        case "partidos", "transmisiones", "watch-events": destination = .watchEvent(slug: slug)
         default: break
         }
     }

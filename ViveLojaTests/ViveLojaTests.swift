@@ -207,6 +207,9 @@ final class ViveLojaTests: XCTestCase {
 
         router.handle(URL(string: "viveloja://eventos/musica-en-vivo")!)
         XCTAssertEqual(router.destination, .event(slug: "musica-en-vivo"))
+
+        router.handle(URL(string: "https://viveloja.com/partidos/final-loja")!)
+        XCTAssertEqual(router.destination, .watchEvent(slug: "final-loja"))
     }
 
     func testContentPayloadDefaultsMissingSectionsToEmptyCollections() throws {
