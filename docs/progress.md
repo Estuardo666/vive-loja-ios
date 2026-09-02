@@ -42,6 +42,8 @@ El gate candidato final [33569436684](https://github.com/Estuardo666/vive-loja-i
 
 El commit `c038ce4` conecta Guardados autenticado con el resumen de `/me/favorites`: locales y eventos navegan a detalle; artículos y rutas muestran filas informativas; respuestas legacy sin `item` siguen siendo visibles. La prueba `testFavoriteRecordDecodesEnrichedSummaryAndLegacyShape` cubre ambos payloads. La primera ejecución `33573001177` detectó únicamente una literal multilinea inválida en la fixture; `0b4123e` la corrige y [33573119901](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33573119901) queda verde con build, 19 XCTest, 15 UI tests, artifacts y `Snapshot baseline OK`.
 
+El commit `1270de3` añade la acción contextual “Quitar de guardados” para cualquier tipo remoto y mantiene feedback/error accesible; [CI 33574144954](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33574144954) confirma build unsigned, SwiftLint, 19 XCTest, 15 UI tests, artifacts y `Snapshot baseline OK`.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
