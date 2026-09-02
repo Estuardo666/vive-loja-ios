@@ -49,6 +49,7 @@ struct SavedView: View {
                 }
             }
             .navigationTitle("Guardados")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .task(id: session.user?.id) {
                 if let token = session.accessToken {
                     await saved.sync(accessToken: token)

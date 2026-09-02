@@ -9,12 +9,12 @@ struct MapItemPeekView: View {
     /// Detent height for `item`, so the sheet hugs its content instead of
     /// leaving dead space under the CTA. Events carry one extra row.
     static func height(for item: ExploreItem) -> CGFloat {
-        if case .event = item { return 238 }
-        return 206
+        if case .event = item { return 208 }
+        return 176
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 14) {
                 thumbnail
                 VStack(alignment: .leading, spacing: 6) {
@@ -37,15 +37,15 @@ struct MapItemPeekView: View {
                     Spacer()
                     Image(systemName: "arrow.right")
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
             }
             .buttonStyle(.borderedProminent)
             .tint(VLTheme.itemColor(item))
             .accessibilityIdentifier("map-peek-open")
         }
         .padding(.horizontal, 20)
-        .padding(.top, 18)
-        .padding(.bottom, 12)
+        .padding(.top, 14)
+        .padding(.bottom, 10)
         // Presented from the peek itself so the profile opens full screen without
         // racing the sheet's own dismissal.
         .fullScreenCover(isPresented: $showFullProfile) {
@@ -70,7 +70,7 @@ struct MapItemPeekView: View {
                 Image(systemName: isVenue ? "mappin" : "calendar").foregroundStyle(VLTheme.itemColor(item))
             }
         }
-        .frame(width: 64, height: 64)
+        .frame(width: 56, height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

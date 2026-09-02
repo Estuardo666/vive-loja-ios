@@ -79,12 +79,15 @@ struct ExploreView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model = ExploreViewModel()
     @State private var mapRegion = ExploreView.region(around: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), radiusMeters: 1_000)
-    @State private var nearMeCenter: CLLocationCoordinate2D?
+    /// Anchor of the search area. Kept separate from the live map region so
+    /// panning does not drag (and redraw) the radius overlay.
+    @State private var searchCenter = CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422)
     @State private var selectedMapItemID: String?
     @State private var radiusMeters: CLLocationDistance = 1_000
-    @State private var showMap = false
+    @State private var showMap = true
     @State private var showFilters = false
     @State private var location = LocationService()
+    @Environment(SessionStore.self) private var session
     @State private var useNearMe = false
 
     var body: some View {
@@ -98,6 +101,7 @@ struct ExploreView: View {
                 if showMap { map } else { list }
             }
             .navigationTitle("Explorar")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -114,7 +118,14 @@ struct ExploreView: View {
                     if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
                 } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") }
             }
-            .task { if !isUITesting { await model.search(); await model.loadCategories() } }
+            .task {
+                guard !isUITesting else { return }
+                // Explore always opens on the map, so ask for the user's position
+                // up front instead of waiting for them to press the crosshair.
+                if !useNearMe { useNearMe = true; location.requestCurrentLocation() }
+                await model.search()
+                await model.loadCategories()
+            }
             .onChange(of: model.type) { _, _ in
                 guard !isUITesting else { return }
                 Task { await runSearch() }
@@ -122,13 +133,13 @@ struct ExploreView: View {
             .onChange(of: location.coordinate?.lat) { _, _ in
                 guard useNearMe, let coordinate = location.coordinate else { return }
                 let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
-                nearMeCenter = center
+                searchCenter = center
                 withAnimation(reduceMotion ? nil : Animation.snappy) { mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters) }
                 guard !isUITesting else { return }
                 Task { await runSearch() }
             }
             .onChange(of: radiusMeters) { _, _ in
-                let center = nearMeCenter ?? mapRegion.center
+                let center = searchCenter
                 withAnimation(reduceMotion ? nil : Animation.snappy) { mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters) }
                 guard showMap || useNearMe, !isUITesting else { return }
                 Task { await runSearch() }
@@ -138,7 +149,6 @@ struct ExploreView: View {
                     MapItemPeekView(item: item)
                         .presentationDetents([.height(MapItemPeekView.height(for: item))])
                         .presentationDragIndicator(.visible)
-                        .presentationBackgroundInteraction(.enabled)
                 }
             }
             .sheet(isPresented: $showFilters) {
@@ -208,9 +218,11 @@ struct ExploreView: View {
                 region: $mapRegion,
                 selectedItemID: $selectedMapItemID,
                 radiusMeters: radiusMeters,
-                circleCenter: useNearMe ? nearMeCenter : nil,
+                circleCenter: searchCenter,
+                userPhotoURL: session.avatarURL,
                 onRegionChange: { newRegion in
                     guard showMap, !useNearMe, !isUITesting else { return }
+                    searchCenter = newRegion.center
                     Task { await model.search(center: newRegion.center, radiusMeters: radiusMeters) }
                 }
             )
@@ -221,7 +233,7 @@ struct ExploreView: View {
                     if useNearMe {
                         location.requestCurrentLocation()
                     } else {
-                        nearMeCenter = nil
+                        searchCenter = mapRegion.center
                         Task { await runSearch() }
                     }
                 } label: {

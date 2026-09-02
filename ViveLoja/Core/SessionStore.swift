@@ -10,6 +10,9 @@ final class SessionStore {
     private(set) var accessToken: String?
     private var refreshToken: String?
     private(set) var isRestoring = true
+    /// Cached avatar so the tab bar and the map pin can show it without each
+    /// screen refetching the profile.
+    private(set) var avatarURL: URL?
     var isSessionExpired = false
     var errorMessage: String?
 
@@ -85,17 +88,25 @@ final class SessionStore {
         }
     }
 
+    /// Best-effort: a missing avatar simply leaves the default glyph in place.
+    func loadAvatar() async {
+        guard let accessToken else { avatarURL = nil; return }
+        let profile: MobileProfile? = try? await api.get("/me/profile", bearer: accessToken)
+        avatarURL = profile?.image
+    }
+
     private func persist(_ tokens: MobileTokens) {
         accessToken = tokens.accessToken; refreshToken = tokens.refreshToken; user = tokens.user; errorMessage = nil
         isSessionExpired = false
         VLFeedback.success()
+        Task { await loadAvatar() }
         try? keychain.save(tokens.accessToken, for: "accessToken")
         try? keychain.save(tokens.refreshToken, for: "refreshToken")
         if let data = try? JSONEncoder().encode(tokens.user), let value = String(data: data, encoding: .utf8) { try? keychain.save(value, for: "user") }
     }
 
     private func clear() {
-        user = nil; accessToken = nil; refreshToken = nil
+        user = nil; accessToken = nil; refreshToken = nil; avatarURL = nil
         keychain.delete("accessToken"); keychain.delete("refreshToken"); keychain.delete("user")
     }
 }

@@ -181,6 +181,7 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
             }
             .navigationTitle("Vive Loja")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
             .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
         }

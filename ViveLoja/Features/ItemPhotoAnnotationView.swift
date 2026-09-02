@@ -2,12 +2,13 @@ import MapKit
 import SwiftUI
 import UIKit
 
-/// Downsampled pin artwork, kept in memory so panning does not refetch.
+/// Downsampled remote artwork (map pins, avatars), kept in memory so panning
+/// and tab switches do not refetch.
 @MainActor
-final class MapImageCache {
-    static let shared = MapImageCache()
+final class RemoteImageCache {
+    static let shared = RemoteImageCache()
     private let cache = NSCache<NSURL, UIImage>()
-    private static let pinPixelSize = CGSize(width: 96, height: 96)
+    private static let thumbnailSize = CGSize(width: 96, height: 96)
 
     private init() { cache.countLimit = 240 }
 
@@ -18,7 +19,7 @@ final class MapImageCache {
         guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
         // Pins are 46pt; keeping full-resolution photos for every marker is what
         // makes map memory blow up, so downsample before caching.
-        guard let image = UIImage(data: data)?.preparingThumbnail(of: Self.pinPixelSize) else { return nil }
+        guard let image = UIImage(data: data)?.preparingThumbnail(of: Self.thumbnailSize) else { return nil }
         cache.setObject(image, forKey: url as NSURL)
         return image
     }
@@ -68,9 +69,9 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         loadTask?.cancel()
         loadTask = nil
         guard let url = item.imageURL else { return }
-        if let hit = MapImageCache.shared.cached(url) { show(hit); return }
+        if let hit = RemoteImageCache.shared.cached(url) { show(hit); return }
         loadTask = Task { [weak self] in
-            let image = await MapImageCache.shared.image(for: url)
+            let image = await RemoteImageCache.shared.image(for: url)
             guard !Task.isCancelled, let self, let image else { return }
             // The view may have been recycled for a different pin mid-flight.
             guard (self.annotation as? MapItemAnnotation)?.id == item.id else { return }
@@ -112,5 +113,62 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         photoView.contentMode = .center
         photoView.image = UIImage(systemName: isVenue ? "mappin" : "calendar")?
             .withTintColor(.white, renderingMode: .alwaysOriginal)
+    }
+}
+
+/// Replaces the plain blue dot with the signed-in user's avatar. Falls back to
+/// MapKit's own dot when there is no photo, which is why the delegate returns
+/// nil rather than this view in that case.
+final class UserAvatarAnnotationView: MKAnnotationView {
+    static let reuseID = "user-avatar"
+    private static let diameter: CGFloat = 38
+    private let photoView = UIImageView()
+    private var loadTask: Task<Void, Never>?
+
+    override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
+        super.init(annotation: annotation, reuseIdentifier: reuseIdentifier)
+        frame = CGRect(x: 0, y: 0, width: Self.diameter, height: Self.diameter)
+        canShowCallout = false
+        isEnabled = false
+
+        photoView.frame = bounds
+        photoView.clipsToBounds = true
+        photoView.contentMode = .scaleAspectFill
+        photoView.layer.cornerRadius = Self.diameter / 2
+        photoView.backgroundColor = UIColor(VLTheme.indigo)
+        addSubview(photoView)
+
+        layer.cornerRadius = Self.diameter / 2
+        layer.borderWidth = 3
+        layer.borderColor = UIColor.white.cgColor
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.4
+        layer.shadowRadius = 5
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    func configure(with url: URL?) {
+        loadTask?.cancel()
+        loadTask = nil
+        guard let url else {
+            photoView.image = nil
+            return
+        }
+        if let hit = RemoteImageCache.shared.cached(url) { photoView.image = hit; return }
+        loadTask = Task { [weak self] in
+            let image = await RemoteImageCache.shared.image(for: url)
+            guard !Task.isCancelled, let self, let image else { return }
+            self.photoView.image = image
+        }
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        loadTask?.cancel()
+        loadTask = nil
+        photoView.image = nil
     }
 }

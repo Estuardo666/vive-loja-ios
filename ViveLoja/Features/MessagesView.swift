@@ -195,6 +195,7 @@ struct MessagesView: View {
                 }
             }
             .navigationTitle("Mensajes")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
             .task(id: session.user?.id) { await model.load(accessToken: session.accessToken) }
         }

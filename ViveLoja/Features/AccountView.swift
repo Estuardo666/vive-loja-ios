@@ -175,6 +175,7 @@ struct AccountView: View {
                 }
             }
             .navigationTitle("Cuenta")
+            .toolbarTitleDisplayMode(.inlineLarge)
             .sheet(isPresented: $showAuth) { AuthView() }
             .sheet(isPresented: $showPasswordSheet) {
                 ChangePasswordView(model: model, accessToken: session.accessToken)

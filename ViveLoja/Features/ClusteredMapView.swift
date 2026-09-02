@@ -9,9 +9,12 @@ struct ClusteredMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedItemID: String?
     let radiusMeters: CLLocationDistance
-    /// When set (near-me is on) the radius circle stays anchored here instead of
-    /// following the map centre, so panning no longer drags the search area.
-    let circleCenter: CLLocationCoordinate2D?
+    /// Anchor for the search area. It is set explicitly by the caller and only
+    /// moves when a search actually runs — deriving it from the live region made
+    /// the overlay rebuild on every pan, which is what made it flicker.
+    let circleCenter: CLLocationCoordinate2D
+    /// Avatar drawn on the blue dot, when the signed-in user has one.
+    let userPhotoURL: URL?
     let onRegionChange: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -26,10 +29,12 @@ struct ClusteredMapView: UIViewRepresentable {
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.showsUserLocation = true
-        // Sits above the basemap labels but below annotations, so the map goes dark
-        // enough for the radius circle to read while our pins stay bright.
-        mapView.addOverlay(MapDimOverlay.world(), level: .aboveLabels)
+        // Flat, north-up rendering: cheaper to draw and the extra freedom buys
+        // nothing on a city map.
+        mapView.isPitchEnabled = false
+        mapView.isRotateEnabled = false
         mapView.setRegion(region, animated: false)
+        context.coordinator.syncSpotlight(on: mapView, center: circleCenter, radius: radiusMeters)
         return mapView
     }
 
@@ -45,12 +50,8 @@ struct ClusteredMapView: UIViewRepresentable {
         let added = incoming.filter { !currentIDs.contains($0.id) }
         if !added.isEmpty { mapView.addAnnotations(added) }
 
-        let center = circleCenter ?? region.center
-        let currentCircle = mapView.overlays.compactMap { $0 as? MKCircle }.first
-        if circleNeedsUpdate(currentCircle, center: center) {
-            mapView.removeOverlays(mapView.overlays.compactMap { $0 as? MKCircle })
-            mapView.addOverlay(MKCircle(center: center, radius: radiusMeters), level: .aboveLabels)
-        }
+        context.coordinator.syncSpotlight(on: mapView, center: circleCenter, radius: radiusMeters)
+        context.coordinator.refreshUserAvatar(on: mapView, url: userPhotoURL)
 
         if selectedItemID == nil, !mapView.selectedAnnotations.isEmpty {
             mapView.selectedAnnotations.forEach { mapView.deselectAnnotation($0, animated: false) }
@@ -61,23 +62,44 @@ struct ClusteredMapView: UIViewRepresentable {
         }
     }
 
-    private func circleNeedsUpdate(_ circle: MKCircle?, center: CLLocationCoordinate2D) -> Bool {
-        guard let circle else { return true }
-        let latitudeDelta: CLLocationDegrees = abs(circle.coordinate.latitude - center.latitude)
-        let longitudeDelta: CLLocationDegrees = abs(circle.coordinate.longitude - center.longitude)
-        let radiusDelta: CLLocationDistance = abs(circle.radius - radiusMeters)
-        if latitudeDelta > 0.00001 { return true }
-        if longitudeDelta > 0.00001 { return true }
-        return radiusDelta > 1
-    }
-
     @MainActor
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: ClusteredMapView
+        private var spotlightCenter: CLLocationCoordinate2D?
+        private var spotlightRadius: CLLocationDistance?
+        private var appliedAvatarURL: URL?
 
         init(parent: ClusteredMapView) { self.parent = parent }
 
+        /// Replaces the scrim only when the area it describes actually moved.
+        func syncSpotlight(on mapView: MKMapView, center: CLLocationCoordinate2D, radius: CLLocationDistance) {
+            if let spotlightCenter, let spotlightRadius,
+               abs(spotlightCenter.latitude - center.latitude) < 0.00001,
+               abs(spotlightCenter.longitude - center.longitude) < 0.00001,
+               abs(spotlightRadius - radius) < 1 {
+                return
+            }
+            mapView.removeOverlays(mapView.overlays.filter { $0 is MapSpotlightOverlay })
+            mapView.addOverlay(MapSpotlightOverlay.make(center: center, radius: radius), level: .aboveLabels)
+            spotlightCenter = center
+            spotlightRadius = radius
+        }
+
+        func refreshUserAvatar(on mapView: MKMapView, url: URL?) {
+            guard url != appliedAvatarURL else { return }
+            appliedAvatarURL = url
+            guard let userView = mapView.view(for: mapView.userLocation) as? UserAvatarAnnotationView else { return }
+            userView.configure(with: url)
+        }
+
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if annotation is MKUserLocation {
+                guard parent.userPhotoURL != nil else { return nil }
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: UserAvatarAnnotationView.reuseID)
+                    as? UserAvatarAnnotationView ?? UserAvatarAnnotationView(annotation: annotation, reuseIdentifier: UserAvatarAnnotationView.reuseID)
+                view.configure(with: parent.userPhotoURL)
+                return view
+            }
             if let cluster = annotation as? MKClusterAnnotation { return clusterView(mapView, for: cluster) }
             guard let item = annotation as? MapItemAnnotation else { return nil }
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: MapItemAnnotation.reuseID)
@@ -115,31 +137,60 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            // Writing the region back re-enters updateUIView, so only do it when
+            // the map really settled somewhere else.
+            guard !mapView.region.isApproximatelyEqual(to: parent.region) else { return }
             parent.onRegionChange(mapView.region)
             parent.region = mapView.region
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            if let dim = overlay as? MapDimOverlay {
-                let renderer = MKPolygonRenderer(polygon: dim)
-                // Dark theme needs a heavy scrim for the radius circle to read.
-                // Light theme only needs the basemap calmed down.
-                renderer.fillColor = UIColor { traits in
-                    traits.userInterfaceStyle == .dark
-                        ? UIColor.black.withAlphaComponent(0.55)
-                        : UIColor.white.withAlphaComponent(0.30)
-                }
-                renderer.strokeColor = .clear
-                renderer.lineWidth = 0
-                return renderer
+            guard let spotlight = overlay as? MapSpotlightOverlay else { return MKOverlayRenderer(overlay: overlay) }
+            let renderer = MKPolygonRenderer(polygon: spotlight)
+            // Even-odd fill: the world is dimmed, the radius stays clear, so the
+            // streets inside the search area remain readable.
+            renderer.fillColor = UIColor { traits in
+                traits.userInterfaceStyle == .dark
+                    ? UIColor.black.withAlphaComponent(0.58)
+                    : UIColor.black.withAlphaComponent(0.20)
             }
-            guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
-            let renderer = MKCircleRenderer(circle: circle)
-            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.22)
-            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.95)
-            renderer.lineWidth = 3
+            renderer.strokeColor = UIColor(VLTheme.indigo)
+            renderer.lineWidth = 2.5
             return renderer
         }
+    }
+}
+
+/// World polygon with the search radius punched out, so everything *outside* the
+/// radius is dimmed. Drawing a filled circle on top of a dark scrim instead made
+/// the inside look lighter than the surrounding map and hid the street names.
+final class MapSpotlightOverlay: MKPolygon {
+    private static let circleSegments = 90
+
+    static func make(center: CLLocationCoordinate2D, radius: CLLocationDistance) -> MapSpotlightOverlay {
+        let rect = MKMapRect.world
+        let outer = [
+            MKMapPoint(x: rect.minX, y: rect.minY),
+            MKMapPoint(x: rect.maxX, y: rect.minY),
+            MKMapPoint(x: rect.maxX, y: rect.maxY),
+            MKMapPoint(x: rect.minX, y: rect.maxY),
+        ]
+        let hole = circle(center: center, radius: radius)
+        return MapSpotlightOverlay(points: outer, count: outer.count, interiorPolygons: [hole])
+    }
+
+    private static func circle(center: CLLocationCoordinate2D, radius: CLLocationDistance) -> MKPolygon {
+        let earthRadius = 6_371_000.0
+        let latitudeDelta = radius / earthRadius * 180 / .pi
+        let longitudeDelta = latitudeDelta / max(cos(center.latitude * .pi / 180), 0.000001)
+        let coordinates = (0..<circleSegments).map { step -> CLLocationCoordinate2D in
+            let angle = Double(step) / Double(circleSegments) * 2 * .pi
+            return CLLocationCoordinate2D(
+                latitude: center.latitude + latitudeDelta * sin(angle),
+                longitude: center.longitude + longitudeDelta * cos(angle)
+            )
+        }
+        return MKPolygon(coordinates: coordinates, count: coordinates.count)
     }
 }
 
@@ -174,19 +225,5 @@ private extension MKCoordinateRegion {
             && abs(center.longitude - other.center.longitude) < 0.0001
             && abs(span.latitudeDelta - other.span.latitudeDelta) < 0.0001
             && abs(span.longitudeDelta - other.span.longitudeDelta) < 0.0001
-    }
-}
-
-/// World-covering polygon used purely to darken the basemap.
-final class MapDimOverlay: MKPolygon {
-    static func world() -> MapDimOverlay {
-        let rect = MKMapRect.world
-        let points = [
-            MKMapPoint(x: rect.minX, y: rect.minY),
-            MKMapPoint(x: rect.maxX, y: rect.minY),
-            MKMapPoint(x: rect.maxX, y: rect.maxY),
-            MKMapPoint(x: rect.minX, y: rect.maxY),
-        ]
-        return MapDimOverlay(points: points, count: points.count)
     }
 }
