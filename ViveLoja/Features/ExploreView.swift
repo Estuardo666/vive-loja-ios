@@ -135,7 +135,10 @@ struct ExploreView: View {
             }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
-                    NavigationStack { ItemDetailView(item: item) }
+                    MapItemPeekView(item: item)
+                        .presentationDetents([.height(300), .large])
+                        .presentationDragIndicator(.visible)
+                        .presentationBackgroundInteraction(.enabled(upThrough: .height(300)))
                 }
             }
             .sheet(isPresented: $showFilters) {

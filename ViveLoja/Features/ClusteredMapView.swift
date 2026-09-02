@@ -21,7 +21,7 @@ struct ClusteredMapView: UIViewRepresentable {
         mapView.accessibilityIdentifier = "explore-map"
         mapView.delegate = context.coordinator
         let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
-        configuration.pointOfInterestFilter = .includingAll
+        configuration.pointOfInterestFilter = .excludingAll
         mapView.preferredConfiguration = configuration
         mapView.overrideUserInterfaceStyle = .dark
         mapView.showsCompass = true
@@ -50,6 +50,10 @@ struct ClusteredMapView: UIViewRepresentable {
             mapView.addOverlay(MKCircle(center: center, radius: radiusMeters))
         }
 
+        if selectedItemID == nil, !mapView.selectedAnnotations.isEmpty {
+            mapView.selectedAnnotations.forEach { mapView.deselectAnnotation($0, animated: false) }
+        }
+
         if !mapView.region.isApproximatelyEqual(to: region) {
             mapView.setRegion(region, animated: true)
         }
@@ -62,19 +66,15 @@ struct ClusteredMapView: UIViewRepresentable {
         init(parent: ClusteredMapView) { self.parent = parent }
 
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if let cluster = annotation as? MKClusterAnnotation { return clusterView(mapView, for: cluster) }
             guard let item = annotation as? MapItemAnnotation else { return nil }
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: MapItemAnnotation.reuseID)
-                as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(annotation: item, reuseIdentifier: MapItemAnnotation.reuseID)
-            view.annotation = item
-            view.markerTintColor = UIColor(VLTheme.itemColor(item.item))
-            view.glyphImage = UIImage(systemName: item.isVenue ? "mappin" : "calendar")
-            view.clusteringIdentifier = "explore-items"
-            view.displayPriority = .defaultHigh
-            view.titleVisibility = .adaptive
+                as? ItemPhotoAnnotationView ?? ItemPhotoAnnotationView(annotation: item, reuseIdentifier: MapItemAnnotation.reuseID)
+            view.configure(with: item)
             return view
         }
 
-        func mapView(_ mapView: MKMapView, viewFor cluster: MKClusterAnnotation) -> MKAnnotationView? {
+        private func clusterView(_ mapView: MKMapView, for cluster: MKClusterAnnotation) -> MKAnnotationView? {
             let identifier = "explore-cluster"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
                 as? MKMarkerAnnotationView ?? MKMarkerAnnotationView(annotation: cluster, reuseIdentifier: identifier)
@@ -86,6 +86,18 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if let cluster = view.annotation as? MKClusterAnnotation {
+                mapView.deselectAnnotation(cluster, animated: false)
+                let region = MKCoordinateRegion(
+                    center: cluster.coordinate,
+                    span: MKCoordinateSpan(
+                        latitudeDelta: max(mapView.region.span.latitudeDelta / 3, 0.002),
+                        longitudeDelta: max(mapView.region.span.longitudeDelta / 3, 0.002)
+                    )
+                )
+                mapView.setRegion(region, animated: true)
+                return
+            }
             guard let item = view.annotation as? MapItemAnnotation else { return }
             parent.selectedItemID = item.id
         }
@@ -106,7 +118,7 @@ struct ClusteredMapView: UIViewRepresentable {
     }
 }
 
-private final class MapItemAnnotation: NSObject, MKAnnotation {
+final class MapItemAnnotation: NSObject, MKAnnotation {
     static let reuseID = "explore-item"
 
     let item: ExploreItem
@@ -114,6 +126,7 @@ private final class MapItemAnnotation: NSObject, MKAnnotation {
     let id: String
     let title: String?
     let isVenue: Bool
+    let imageURL: URL?
 
     init?(item: ExploreItem) {
         guard let coordinate = item.coordinate else { return nil }
@@ -122,6 +135,10 @@ private final class MapItemAnnotation: NSObject, MKAnnotation {
         self.id = item.id
         self.title = item.title
         self.isVenue = if case .venue = item { true } else { false }
+        self.imageURL = switch item {
+        case .venue(let value): value.image
+        case .event(let value): value.image
+        }
         super.init()
     }
 }
