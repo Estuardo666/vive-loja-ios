@@ -267,16 +267,27 @@ final class ViveLojaUITests: XCTestCase {
     }
 
     /// XCTest occasionally times out while auditing a freshly launched SwiftUI
-    /// hierarchy. Retry only that framework timeout; real audit findings still fail.
+    /// hierarchy. Restart the fixture app for up to three attempts, and retry
+    /// only that framework timeout; real audit findings still fail.
     @MainActor
     private func performAccessibilityAuditWithTimeoutRetry(for app: XCUIApplication) throws {
-        do {
-            try app.performAccessibilityAudit()
-        } catch let error as NSError
-            where error.domain == "com.apple.xcode.xctest.accessibilityAudit" && error.code == -56 {
-            app.activate()
-            guard app.wait(for: .runningForeground, timeout: 5) else { throw error }
-            try app.performAccessibilityAudit()
+        for attempt in 1...3 {
+            do {
+                try app.performAccessibilityAudit()
+                return
+            } catch let error as NSError
+                where error.domain == "com.apple.xcode.xctest.accessibilityAudit" && error.code == -56 {
+                guard attempt < 3 else { throw error }
+                app.terminate()
+                app.launch()
+                guard app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8) else {
+                    throw error
+                }
+                guard app.wait(for: .runningForeground, timeout: 5) else {
+                    throw error
+                }
+                RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+            }
         }
     }
 }
