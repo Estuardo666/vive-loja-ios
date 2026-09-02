@@ -43,3 +43,50 @@ workflows:
     artifacts:
       - TestResults.xcresult
       - DerivedData/Logs/Test
+
+  ios-unsigned-ipa:
+    name: Vive Loja iOS (unsigned IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 35
+    environment:
+      xcode: 26.2
+      vars:
+        VL_API_BASE_URL: https://viveloja.com/api/mobile/v1
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen
+      - name: Install SwiftLint
+        script: |
+          brew install swiftlint
+      - name: Generate project
+        script: |
+          xcodegen generate
+      - name: Lint Swift
+        script: |
+          swiftlint lint --quiet
+      - name: Build unsigned device archive
+        script: |
+          xcodebuild archive \
+            -project ViveLoja.xcodeproj \
+            -scheme ViveLoja \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$CM_BUILD_DIR/build/ViveLoja.xcarchive" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            DEVELOPMENT_TEAM=""
+      - name: Package unsigned IPA
+        script: |
+          set -euo pipefail
+          app_path="$CM_BUILD_DIR/build/ViveLoja.xcarchive/Products/Applications/Vive Loja.app"
+          ipa_root="$CM_BUILD_DIR/build/unsigned-ipa"
+          ipa_path="$CM_BUILD_DIR/build/ViveLoja-unsigned.ipa"
+
+          test -d "$app_path"
+          mkdir -p "$ipa_root/Payload"
+          cp -R "$app_path" "$ipa_root/Payload/"
+          (cd "$ipa_root" && zip -qry "$ipa_path" Payload)
+    artifacts:
+      - build/ViveLoja-unsigned.ipa
