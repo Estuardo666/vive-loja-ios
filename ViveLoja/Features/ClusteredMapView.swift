@@ -36,23 +36,18 @@ struct ClusteredMapView: UIViewRepresentable {
     func updateUIView(_ mapView: MKMapView, context: Context) {
         context.coordinator.parent = self
 
-        let existing = mapView.annotations.compactMap { $0 as? MapItemAnnotation }
-        let existingIDs = Set(existing.map(\.id))
+        let currentAnnotations = mapView.annotations.compactMap { $0 as? MapItemAnnotation }
+        let currentIDs = Set(currentAnnotations.map(\.id))
         let incoming = items.compactMap(MapItemAnnotation.init)
         let incomingIDs = Set(incoming.map(\.id))
-        let stale = existing.filter { !incomingIDs.contains($0.id) }
+        let stale = currentAnnotations.filter { !incomingIDs.contains($0.id) }
         if !stale.isEmpty { mapView.removeAnnotations(stale) }
-        let added = incoming.filter { !existingIDs.contains($0.id) }
+        let added = incoming.filter { !currentIDs.contains($0.id) }
         if !added.isEmpty { mapView.addAnnotations(added) }
 
         let center = circleCenter ?? region.center
-        let existing = mapView.overlays.compactMap { $0 as? MKCircle }.first
-        let needsCircle = existing.map {
-            abs($0.coordinate.latitude - center.latitude) > 0.00001
-                || abs($0.coordinate.longitude - center.longitude) > 0.00001
-                || abs($0.radius - radiusMeters) > 1
-        } ?? true
-        if needsCircle {
+        let currentCircle = mapView.overlays.compactMap { $0 as? MKCircle }.first
+        if circleNeedsUpdate(currentCircle, center: center) {
             mapView.removeOverlays(mapView.overlays.compactMap { $0 as? MKCircle })
             mapView.addOverlay(MKCircle(center: center, radius: radiusMeters), level: .aboveLabels)
         }
@@ -64,6 +59,16 @@ struct ClusteredMapView: UIViewRepresentable {
         if !mapView.region.isApproximatelyEqual(to: region) {
             mapView.setRegion(region, animated: true)
         }
+    }
+
+    private func circleNeedsUpdate(_ circle: MKCircle?, center: CLLocationCoordinate2D) -> Bool {
+        guard let circle else { return true }
+        let latitudeDelta: CLLocationDegrees = abs(circle.coordinate.latitude - center.latitude)
+        let longitudeDelta: CLLocationDegrees = abs(circle.coordinate.longitude - center.longitude)
+        let radiusDelta: CLLocationDistance = abs(circle.radius - radiusMeters)
+        if latitudeDelta > 0.00001 { return true }
+        if longitudeDelta > 0.00001 { return true }
+        return radiusDelta > 1
     }
 
     @MainActor
