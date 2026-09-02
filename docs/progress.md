@@ -48,6 +48,8 @@ El commit `6542938` conecta la cuenta con insignias y cambio de contraseña, añ
 
 El commit `817255d` añade `VLGlassEffectContainer`, con fallback sólido para Reduce Transparency, y coordina las superficies de promociones agrupadas en Inicio. [CI 33584421781](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33584421781) confirma Xcode 26.2, SwiftLint, build unsigned, 22 XCTest, 15 UI tests, snapshots y artefactos.
 
+Los commits `4fcb00f`, `b07fcd0` y `e89ff37` cierran el gate de configuración de producción: XcodeGen expone `Production` como configuración release con `Config/Production.xcconfig`, GitHub Actions compila y prueba explícitamente esa configuración, y Codemagic archiva el IPA unsigned con ella. Las pruebas habilitan `ENABLE_TESTABILITY=YES` únicamente en el comando XCTest para conservar `@testable import` sin alterar el binario de archive. El reintento de `testMainTabsPassAccessibilityAudit` sólo captura el timeout transitorio -56 de XCTest y vuelve a lanzar el auditor; fallos reales siguen propagándose. [CI 33586423762](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33586423762) pasa Generate, SwiftLint, build, 22 XCTest, 15 UI tests, snapshots y artifacts.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
