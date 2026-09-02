@@ -41,6 +41,7 @@ jobs:
           xcodebuild build
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
+          -configuration Production
           -sdk iphonesimulator
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
           -derivedDataPath DerivedData
@@ -52,6 +53,7 @@ jobs:
           xcodebuild test
           -project ViveLoja.xcodeproj
           -scheme ViveLoja
+          -configuration Production
           -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2'
           -derivedDataPath DerivedData
           -resultBundlePath TestResults.xcresult

@@ -178,7 +178,7 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(app.buttons["Todo lo que pasa en Loja"].exists)
         XCTAssertTrue(app.buttons["Café Loja, local, Centro histórico"].exists)
 
-        try app.performAccessibilityAudit()
+        try performAccessibilityAuditWithTimeoutRetry(for: app)
     }
 
     func testTabsRemainReachableInDarkModeWithMotionAndTransparencyReduced() {
@@ -264,5 +264,19 @@ final class ViveLojaUITests: XCTestCase {
         attachment.name = name
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    /// XCTest occasionally times out while auditing a freshly launched SwiftUI
+    /// hierarchy. Retry only that framework timeout; real audit findings still fail.
+    @MainActor
+    private func performAccessibilityAuditWithTimeoutRetry(for app: XCUIApplication) throws {
+        do {
+            try app.performAccessibilityAudit()
+        } catch let error as NSError
+            where error.domain == "com.apple.xcode.xctest.accessibilityAudit" && error.code == -56 {
+            app.activate()
+            guard app.wait(for: .runningForeground, timeout: 5) else { throw error }
+            try app.performAccessibilityAudit()
+        }
     }
 }

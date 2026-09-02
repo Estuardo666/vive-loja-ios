@@ -70,7 +70,7 @@ workflows:
           xcodebuild archive \
             -project ViveLoja.xcodeproj \
             -scheme ViveLoja \
-            -configuration Release \
+            -configuration Production \
             -destination 'generic/platform=iOS' \
             -archivePath "$CM_BUILD_DIR/build/ViveLoja.xcarchive" \
             CODE_SIGN_IDENTITY="" \
