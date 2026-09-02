@@ -27,6 +27,9 @@ struct ClusteredMapView: UIViewRepresentable {
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.showsUserLocation = true
+        // Sits above the basemap labels but below annotations, so the map goes dark
+        // enough for the radius circle to read while our pins stay bright.
+        mapView.addOverlay(MapDimOverlay.world(), level: .aboveLabels)
         mapView.setRegion(region, animated: false)
         return mapView
     }
@@ -46,8 +49,8 @@ struct ClusteredMapView: UIViewRepresentable {
                 || abs($0.radius - radiusMeters) > 1
         } ?? true
         if needsCircle {
-            mapView.removeOverlays(mapView.overlays)
-            mapView.addOverlay(MKCircle(center: center, radius: radiusMeters))
+            mapView.removeOverlays(mapView.overlays.compactMap { $0 as? MKCircle })
+            mapView.addOverlay(MKCircle(center: center, radius: radiusMeters), level: .aboveLabels)
         }
 
         if selectedItemID == nil, !mapView.selectedAnnotations.isEmpty {
@@ -108,6 +111,13 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let dim = overlay as? MapDimOverlay {
+                let renderer = MKPolygonRenderer(polygon: dim)
+                renderer.fillColor = UIColor.black.withAlphaComponent(0.55)
+                renderer.strokeColor = .clear
+                renderer.lineWidth = 0
+                return renderer
+            }
             guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
             let renderer = MKCircleRenderer(circle: circle)
             renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.22)
@@ -149,5 +159,19 @@ private extension MKCoordinateRegion {
             && abs(center.longitude - other.center.longitude) < 0.0001
             && abs(span.latitudeDelta - other.span.latitudeDelta) < 0.0001
             && abs(span.longitudeDelta - other.span.longitudeDelta) < 0.0001
+    }
+}
+
+/// World-covering polygon used purely to darken the basemap.
+final class MapDimOverlay: MKPolygon {
+    static func world() -> MapDimOverlay {
+        let rect = MKMapRect.world
+        let points = [
+            MKMapPoint(x: rect.minX, y: rect.minY),
+            MKMapPoint(x: rect.maxX, y: rect.minY),
+            MKMapPoint(x: rect.maxX, y: rect.maxY),
+            MKMapPoint(x: rect.minX, y: rect.maxY),
+        ]
+        return MapDimOverlay(points: points, count: points.count)
     }
 }

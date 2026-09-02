@@ -227,6 +227,7 @@ struct ExploreView: View {
                 } label: {
                     Image(systemName: useNearMe ? "location.fill" : "location.viewfinder")
                         .font(.headline)
+                        .foregroundStyle(useNearMe ? Color.white : Color.primary)
                         .frame(width: 28, height: 22)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
