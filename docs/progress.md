@@ -46,6 +46,8 @@ El commit `1270de3` añade la acción contextual “Quitar de guardados” para 
 
 El commit `6542938` conecta la cuenta con insignias y cambio de contraseña, añade seguimiento idempotente de locales desde el detalle (con estado remoto y rollback de error), contacto WhatsApp cuando el local publica teléfono y configura `URLCache` para GET públicos sin almacenar respuestas autenticadas. La corrección de tamaño de SwiftLint vive en `7eb0c50`; `8fdb12a` añade `Cache-Control: no-store` a peticiones autenticadas y [CI 33580201610](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33580201610) valida build unsigned, 19 XCTest, 15 UI tests, snapshots y artefactos.
 
+El commit `817255d` añade `VLGlassEffectContainer`, con fallback sólido para Reduce Transparency, y coordina las superficies de promociones agrupadas en Inicio. [CI 33584421781](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33584421781) confirma Xcode 26.2, SwiftLint, build unsigned, 22 XCTest, 15 UI tests, snapshots y artefactos.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
