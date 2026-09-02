@@ -50,6 +50,7 @@ final class BlogViewModel {
 
 struct ContentHubView: View {
     @State private var model = BlogViewModel()
+    @State private var selectedPost: MobilePost?
 
     var body: some View {
         ScrollView {
@@ -59,14 +60,22 @@ struct ContentHubView: View {
                 }
                 contentSection("Historias", icon: "text.book.closed.fill") {
                     ForEach(Array(model.posts.prefix(6))) { post in
-                        VStack(alignment: .leading, spacing: 8) {
-                            VLAsyncImage(url: post.image, height: 130)
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            Text(post.title).font(.headline)
-                            if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                        Button {
+                            selectedPost = post
+                        } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                VLAsyncImage(url: post.image, height: 130)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                Text(post.title).font(.headline)
+                                if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                         }
-                        .padding(12)
-                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("post-card")
+                        .accessibilityHint("Abre el artículo")
                     }
                 }
                 if model.canLoadMorePosts && !model.posts.isEmpty {
@@ -153,6 +162,7 @@ struct ContentHubView: View {
             }
             .padding(16)
         }
+        .vlArticleSheet(post: $selectedPost)
         .navigationTitle("Descubre Loja")
         .refreshable { await model.load() }
         .task { if !isUITesting { await model.load() } }
@@ -184,21 +194,30 @@ struct ContentHubView: View {
 
 struct BlogView: View {
     @State private var model = BlogViewModel()
+    @State private var selectedPost: MobilePost?
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 14) {
                 if model.isLoading { ProgressView().padding(.top, 20) }
                 ForEach(model.posts) { post in
-                    VStack(alignment: .leading, spacing: 10) {
-                        VLAsyncImage(url: post.image, height: 160)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                        Text(post.title).font(.headline)
-                        if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
-                        if let category = post.category { Text(category.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.indigo) }
+                    Button {
+                        selectedPost = post
+                    } label: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            VLAsyncImage(url: post.image, height: 160)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            Text(post.title).font(.headline)
+                            if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(3) }
+                            if let category = post.category { Text(category.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.indigo) }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
-                    .padding(12)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("post-card")
+                    .accessibilityHint("Abre el artículo")
                 }
                 if let error = model.errorMessage { ContentUnavailableView("No se pudo actualizar", systemImage: "wifi.exclamationmark", description: Text(error)) }
                 if !model.isLoading && model.posts.isEmpty && model.errorMessage == nil {
@@ -207,6 +226,7 @@ struct BlogView: View {
             }
             .padding(16)
         }
+        .vlArticleSheet(post: $selectedPost)
         .navigationTitle("Historias de Loja")
         .refreshable { await model.load() }
         .task { await model.load() }

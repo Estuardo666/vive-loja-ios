@@ -170,9 +170,21 @@ struct ExploreView: View {
             // Leaves the last chip clear of the controls rather than letting it
             // stop hard against them.
             .contentMargins(.trailing, 10, for: .scrollContent)
+            .mask(chipFade)
             mapControls
                 .padding(.trailing, 16)
                 .layoutPriority(1)
+        }
+    }
+
+    /// Softens the edge the chips now clip against. A fixed-width ramp rather
+    /// than a percentage, so the fade looks the same whatever the row's width
+    /// works out to once the map controls have taken theirs.
+    private var chipFade: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 24)
         }
     }
 

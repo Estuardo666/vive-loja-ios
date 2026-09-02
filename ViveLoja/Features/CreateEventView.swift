@@ -24,7 +24,8 @@ final class CreateEventViewModel {
     }
 
     func save(accessToken: String?) async {
-        guard let accessToken, isValid else { return }
+        guard isValid else { return }
+        guard let accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }
         isSaving = true
         defer { isSaving = false }
         let formatter = ISO8601DateFormatter()
@@ -43,7 +44,7 @@ final class CreateEventViewModel {
     }
 
     func uploadPhoto(_ data: Data, fileName: String, mimeType: String, accessToken: String?) async {
-        guard let accessToken else { return }
+        guard let accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }
         isUploading = true; defer { isUploading = false }
         do {
             let upload: MobileUpload = try await APIClient.shared.upload("/me/uploads", data: data, fileName: fileName, mimeType: mimeType, bearer: accessToken)

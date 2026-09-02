@@ -20,4 +20,21 @@ enum AppEnvironment: Sendable {
         }
         return URL(string: "https://viveloja.com/api/mobile/v1")!
     }
+
+    /// The public site behind the same deployment. The mobile API has no
+    /// endpoint that returns a post's body — `/content` carries only the
+    /// summary fields — so articles are read on the web page, which does.
+    /// Derived from `baseURL` so a staging build points at its own site.
+    var webBaseURL: URL {
+        var url = baseURL
+        for _ in 0..<3 where !url.path.isEmpty && url.path != "/" {
+            url = url.deletingLastPathComponent()
+        }
+        return url
+    }
+
+    /// Public URL of a published article, matching the site's /blog/[slug].
+    func articleURL(slug: String) -> URL {
+        webBaseURL.appending(path: "blog").appending(path: slug)
+    }
 }

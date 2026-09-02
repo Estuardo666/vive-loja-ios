@@ -217,6 +217,16 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(recommendations.interests.preferences, ["Cultura"])
     }
 
+    /// Articles are read on the public site because the mobile API never
+    /// returns a post's body, so the app has to derive that URL from the API
+    /// base rather than hardcoding the production host.
+    func testArticleURLIsDerivedFromTheAPIBase() {
+        XCTAssertEqual(
+            AppEnvironment.production.articleURL(slug: "ruta-ecologica-senderos-loja").absoluteString,
+            "https://viveloja.com/blog/ruta-ecologica-senderos-loja"
+        )
+    }
+
     func testProductionAPIUsesCanonicalMobilePath() {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }

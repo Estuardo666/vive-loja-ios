@@ -2,6 +2,12 @@ import Foundation
 import PhotosUI
 import SwiftUI
 
+/// Tapping publish with no session used to do nothing at all — no request, no
+/// message, no haptic — which is indistinguishable from a dead button. Access
+/// tokens last fifteen minutes, so this is reachable just by leaving a
+/// half-written form open for a while.
+let signedOutMessage = "Inicia sesión para publicar."
+
 struct CreationHubView: View {
     var body: some View {
         List {
@@ -50,11 +56,11 @@ struct CreateVenueView: View {
         Section { if let errorMessage { Text(errorMessage).foregroundStyle(.red) }; Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }.disabled(!isValid || isSaving) }
     }
     private func upload(_ data: Data) async {
-        guard let token = session.accessToken else { return }; isUploading = true; defer { isUploading = false }
+        guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isUploading = true; defer { isUploading = false }
         do { let uploaded: MobileUpload = try await APIClient.shared.upload("/me/uploads", data: data, fileName: "venue-cover.jpg", mimeType: "image/jpeg", bearer: token); imageURL = uploaded.url } catch { errorMessage = "No se pudo subir la portada." }
     }
     private func save() async {
-        guard let token = session.accessToken else { return }; isSaving = true; defer { isSaving = false }
+        guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isSaving = true; defer { isSaving = false }
         do { let _: ModeratedDraft = try await APIClient.shared.post("/me/venues", body: CreateVenueRequest(name: name.trimmed, description: description.trimmed, location: location.trimmed, address: address.nilIfEmpty, phone: phone.nilIfEmpty, email: nil, website: website.nilIfEmpty, lat: nil, lng: nil, priceRange: nil, image: imageURL, categoryIds: nil), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar el local."; VLFeedback.error() }
     }
 }
@@ -80,7 +86,7 @@ struct CreatePostView: View {
             }
         }
     }
-    private func save() async { guard let token = session.accessToken else { return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/posts", body: CreatePostRequest(title: title.trimmed, excerpt: nil, content: content.trimmed, image: nil, categoryId: categoryID), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar el artículo."; VLFeedback.error() } }
+    private func save() async { guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/posts", body: CreatePostRequest(title: title.trimmed, excerpt: nil, content: content.trimmed, image: nil, categoryId: categoryID), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar el artículo."; VLFeedback.error() } }
 }
 
 struct CreateRouteView: View {
@@ -95,7 +101,7 @@ struct CreateRouteView: View {
         }
         .navigationTitle("Nueva ruta")
     }
-    private func save() async { guard let token = session.accessToken else { return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/routes", body: CreateRouteRequest(title: title.trimmed, description: description.trimmed, content: nil, image: nil, duration: duration.nilIfEmpty, difficulty: difficulty.nilIfEmpty, type: type.trimmed, stops: nil), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la ruta."; VLFeedback.error() } }
+    private func save() async { guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/routes", body: CreateRouteRequest(title: title.trimmed, description: description.trimmed, content: nil, image: nil, duration: duration.nilIfEmpty, difficulty: difficulty.nilIfEmpty, type: type.trimmed, stops: nil), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la ruta."; VLFeedback.error() } }
 }
 
 private extension String {

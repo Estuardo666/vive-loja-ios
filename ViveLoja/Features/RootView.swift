@@ -101,8 +101,11 @@ private struct DeepLinkDestinationView: View {
             ItemDetailView(item: .venue(ExploreVenue.placeholder(slug: slug)))
         case .event(let slug):
             ItemDetailView(item: .event(ExploreEvent.placeholder(slug: slug)))
-        case .post:
-            BlogView()
+        case .post(let slug):
+            // Was BlogView, which dropped the reader on the index instead of
+            // the article they tapped.
+            VLSafariView(url: AppEnvironment.current.articleURL(slug: slug))
+                .ignoresSafeArea()
         case .watchEvent(let slug):
             WatchEventDetailView(event: MobileWatchEvent.placeholder(slug: slug))
         }
