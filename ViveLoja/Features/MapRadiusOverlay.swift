@@ -19,34 +19,87 @@ final class MapProjection {
     var isValid = false
 
     func update(center: CGPoint, radiusPoints: CGFloat) {
-        self.center = center
-        self.radiusPoints = radiusPoints
-        isValid = radiusPoints > 0
+        // Every write to an @Observable property wakes the ring, and this runs
+        // on each frame of a pan, so skip the ones that change nothing.
+        if self.center != center { self.center = center }
+        if self.radiusPoints != radiusPoints { self.radiusPoints = radiusPoints }
+        let valid = radiusPoints > 0
+        if isValid != valid { isValid = valid }
+    }
+}
+
+/// The ring itself, as a `Shape` rather than a sized-and-positioned `Circle`.
+///
+/// A `Circle` with `.frame(width:height:).position()` re-runs SwiftUI layout on
+/// every frame of a pan; a shape that draws straight from the projection only
+/// rebuilds one path, which is what keeps the ring glued to the map.
+private struct RadiusShape: Shape {
+    var center: CGPoint
+    var radius: CGFloat
+
+    /// Lets the radius picker interpolate the ring instead of snapping it.
+    var animatableData: AnimatablePair<AnimatablePair<CGFloat, CGFloat>, CGFloat> {
+        get { AnimatablePair(AnimatablePair(center.x, center.y), radius) }
+        set {
+            center = CGPoint(x: newValue.first.first, y: newValue.first.second)
+            radius = newValue.second
+        }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        Path(ellipseIn: CGRect(
+            x: center.x - radius,
+            y: center.y - radius,
+            width: radius * 2,
+            height: radius * 2
+        ))
     }
 }
 
 /// Dashed ring marking the search radius, drawn over the map.
+///
+/// It sits on top of a basemap we do not control — streets, satellite imagery,
+/// dark mode — so the indigo stroke rides on a translucent white casing, the
+/// same trick the route polyline uses. Without it the ring disappears over
+/// aerial photography.
 struct MapRadiusRing: View {
     let projection: MapProjection
     /// Hidden while a route is on screen; the two compete for attention.
     let isHidden: Bool
 
+    private var shape: RadiusShape {
+        RadiusShape(center: projection.center, radius: projection.radiusPoints)
+    }
+
     var body: some View {
         if projection.isValid, !isHidden {
-            Circle()
-                .strokeBorder(
-                    VLTheme.indigo.opacity(0.85),
-                    style: StrokeStyle(lineWidth: 1.5, dash: [6, 5], dashPhase: 0)
+            ZStack {
+                shape.fill(VLTheme.indigo.opacity(0.12))
+                shape.stroke(Color.white.opacity(0.75), lineWidth: 5.5)
+                shape.stroke(
+                    VLTheme.indigo,
+                    style: StrokeStyle(lineWidth: 2.5, dash: [11, 7], dashPhase: 0)
                 )
-                .background(Circle().fill(VLTheme.indigo.opacity(0.05)))
-                .frame(width: projection.radiusPoints * 2, height: projection.radiusPoints * 2)
-                .position(projection.center)
-                .allowsHitTesting(false)
-                // Size changes come from the radius picker and deserve a spring;
-                // position changes come from panning and must stay glued to the
-                // map, so they are not animated.
-                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: projection.radiusPoints)
-                .transition(.opacity)
+                centerPin
+            }
+            .compositingGroup()
+            .shadow(color: .black.opacity(0.18), radius: 3, y: 1)
+            .allowsHitTesting(false)
+            // Deliberately no implicit animation. Both the centre and the
+            // radius change on every frame of a pan or a zoom, so animating
+            // them makes the ring chase the map a few frames behind. The radius
+            // picker animates the map region itself, and the ring rides along.
+            .transition(.opacity)
         }
+    }
+
+    /// Marks the anchor the search actually ran from, which is not always the
+    /// middle of the screen once you start panning.
+    private var centerPin: some View {
+        Circle()
+            .fill(VLTheme.indigo)
+            .frame(width: 9, height: 9)
+            .overlay(Circle().stroke(Color.white.opacity(0.9), lineWidth: 2))
+            .position(projection.center)
     }
 }

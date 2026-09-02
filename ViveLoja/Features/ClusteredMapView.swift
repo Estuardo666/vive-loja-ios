@@ -102,7 +102,13 @@ struct ClusteredMapView: UIViewRepresentable {
 
         context.coordinator.applyStyle(mapStyle, to: mapView)
         context.coordinator.syncRoute(on: mapView, route: route)
-        Task { @MainActor in context.coordinator.publishProjection(mapView) }
+        // Deferred: publishProjection writes to an @Observable the ring reads,
+        // and doing that inside updateUIView is a mutation during a view
+        // update. The per-frame path is the delegate callback below, which runs
+        // outside the update cycle and needs no hop.
+        if context.coordinator.searchAreaChanged(center: circleCenter, radiusMeters: radiusMeters) {
+            Task { @MainActor in context.coordinator.publishProjection(mapView) }
+        }
         context.coordinator.applyGuidance(isGuiding, to: mapView)
         context.coordinator.refreshUserAvatar(on: mapView, url: userPhotoURL)
 
@@ -123,6 +129,7 @@ struct ClusteredMapView: UIViewRepresentable {
         private var appliedStyle: MapStyleOption?
         private var appliedRoute: MKRoute?
         private var appliedGuidance = false
+        private var appliedSearchArea: (center: CLLocationCoordinate2D, radius: CLLocationDistance)?
 
         init(parent: ClusteredMapView) { self.parent = parent }
 
@@ -130,6 +137,19 @@ struct ClusteredMapView: UIViewRepresentable {
             guard style != appliedStyle else { return }
             appliedStyle = style
             mapView.preferredConfiguration = style.configuration
+        }
+
+        /// True when the anchor or the radius moved since the last update, so
+        /// updateUIView can skip republishing a projection nothing changed.
+        func searchAreaChanged(center: CLLocationCoordinate2D, radiusMeters: CLLocationDistance) -> Bool {
+            if let applied = appliedSearchArea,
+               applied.radius == radiusMeters,
+               applied.center.latitude == center.latitude,
+               applied.center.longitude == center.longitude {
+                return false
+            }
+            appliedSearchArea = (center, radiusMeters)
+            return true
         }
 
         /// Recomputes where the search area lands on screen. Called on every
