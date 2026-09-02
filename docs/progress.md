@@ -44,6 +44,8 @@ El commit `c038ce4` conecta Guardados autenticado con el resumen de `/me/favorit
 
 El commit `1270de3` añade la acción contextual “Quitar de guardados” para cualquier tipo remoto y mantiene feedback/error accesible; [CI 33574144954](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33574144954) confirma build unsigned, SwiftLint, 19 XCTest, 15 UI tests, artifacts y `Snapshot baseline OK`.
 
+El commit `6542938` conecta la cuenta con insignias y cambio de contraseña, añade seguimiento idempotente de locales desde el detalle (con estado remoto y rollback de error), contacto WhatsApp cuando el local publica teléfono y configura `URLCache` para GET públicos sin almacenar respuestas autenticadas. La corrección de tamaño de SwiftLint vive en `7eb0c50`; el run de CI asociado valida el build y la suite completa.
+
 ## Seguridad
 
 - No hay secretos, certificados, Team ID ni provisioning profiles en el repositorio.
@@ -86,6 +88,7 @@ El commit `1270de3` añade la acción contextual “Quitar de guardados” para 
 - [x] Auditor de accesibilidad de las tabs principales en Simulator; la portada respeta Dynamic Type y el CTA del mapa supera el contraste WCAG en `33555197439`.
 - [x] Navegación fixture a “Mis publicaciones” y estado vacío; [run 33569436684](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33569436684) sobre `35e24d7` pasa Build, SwiftLint, 19 XCTest, 15 UI tests y `Snapshot baseline OK`.
 - [x] Guardados remotos: `FavoriteSummary`, carga autenticada, navegación de locales/eventos y fallback visible de artículos/rutas/legacy (`c038ce4`/`0b4123e`); [CI 33573119901](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33573119901) verde.
+- [x] Seguimiento remoto de locales, insignias y cambio de contraseña; WhatsApp en locales con teléfono y caché HTTP pública con revalidación autenticada (`6542938`/`7eb0c50`).
 
 ## Siguiente checkpoint
 
