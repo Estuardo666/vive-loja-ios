@@ -369,16 +369,17 @@ struct ItemDetailView: View {
     private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
-    private func dayName(_ day: Int) -> String {
-        ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
-    }
-
-    private func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
-        [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
-    }
 }
 
 private extension ItemDetailView {
+    func dayName(_ day: Int) -> String {
+        ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
+    }
+
+    func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
+        [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
+    }
+
     func loadFollowing(for venueID: String) async {
         guard let token = session.accessToken else { return }
         do {
