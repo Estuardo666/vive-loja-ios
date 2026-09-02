@@ -20,11 +20,13 @@ final class ExploreViewModel {
     var eventPrice: String?
     var eventMaxPrice: Double?
     var eventType: String?
+    var categorySlugs: [String] = []
+    var categories: [Category] = []
     var items: [ExploreItem] = HomeViewModel.fixtures
     var isLoading = false
     var errorMessage: String?
 
-    func search(region: MKCoordinateRegion? = nil, radiusMeters: CLLocationDistance? = nil) async {
+    func search(center: CLLocationCoordinate2D? = nil, radiusMeters: CLLocationDistance? = nil) async {
         isLoading = true
         defer { isLoading = false }
         var queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "type", value: type), URLQueryItem(name: "take", value: "60")]
@@ -40,10 +42,11 @@ final class ExploreViewModel {
         if let eventPrice { queryItems.append(URLQueryItem(name: "eventPrice", value: eventPrice)) }
         if let eventMaxPrice { queryItems.append(URLQueryItem(name: "eventMaxPrice", value: String(eventMaxPrice))) }
         if let eventType { queryItems.append(URLQueryItem(name: "eventType", value: eventType)) }
-        if let region, let radiusMeters {
+        if !categorySlugs.isEmpty { queryItems.append(URLQueryItem(name: "category", value: categorySlugs.joined(separator: ","))) }
+        if let center, let radiusMeters {
             queryItems += [
-                URLQueryItem(name: "lat", value: String(region.center.latitude)),
-                URLQueryItem(name: "lng", value: String(region.center.longitude)),
+                URLQueryItem(name: "lat", value: String(center.latitude)),
+                URLQueryItem(name: "lng", value: String(center.longitude)),
                 URLQueryItem(name: "radius", value: String(radiusMeters)),
             ]
         }
@@ -54,15 +57,20 @@ final class ExploreViewModel {
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
     }
 
+    func loadCategories() async {
+        guard categories.isEmpty else { return }
+        if let payload: HomePayload = try? await APIClient.shared.get("/home") { categories = payload.categories }
+    }
+
     var activeFilterCount: Int {
-        [minRating != nil, openNow, verified, hasPromotions, hasUpcomingEvents, priceRange != nil,
+        [minRating != nil, openNow, verified, hasPromotions, hasUpcomingEvents, priceRange != nil, !categorySlugs.isEmpty,
          !services.isEmpty, !foodTypes.isEmpty, eventDatePreset != nil, eventPrice != nil,
          eventMaxPrice != nil, eventType != nil].filter { $0 }.count
     }
 
     func resetFilters() {
         minRating = nil; openNow = false; verified = false; hasPromotions = false; hasUpcomingEvents = false
-        priceRange = nil; services = []; foodTypes = []; eventDatePreset = nil; eventPrice = nil
+        priceRange = nil; services = []; foodTypes = []; eventDatePreset = nil; eventPrice = nil; categorySlugs = []
         eventMaxPrice = nil; eventType = nil
     }
 }
@@ -75,6 +83,8 @@ struct ExploreView: View {
     @State private var radiusMeters: CLLocationDistance = 1_000
     @State private var showMap = false
     @State private var showFilters = false
+    @State private var location = LocationService()
+    @State private var useNearMe = false
 
     var body: some View {
         NavigationStack {
@@ -83,7 +93,8 @@ struct ExploreView: View {
                 Picker("Tipo", selection: $model.type) {
                     Text("Todo").tag("all"); Text("Locales").tag("venues"); Text("Eventos").tag("events")
                 }
-                .pickerStyle(.segmented).padding(.horizontal, 16).padding(.vertical, 10)
+                .pickerStyle(.segmented).padding(.horizontal, 16).padding(.top, 10).padding(.bottom, 6)
+                nearMeBar
                 if showMap { map } else { list }
             }
             .navigationTitle("Explorar")
@@ -103,14 +114,18 @@ struct ExploreView: View {
                     if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
                 } label: { Image(systemName: showMap ? "list.bullet" : "map") }.accessibilityLabel(showMap ? "Ver lista" : "Ver mapa") }
             }
-            .task { if !isUITesting { await model.search() } }
+            .task { if !isUITesting { await model.search(); await model.loadCategories() } }
             .onChange(of: model.type) { _, _ in
                 guard !isUITesting else { return }
-                Task { await model.search() }
+                Task { await runSearch() }
+            }
+            .onChange(of: location.coordinate?.lat) { _, _ in
+                guard useNearMe, !isUITesting else { return }
+                Task { await runSearch() }
             }
             .onChange(of: radiusMeters) { _, _ in
-                guard showMap, !isUITesting else { return }
-                Task { await model.search(region: mapRegion, radiusMeters: radiusMeters) }
+                guard showMap || useNearMe, !isUITesting else { return }
+                Task { await runSearch() }
             }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
@@ -120,12 +135,59 @@ struct ExploreView: View {
             .sheet(isPresented: $showFilters) {
                 ExploreFiltersView(model: model) {
                     if !isUITesting {
-                        Task { await model.search(region: showMap ? mapRegion : nil, radiusMeters: showMap ? radiusMeters : nil) }
+                        Task { await runSearch() }
                     }
                 }
                 .presentationDetents([.medium, .large])
             }
         }
+    }
+
+    private func runSearch() async {
+        if useNearMe, let coordinate = location.coordinate {
+            await model.search(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), radiusMeters: radiusMeters)
+        } else if showMap {
+            await model.search(center: mapRegion.center, radiusMeters: radiusMeters)
+        } else {
+            await model.search()
+        }
+    }
+
+    private var nearMeBar: some View {
+        HStack(spacing: 10) {
+            Button {
+                useNearMe.toggle()
+                if useNearMe { location.requestCurrentLocation() } else { Task { await runSearch() } }
+            } label: {
+                Label("Cerca de mí", systemImage: useNearMe ? "location.fill" : "location").font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .tint(useNearMe ? VLTheme.indigo : .secondary)
+            .accessibilityIdentifier("explore-near-me")
+            .accessibilityAddTraits(useNearMe ? [.isSelected] : [])
+            if useNearMe || showMap { radiusPicker.pickerStyle(.menu) }
+            if location.isRequesting { ProgressView().controlSize(.small) }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .overlay(alignment: .bottomLeading) {
+            if useNearMe, let message = location.errorMessage {
+                Text(message).font(.caption).foregroundStyle(VLTheme.coral).padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private var radiusPicker: some View {
+        Picker("Radio", selection: $radiusMeters) {
+            Text("100 m").tag(CLLocationDistance(100))
+            Text("500 m").tag(CLLocationDistance(500))
+            Text("1 km").tag(CLLocationDistance(1_000))
+            Text("2 km").tag(CLLocationDistance(2_000))
+            Text("3 km").tag(CLLocationDistance(3_000))
+            Text("5 km").tag(CLLocationDistance(5_000))
+        }
+        .accessibilityLabel("Radio de búsqueda")
     }
 
     private var searchBar: some View {
@@ -158,25 +220,17 @@ struct ExploreView: View {
                 selectedItemID: $selectedMapItemID,
                 radiusMeters: radiusMeters,
                 onRegionChange: { newRegion in
-                    guard showMap, !isUITesting else { return }
-                    Task { await model.search(region: newRegion, radiusMeters: radiusMeters) }
+                    guard showMap, !useNearMe, !isUITesting else { return }
+                    Task { await model.search(center: newRegion.center, radiusMeters: radiusMeters) }
                 }
             )
                 .ignoresSafeArea(edges: .bottom)
-            Picker("Radio", selection: $radiusMeters) {
-                Text("100 m").tag(CLLocationDistance(100))
-                Text("500 m").tag(CLLocationDistance(500))
-                Text("1 km").tag(CLLocationDistance(1_000))
-                Text("2 km").tag(CLLocationDistance(2_000))
-                Text("3 km").tag(CLLocationDistance(3_000))
-                Text("5 km").tag(CLLocationDistance(5_000))
-            }
-            .pickerStyle(.menu)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .vlGlass(tint: VLTheme.indigo, radius: 14)
-            .padding(16)
-            .accessibilityLabel("Radio de búsqueda")
+            radiusPicker
+                .pickerStyle(.menu)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .vlGlass(tint: VLTheme.indigo, radius: 14)
+                .padding(16)
         }
     }
 
@@ -191,6 +245,28 @@ private struct ExploreFiltersView: View {
     var body: some View {
         NavigationStack {
             Form {
+                if !model.categories.isEmpty {
+                    Section("Categoría") {
+                        ForEach(model.categories, id: \.id) { category in
+                            Button {
+                                if let index = model.categorySlugs.firstIndex(of: category.slug) {
+                                    model.categorySlugs.remove(at: index)
+                                } else {
+                                    model.categorySlugs.append(category.slug)
+                                }
+                            } label: {
+                                HStack {
+                                    Text("\(category.icon ?? "📍")  \(category.name)").foregroundStyle(.primary)
+                                    Spacer()
+                                    if model.categorySlugs.contains(category.slug) {
+                                        Image(systemName: "checkmark").foregroundStyle(VLTheme.indigo)
+                                    }
+                                }
+                            }
+                            .accessibilityAddTraits(model.categorySlugs.contains(category.slug) ? [.isSelected] : [])
+                        }
+                    }
+                }
                 Section("Generales") {
                     Picker("Calificación mínima", selection: Binding(get: { model.minRating ?? 0 }, set: { model.minRating = $0 == 0 ? nil : $0 })) {
                         Text("Cualquiera").tag(Double(0))

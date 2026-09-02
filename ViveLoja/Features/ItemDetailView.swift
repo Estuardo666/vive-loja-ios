@@ -58,6 +58,7 @@ struct ItemDetailView: View {
                 reviewsSection
                 questionsSection
                 mapSection
+                detailInfoSections
                 if let actionMessage { Text(actionMessage).font(.footnote).foregroundStyle(.secondary) }
             }
             .padding(20)
@@ -333,6 +334,17 @@ struct ItemDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
             Button("Abrir en Apple Maps", systemImage: "map") { openURL(URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)")!) }
                 .buttonStyle(.bordered)
+            UberRideButton(latitude: coordinate.lat, longitude: coordinate.lng, destinationName: displayedItem.title)
+        }
+    }
+
+    @ViewBuilder
+    private var detailInfoSections: some View {
+        if case .venue(let value) = displayedItem {
+            ItemInfoSection(address: value.address ?? value.location, phone: value.phone?.nilIfBlank ?? nil, website: value.website, priceRange: value.priceRange?.nilIfBlank ?? nil)
+            if let category = value.categories.first { ItemCategorySection(category: category) }
+        } else if case .event(let value) = displayedItem, let category = value.categories.first {
+            ItemCategorySection(category: category)
         }
     }
 
