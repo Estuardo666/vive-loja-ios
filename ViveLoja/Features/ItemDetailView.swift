@@ -344,10 +344,12 @@ struct ItemDetailView: View {
                 venueDetail = detail
                 resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
                 await loadFollowing(for: detail.id)
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id))
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
                 resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id))
             }
         } catch { actionMessage = (error as? LocalizedError)?.errorDescription }
     }

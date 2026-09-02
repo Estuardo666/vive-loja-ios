@@ -183,6 +183,19 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(badge.badgeType, "FIRST_REVIEW")
     }
 
+    func testWatchEventAndRecommendationsModelsDecodeContracts() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let watchEvent = try decoder.decode(MobileWatchEvent.self, from: Data("""
+        {"id":"w1","name":"Final","slug":"final","type":"SPORTS","description":"Partido","image":null,"matchDate":"2026-09-01T20:00:00Z","matchTime":"20:00","competition":"Liga","performers":[{"id":"p1","name":"Local","slug":"local","type":"TEAM","logo":null,"role":"HOME"}],"featured":true,"viewCount":4,"venueCount":2}
+        """.utf8))
+        XCTAssertEqual(watchEvent.performers.first?.role, "HOME")
+        let recommendations = try decoder.decode(MobileRecommendations.self, from: Data("""
+        {"interests":{"categories":[],"preferences":["Cultura"]},"followingVenues":[],"relatedEvents":[],"relatedVenues":[]}
+        """.utf8))
+        XCTAssertEqual(recommendations.interests.preferences, ["Cultura"])
+    }
+
     func testProductionAPIUsesCanonicalMobilePath() {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }
@@ -203,6 +216,7 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertTrue(payload.promotions.isEmpty)
         XCTAssertTrue(payload.routes.isEmpty)
         XCTAssertTrue(payload.collections.isEmpty)
+        XCTAssertTrue(payload.watchEvents.isEmpty)
     }
 
     func testHomePayloadKeepsEditorialSectionsBackwardCompatible() throws {

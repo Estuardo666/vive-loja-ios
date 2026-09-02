@@ -60,6 +60,90 @@ struct PasswordChangeRequest: Codable, Sendable {
     let confirmPassword: String
 }
 
+struct MobileWatchPerformer: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let type: String
+    let logo: URL?
+    let role: String?
+}
+
+struct MobileWatchEvent: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let type: String
+    let description: String?
+    let image: URL?
+    let matchDate: Date
+    let matchTime: String?
+    let competition: String?
+    let performers: [MobileWatchPerformer]
+    let featured: Bool
+    let viewCount: Int
+    let venueCount: Int?
+}
+
+struct MobileWatchVenueSummary: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let description: String?
+    let image: URL?
+    let phone: String?
+    let address: String?
+    let location: String?
+    let lat: Double?
+    let lng: Double?
+    let avgRating: Double?
+    let reviewCount: Int
+    let priceRange: String?
+}
+
+struct MobileWatchVenue: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let flyerUrl: URL?
+    let promotion: String?
+    let hasBigScreen: Bool
+    let hasFreeEntry: Bool
+    let venue: MobileWatchVenueSummary
+}
+
+struct MobileWatchEventDetail: Codable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let type: String
+    let description: String?
+    let image: URL?
+    let matchDate: Date
+    let matchTime: String?
+    let competition: String?
+    let performers: [MobileWatchPerformer]
+    let featured: Bool
+    let viewCount: Int
+    let venues: [MobileWatchVenue]
+}
+
+struct MobileRecommendations: Decodable, Sendable {
+    let interests: MobileInterests
+    let followingVenues: [MobileFollowingRecord]
+    let relatedEvents: [ExploreEvent]
+    let relatedVenues: [ExploreVenue]
+}
+
+struct ViewRequest: Codable, Sendable {
+    let kind: String
+    let itemId: String
+}
+
+struct ViewResponse: Decodable, Sendable {
+    let recorded: Bool
+    let kind: String
+    let itemId: String
+}
+
 struct ProfileUpdateRequest: Codable, Sendable {
     let name: String?
     let image: URL?
@@ -469,6 +553,7 @@ struct ContentPayload: Codable, Sendable {
     let promotions: [MobilePromotion]
     let routes: [MobileRoute]
     let collections: [MobileCollection]
+    let watchEvents: [MobileWatchEvent]
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -477,9 +562,10 @@ struct ContentPayload: Codable, Sendable {
         promotions = try container.decodeIfPresent([MobilePromotion].self, forKey: .promotions) ?? []
         routes = try container.decodeIfPresent([MobileRoute].self, forKey: .routes) ?? []
         collections = try container.decodeIfPresent([MobileCollection].self, forKey: .collections) ?? []
+        watchEvents = try container.decodeIfPresent([MobileWatchEvent].self, forKey: .watchEvents) ?? []
     }
 
-    private enum CodingKeys: String, CodingKey { case posts, categories, promotions, routes, collections }
+    private enum CodingKeys: String, CodingKey { case posts, categories, promotions, routes, collections, watchEvents }
 }
 struct FavoriteRequest: Codable, Sendable { let kind: String; let itemId: String }
 struct FavoriteSummary: Codable, Hashable, Sendable {

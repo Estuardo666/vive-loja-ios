@@ -9,6 +9,7 @@ final class BlogViewModel {
     var promotions: [MobilePromotion] = []
     var routes: [MobileRoute] = []
     var collections: [MobileCollection] = []
+    var watchEvents: [MobileWatchEvent] = []
     var isLoading = false
     var isLoadingMore = false
     var canLoadMorePosts = true
@@ -39,6 +40,7 @@ final class BlogViewModel {
             promotions = payload.promotions
             routes = payload.routes
             collections = payload.collections
+            watchEvents = payload.watchEvents
             canLoadMorePosts = payload.posts.count == 12
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar el blog."
@@ -52,7 +54,7 @@ struct ContentHubView: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 26) {
-                if model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty {
+                if model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty && model.watchEvents.isEmpty {
                     ProgressView("Cargando contenido…").frame(maxWidth: .infinity).padding(.top, 20)
                 }
                 contentSection("Historias", icon: "text.book.closed.fill") {
@@ -121,7 +123,28 @@ struct ContentHubView: View {
                         .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                 }
-                if !model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty && model.errorMessage == nil {
+                contentSection("Transmisiones en vivo", icon: "play.tv.fill") {
+                    ForEach(model.watchEvents) { event in
+                        NavigationLink(destination: WatchEventDetailView(event: event)) {
+                            HStack(spacing: 12) {
+                                VLAsyncImage(url: event.image, height: 64).frame(width: 92)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(event.name).font(.headline).lineLimit(2)
+                                    Text(event.matchDate.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                    if let competition = event.competition { Text(competition).font(.caption2).foregroundStyle(.secondary) }
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").foregroundStyle(.secondary)
+                            }
+                            .padding(12)
+                            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                if !model.isLoading && model.posts.isEmpty && model.promotions.isEmpty && model.routes.isEmpty && model.collections.isEmpty && model.watchEvents.isEmpty && model.errorMessage == nil {
                     ContentUnavailableView("Aún no hay contenido", systemImage: "sparkles", description: Text("Vuelve pronto para descubrir Loja."))
                 }
                 if let error = model.errorMessage {
@@ -151,6 +174,7 @@ struct ContentHubView: View {
         case "Promociones activas": return model.promotions.isEmpty
         case "Rutas para descubrir": return model.routes.isEmpty
         case "Colecciones de la comunidad": return model.collections.isEmpty
+        case "Transmisiones en vivo": return model.watchEvents.isEmpty
         default: return true
         }
     }

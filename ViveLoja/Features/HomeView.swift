@@ -10,13 +10,14 @@ final class HomeViewModel {
     var relatedEvents: [ExploreEvent] = []
     var posts: [MobilePost] = []
     var promotions: [MobilePromotion] = []
+    var recommendations: MobileRecommendations?
     var isLoading = false
     var errorMessage: String?
 
     // Fixtures must not move with the wall clock so UI screenshots remain comparable.
     private static let fixtureEventDate = Date(timeIntervalSince1970: 1_800_000_000)
 
-    func load() async {
+    func load(accessToken: String? = nil) async {
         isLoading = true
         defer { isLoading = false }
         do {
@@ -29,6 +30,11 @@ final class HomeViewModel {
             relatedEvents = payload.relatedEvents ?? []
             posts = payload.posts ?? []
             promotions = payload.promotions ?? []
+            if let accessToken {
+                recommendations = try? await APIClient.shared.get("/me/recommendations", bearer: accessToken)
+            } else {
+                recommendations = nil
+            }
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
     }
 
@@ -40,6 +46,7 @@ final class HomeViewModel {
 
 struct HomeView: View {
     @State private var model = HomeViewModel()
+    @Environment(SessionStore.self) private var session
 
     var body: some View {
         NavigationStack {
@@ -64,6 +71,21 @@ struct HomeView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 LazyHStack(spacing: 14) {
                                     ForEach(model.latestVenues) { venue in
+                                        NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
+                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let recommendations = model.recommendations, !recommendations.relatedVenues.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Recomendado para ti", action: nil)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(recommendations.relatedVenues) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
                                             VLItemCard(item: .venue(venue)).frame(width: 265)
                                         }
@@ -157,8 +179,8 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
             }
             .navigationTitle("Vive Loja")
-            .refreshable { await model.load() }
-            .task { if !isUITesting { await model.load() } }
+            .refreshable { await model.load(accessToken: session.accessToken) }
+            .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
         }
     }
 
