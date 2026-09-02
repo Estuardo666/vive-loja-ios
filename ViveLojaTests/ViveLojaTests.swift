@@ -159,8 +159,7 @@ final class ViveLojaTests: XCTestCase {
         {"id":"fav-1","kind":"venue","itemId":"venue-1","createdAt":"2026-09-01T12:00:00Z","item":{"kind":"venue","id":"venue-1","title":"Café Loja","slug":"cafe-loja","description":"Café de altura","image":"https://example.com/cafe.jpg","subtitle":"Centro histórico","address":"Calle Bolívar","lat":-4.0079,"lng":-79.2045,"startDate":null}}
         """.utf8)
         let legacy = Data(#"{"id":"fav-2","kind":"event","itemId":"event-2","createdAt":null}"#.utf8)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
 
         let record = try decoder.decode(FavoriteRecord.self, from: enriched)
         XCTAssertEqual(record.item?.title, "Café Loja")
@@ -168,9 +167,32 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertNil(try decoder.decode(FavoriteRecord.self, from: legacy).item)
     }
 
+    /// Prisma serialises every timestamp through `Date.prototype.toJSON`, so
+    /// the wire format always carries milliseconds. The suite used to build its
+    /// own `.iso8601` decoder and feed it fixtures without them, which is how a
+    /// profile that no device could actually parse still passed every test.
+    func testProfileAndBadgesDecodeTheMillisecondTimestampsTheAPIActuallySends() throws {
+        let decoder = JSONDecoder.viveLoja
+        let profile = try decoder.decode(MobileProfile.self, from: Data("""
+        {"id":"u1","name":"Estuardo","email":"e@viveloja.com","role":"USER","image":null,"reputationScore":12,"reviewerLevel":2,"totalReviews":3,"totalCheckIns":4,"totalPhotos":5,"onboardingCompletedAt":"2026-02-23T06:14:16.251Z","onboardingSkippedAt":null}
+        """.utf8))
+        XCTAssertNotNil(profile.onboardingCompletedAt)
+        XCTAssertNil(profile.onboardingSkippedAt)
+
+        let badge = try decoder.decode(MobileBadge.self, from: Data("""
+        {"id":"b1","badgeType":"FIRST_REVIEW","name":"Primera Reseña","description":"Escribiste tu primera reseña","icon":"✍️","earnedAt":"2026-02-23T06:14:17.172Z"}
+        """.utf8))
+        XCTAssertEqual(badge.id, "b1")
+
+        // Without the fractional part too: the contract does not promise them.
+        let plain = try decoder.decode(MobileBadge.self, from: Data("""
+        {"id":"b2","badgeType":"EXPLORER","name":"Explorador","description":"Diez check-ins","icon":null,"earnedAt":"2026-02-23T06:14:17Z"}
+        """.utf8))
+        XCTAssertEqual(plain.id, "b2")
+    }
+
     func testFollowingAndBadgeModelsDecodeMobileContracts() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let following = try decoder.decode(MobileFollowingRecord.self, from: Data("""
         {"id":"f1","venueId":"v1","createdAt":"2026-09-01T12:00:00Z","venue":{"id":"v1","name":"Café Loja","slug":"cafe-loja","image":null,"location":"Centro","address":null,"phone":"0991234567","lat":-4.0,"lng":-79.2}}
         """.utf8))
@@ -184,8 +206,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testWatchEventAndRecommendationsModelsDecodeContracts() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let watchEvent = try decoder.decode(MobileWatchEvent.self, from: Data("""
         {"id":"w1","name":"Final","slug":"final","type":"SPORTS","description":"Partido","image":null,"matchDate":"2026-09-01T20:00:00Z","matchTime":"20:00","competition":"Liga","performers":[{"id":"p1","name":"Local","slug":"local","type":"TEAM","logo":null,"role":"HOME"}],"featured":true,"viewCount":4,"venueCount":2}
         """.utf8))
@@ -223,8 +244,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testHomePayloadKeepsEditorialSectionsBackwardCompatible() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let legacy = try decoder.decode(HomePayload.self, from: Data("""
         {"venues":[],"events":[],"categories":[],"pageInfo":null}
         """.utf8))
@@ -268,8 +288,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testReviewAcceptsLegacyCommentField() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let review = try decoder.decode(MobileReview.self, from: Data("""
         {"id":"r1","rating":5,"comment":"Muy recomendado","createdAt":"2026-01-01T00:00:00Z"}
         """.utf8))
@@ -278,8 +297,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testReviewPhotosDecodeAndDefault() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let withPhoto = try decoder.decode(MobileReview.self, from: Data("""
         {"id":"r2","rating":4,"content":"Bien","createdAt":"2026-01-01T00:00:00Z","photos":[{"id":"p1","url":"https://example.com/p.jpg","order":0}]}
         """.utf8))
@@ -291,8 +309,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testDetailModelsTolerateMissingQuestions() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let data = Data("""
         {"id":"v1","name":"Café","slug":"cafe","description":"Desc","image":null,"location":"Loja","address":null,"lat":null,"lng":null,"featured":false,"phone":null,"website":null,"priceRange":null,"avgRating":null,"reviewCount":0,"verified":false,"categories":[],"media":[],"services":[],"reviews":[]}
         """.utf8)
@@ -301,8 +318,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testVenueDetailDecodesHoursMenuProductsAndPromotions() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let detail = try decoder.decode(VenueDetail.self, from: Data("""
         {
           "id":"v1","name":"Café","slug":"cafe","description":"Desc","image":null,
@@ -325,8 +341,7 @@ final class ViveLojaTests: XCTestCase {
     }
 
     func testModerationDraftDTOsDecodeTheirOwnEndpointShapes() throws {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let decoder = JSONDecoder.viveLoja
         let venue = try decoder.decode(MobileVenueDraft.self, from: Data("""
         {"id":"v1","name":"Café","slug":"cafe","description":"Un lugar","image":null,"location":"Centro","address":null,"status":"PENDING","createdAt":"2026-01-01T00:00:00Z"}
         """.utf8))

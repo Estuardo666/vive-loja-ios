@@ -50,9 +50,7 @@ actor APIClient {
     init(environment: AppEnvironment = .current, session: URLSession? = nil) {
         self.environment = environment
         self.session = session ?? Self.makeSession()
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        self.decoder = decoder
+        self.decoder = .viveLoja
     }
 
     /// Public GET responses use the server's cache headers while authenticated
@@ -159,4 +157,34 @@ actor APIClient {
 private struct APIErrorEnvelope: Decodable {
     let error: APIErrorBody
     struct APIErrorBody: Decodable { let code: String; let message: String }
+}
+
+/// The one decoder every response goes through, including the message
+/// stream, so no caller can drift back onto a stricter date strategy.
+extension JSONDecoder {
+    /// Every timestamp the API returns comes from Prisma by way of
+    /// `Date.prototype.toJSON`, so it always carries milliseconds:
+    /// `2026-02-23T06:14:16.251Z`. `JSONDecoder.DateDecodingStrategy.iso8601`
+    /// is `ISO8601DateFormatter` with `.withInternetDateTime` only, and that
+    /// rejects fractional seconds outright — so any model with a non-optional
+    /// `Date` failed to decode, and any optional one threw as soon as the field
+    /// was non-null. That is what emptied the Cuenta screen: a profile with
+    /// `onboardingCompletedAt` set could not be parsed at all, and `/me/badges`
+    /// is behind a `try?` so it silently came back empty.
+    ///
+    /// Accept both shapes; the server is free to omit the milliseconds.
+    static var viveLoja: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let value = try container.decode(String.self)
+            if let date = try? Date(value, strategy: .iso8601.time(includingFractionalSeconds: true)) { return date }
+            if let date = try? Date(value, strategy: .iso8601) { return date }
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Fecha ISO8601 no reconocida: \(value)"
+            )
+        }
+        return decoder
+    }
 }

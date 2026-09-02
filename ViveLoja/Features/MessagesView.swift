@@ -348,11 +348,3 @@ private struct MessageBubble: View {
 
 private struct ReadReceipt: Codable, Sendable { let read: Bool }
 private struct MarkedReadResponse: Decodable, Sendable { let markedRead: Int }
-
-private extension JSONDecoder {
-    static var viveLoja: JSONDecoder {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return decoder
-    }
-}
