@@ -47,12 +47,22 @@ actor APIClient {
     private let environment: AppEnvironment
     private let decoder: JSONDecoder
 
-    init(environment: AppEnvironment = .current, session: URLSession = .shared) {
+    init(environment: AppEnvironment = .current, session: URLSession? = nil) {
         self.environment = environment
-        self.session = session
+        self.session = session ?? Self.makeSession()
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         self.decoder = decoder
+    }
+
+    /// Public GET responses use the server's cache headers while authenticated
+    /// requests always revalidate to avoid persisting private account data.
+    private static func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.urlCache = URLCache(memoryCapacity: 10 * 1024 * 1024, diskCapacity: 50 * 1024 * 1024)
+        configuration.requestCachePolicy = .useProtocolCachePolicy
+        configuration.waitsForConnectivity = true
+        return URLSession(configuration: configuration)
     }
 
     func get<Value: Decodable & Sendable>(_ path: String, query: [URLQueryItem] = [], bearer: String? = nil) async throws -> Value {
@@ -117,6 +127,7 @@ actor APIClient {
         guard let url = components.url else { throw APIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        request.cachePolicy = method == "GET" && bearer == nil ? .useProtocolCachePolicy : .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }

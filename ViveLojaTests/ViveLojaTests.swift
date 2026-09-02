@@ -168,6 +168,21 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertNil(try decoder.decode(FavoriteRecord.self, from: legacy).item)
     }
 
+    func testFollowingAndBadgeModelsDecodeMobileContracts() throws {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let following = try decoder.decode(MobileFollowingRecord.self, from: Data("""
+        {"id":"f1","venueId":"v1","createdAt":"2026-09-01T12:00:00Z","venue":{"id":"v1","name":"Café Loja","slug":"cafe-loja","image":null,"location":"Centro","address":null,"phone":"0991234567","lat":-4.0,"lng":-79.2}}
+        """.utf8))
+        XCTAssertEqual(following.venue.slug, "cafe-loja")
+        XCTAssertEqual(following.venue.phone, "0991234567")
+
+        let badge = try decoder.decode(MobileBadge.self, from: Data("""
+        {"id":"b1","badgeType":"FIRST_REVIEW","name":"Primera Reseña","description":"Escribiste tu primera reseña","icon":"✍️","earnedAt":"2026-09-01T12:00:00Z"}
+        """.utf8))
+        XCTAssertEqual(badge.badgeType, "FIRST_REVIEW")
+    }
+
     func testProductionAPIUsesCanonicalMobilePath() {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }

@@ -22,6 +22,44 @@ struct MobileProfile: Codable, Hashable, Sendable {
     let onboardingSkippedAt: Date?
 }
 
+struct MobileBadge: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let badgeType: String
+    let name: String
+    let description: String
+    let icon: String?
+    let earnedAt: Date
+}
+
+struct MobileFollowingVenue: Codable, Hashable, Sendable {
+    let id: String
+    let name: String
+    let slug: String
+    let image: URL?
+    let location: String?
+    let address: String?
+    let phone: String?
+    let lat: Double?
+    let lng: Double?
+}
+
+struct MobileFollowingRecord: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let venueId: String
+    let createdAt: Date
+    let venue: MobileFollowingVenue
+}
+
+struct FollowingRequest: Codable, Sendable {
+    let venueId: String
+}
+
+struct PasswordChangeRequest: Codable, Sendable {
+    let currentPassword: String
+    let newPassword: String
+    let confirmPassword: String
+}
+
 struct ProfileUpdateRequest: Codable, Sendable {
     let name: String?
     let image: URL?

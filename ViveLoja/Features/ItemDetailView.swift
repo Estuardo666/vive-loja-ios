@@ -14,6 +14,8 @@ struct ItemDetailView: View {
     @State private var showReviewComposer = false
     @State private var showQuestionComposer = false
     @State private var showCheckIn = false
+    @State private var isFollowingVenue = false
+    @State private var isUpdatingFollowing = false
     @State private var actionMessage: String?
 
     var body: some View {
@@ -110,6 +112,22 @@ struct ItemDetailView: View {
             .tint(VLTheme.indigo)
             ShareLink(item: shareURL) { Label("Compartir", systemImage: "square.and.arrow.up") }
                 .buttonStyle(.bordered)
+            if case .venue = displayedItem, session.user != nil {
+                Button {
+                    Task { await toggleFollowing() }
+                } label: {
+                    Label(isFollowingVenue ? "Siguiendo" : "Seguir", systemImage: isFollowingVenue ? "bell.fill" : "bell")
+                }
+                .buttonStyle(.bordered)
+                .tint(VLTheme.coral)
+                .disabled(isUpdatingFollowing || session.accessToken == nil)
+                .accessibilityLabel(isFollowingVenue ? "Dejar de seguir local" : "Seguir local")
+            }
+            if case .venue(let venue) = displayedItem, let phone = venue.phone, !phone.isEmpty {
+                Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill") }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Contactar por WhatsApp")
+            }
             if session.user != nil {
                 Menu {
                     Button("Escribir reseña", systemImage: "star") { showReviewComposer = true }
@@ -325,6 +343,7 @@ struct ItemDetailView: View {
                 let detail: VenueDetail = try await APIClient.shared.get("/venues/\(value.slug)")
                 venueDetail = detail
                 resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
+                await loadFollowing(for: detail.id)
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
@@ -350,6 +369,44 @@ struct ItemDetailView: View {
     private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
+    private func loadFollowing(for venueID: String) async {
+        guard let token = session.accessToken else { return }
+        do {
+            let follows: [MobileFollowingRecord] = try await APIClient.shared.get("/me/following", bearer: token)
+            isFollowingVenue = follows.contains(where: { $0.venueId == venueID })
+        } catch {
+            // Following is an enhancement; a stale state must not block detail rendering.
+        }
+    }
+
+    private func toggleFollowing() async {
+        guard let token = session.accessToken, case .venue(let venue) = displayedItem else { return }
+        isUpdatingFollowing = true
+        defer { isUpdatingFollowing = false }
+        do {
+            if isFollowingVenue {
+                let _: FollowingStateResponse = try await APIClient.shared.delete("/me/following", body: FollowingRequest(venueId: venue.id), bearer: token)
+                isFollowingVenue = false
+            } else {
+                let _: FollowingStateResponse = try await APIClient.shared.post("/me/following", body: FollowingRequest(venueId: venue.id), bearer: token)
+                isFollowingVenue = true
+            }
+            VLFeedback.success()
+        } catch {
+            actionMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo actualizar el seguimiento."
+            VLFeedback.error()
+        }
+    }
+
+    private func openWhatsApp(phone: String) {
+        let digits = phone.filter(\.isNumber)
+        guard digits.isEmpty == false, let url = URL(string: "https://wa.me/\(digits)") else {
+            actionMessage = "El número de contacto no es válido."
+            return
+        }
+        openURL(url)
+    }
+
     private func dayName(_ day: Int) -> String {
         ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"].safeValue(at: day) ?? "Día"
     }
@@ -357,6 +414,10 @@ struct ItemDetailView: View {
     private func legacyDays(_ hours: MobileOperatingHours) -> [(String, String?)] {
         [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
     }
+}
+
+private struct FollowingStateResponse: Decodable, Sendable {
+    let following: Bool
 }
 
 private extension Array {

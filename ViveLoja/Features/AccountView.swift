@@ -6,6 +6,7 @@ import SwiftUI
 @Observable
 final class AccountViewModel {
     var profile: MobileProfile?
+    var badges: [MobileBadge] = []
     var isLoading = false
     var isSaving = false
     var errorMessage: String?
@@ -16,6 +17,7 @@ final class AccountViewModel {
         defer { isLoading = false }
         do {
             profile = try await APIClient.shared.get("/me/profile", bearer: accessToken)
+            badges = (try? await APIClient.shared.get("/me/badges", bearer: accessToken)) ?? []
             errorMessage = nil
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar tu perfil."
@@ -52,11 +54,34 @@ final class AccountViewModel {
             return false
         }
     }
+
+    func changePassword(current: String, new: String, confirm: String, accessToken: String?) async -> Bool {
+        guard let accessToken else { return false }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let _: PasswordUpdateResponse = try await APIClient.shared.patch(
+                "/me/password",
+                body: PasswordChangeRequest(currentPassword: current, newPassword: new, confirmPassword: confirm),
+                bearer: accessToken
+            )
+            errorMessage = nil
+            VLFeedback.success()
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cambiar tu contraseña."
+            VLFeedback.error()
+            return false
+        }
+    }
 }
+
+private struct PasswordUpdateResponse: Decodable, Sendable { let updated: Bool }
 
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
     @State private var showAuth = false
+    @State private var showPasswordSheet = false
     @State private var model = AccountViewModel()
     @State private var draftName = ""
     @State private var selectedAvatar: PhotosPickerItem?
@@ -117,6 +142,28 @@ struct AccountView: View {
                         }
                         .accessibilityIdentifier("creation-hub")
                     }
+                    Section("Insignias") {
+                        if model.badges.isEmpty {
+                            Text("Completa reseñas y check-ins para ganar tus primeras insignias.")
+                                .font(.subheadline).foregroundStyle(.secondary)
+                        } else {
+                            ForEach(model.badges) { badge in
+                                Label {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(badge.name).font(.subheadline.weight(.semibold))
+                                        Text(badge.description).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                } icon: {
+                                    Text(badge.icon ?? "🏅").font(.title3)
+                                }
+                                .accessibilityElement(children: .combine)
+                            }
+                        }
+                    }
+                    Section("Seguridad") {
+                        Button("Cambiar contraseña", systemImage: "lock.rotation") { showPasswordSheet = true }
+                            .disabled(model.isSaving || session.accessToken == nil)
+                    }
                     Section {
                         Button("Cerrar sesión", role: .destructive) { session.signOut() }
                     }
@@ -129,6 +176,10 @@ struct AccountView: View {
             }
             .navigationTitle("Cuenta")
             .sheet(isPresented: $showAuth) { AuthView() }
+            .sheet(isPresented: $showPasswordSheet) {
+                ChangePasswordView(model: model, accessToken: session.accessToken)
+                    .presentationDetents([.medium])
+            }
             .task(id: session.user?.id) {
                 guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
                 await model.load(accessToken: session.accessToken)
@@ -142,6 +193,46 @@ struct AccountView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+private struct ChangePasswordView: View {
+    let model: AccountViewModel
+    let accessToken: String?
+    @Environment(\.dismiss) private var dismiss
+    @State private var currentPassword = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+
+    private var isValid: Bool {
+        currentPassword.isEmpty == false && newPassword.count >= 8 && newPassword == confirmPassword
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Contraseña actual") {
+                    SecureField("Contraseña actual", text: $currentPassword)
+                }
+                Section("Nueva contraseña") {
+                    SecureField("Mínimo 8 caracteres", text: $newPassword)
+                    SecureField("Repite la nueva contraseña", text: $confirmPassword)
+                }
+                if let error = model.errorMessage { Text(error).foregroundStyle(.red) }
+                Button {
+                    Task {
+                        if await model.changePassword(current: currentPassword, new: newPassword, confirm: confirmPassword, accessToken: accessToken) {
+                            dismiss()
+                        }
+                    }
+                } label: {
+                    if model.isSaving { ProgressView() } else { Label("Actualizar contraseña", systemImage: "checkmark") }
+                }
+                .disabled(!isValid || model.isSaving)
+            }
+            .navigationTitle("Seguridad")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
         }
     }
 }
