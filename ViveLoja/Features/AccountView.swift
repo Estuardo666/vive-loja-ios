@@ -192,6 +192,11 @@ struct AccountView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            // The palette picker sits on this list, so it is the one screen
+            // where the change has to be obvious the moment you make it.
+            .scrollContentBackground(.hidden)
+            .background(VLTheme.background)
+            .listRowBackground(VLTheme.surface)
             .navigationTitle("Cuenta")
             .toolbarTitleDisplayMode(.inlineLarge)
             .sheet(isPresented: $showAuth) { AuthView() }

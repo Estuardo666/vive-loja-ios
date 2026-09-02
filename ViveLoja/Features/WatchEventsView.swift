@@ -52,7 +52,7 @@ private struct WatchEventCard: View {
             Image(systemName: "chevron.right").foregroundStyle(.secondary)
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(event.name), \(event.matchDate.formatted(date: .abbreviated, time: .shortened))")
     }

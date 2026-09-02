@@ -338,7 +338,7 @@ private struct MessageBubble: View {
                 Text(message.createdAt.formatted(date: .omitted, time: .shortened)).font(.caption2).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(isMine ? VLTheme.indigo : Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(isMine ? VLTheme.indigo : VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .foregroundStyle(isMine ? .white : .primary)
             if !isMine { Spacer(minLength: 48) }
         }

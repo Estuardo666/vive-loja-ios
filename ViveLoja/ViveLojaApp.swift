@@ -7,6 +7,9 @@ struct ViveLojaApp: App {
     @State private var saved = SavedStore()
     @State private var deepLinkRouter = DeepLinkRouter()
     @State private var theme = ThemeStore()
+    /// Lives here, above the .id() below, so rebuilding for a palette change
+    /// does not throw the user back to the first tab.
+    @State private var selectedTab = MainTabView.Tab.home
 
     private var uiTestingColorScheme: ColorScheme? {
         guard ProcessInfo.processInfo.arguments.contains("-uiTesting-dark") else { return nil }
@@ -17,7 +20,7 @@ struct ViveLojaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(selectedTab: $selectedTab)
                 // VLTheme resolves colours from UserDefaults, outside the
                 // SwiftUI graph, so rebuild RootView when the palette changes.
                 // Kept innermost so the .task below is not re-run by the swap.

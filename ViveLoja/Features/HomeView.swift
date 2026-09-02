@@ -129,7 +129,7 @@ struct HomeView: View {
                                             .foregroundStyle(.secondary)
                                     }
                                     .padding(14)
-                                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("Abrir actualidad de Loja")

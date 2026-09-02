@@ -188,7 +188,7 @@ struct ItemDetailView: View {
                 }
             }
             .padding(14)
-            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
     }
 
@@ -212,7 +212,7 @@ struct ItemDetailView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
@@ -234,7 +234,7 @@ struct ItemDetailView: View {
                         if let price = product.price { Text(price, format: .currency(code: "USD")).font(.caption.weight(.semibold)) }
                     }
                     .padding(10)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
@@ -274,7 +274,7 @@ struct ItemDetailView: View {
                         Spacer()
                     }
                     .padding(12)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
         }
@@ -317,7 +317,7 @@ struct ItemDetailView: View {
                             else { Text("Pendiente de respuesta").font(.caption).foregroundStyle(.secondary) }
                         }
                         .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                 }
             }
@@ -460,7 +460,7 @@ private struct ReviewRow: View {
             }
         }
         .padding(12)
-        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }

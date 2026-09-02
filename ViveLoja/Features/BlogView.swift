@@ -66,7 +66,7 @@ struct ContentHubView: View {
                             if let excerpt = post.excerpt { Text(excerpt).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
                         }
                         .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
                 }
                 if model.canLoadMorePosts && !model.posts.isEmpty {
@@ -120,7 +120,7 @@ struct ContentHubView: View {
                             Spacer()
                         }
                         .padding(14)
-                        .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
                 }
                 contentSection("Transmisiones en vivo", icon: "play.tv.fill") {
@@ -139,7 +139,7 @@ struct ContentHubView: View {
                                 Image(systemName: "chevron.right").foregroundStyle(.secondary)
                             }
                             .padding(12)
-                            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
                         .buttonStyle(.plain)
                     }
@@ -198,7 +198,7 @@ struct BlogView: View {
                         if let category = post.category { Text(category.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.indigo) }
                     }
                     .padding(12)
-                    .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 if let error = model.errorMessage { ContentUnavailableView("No se pudo actualizar", systemImage: "wifi.exclamationmark", description: Text(error)) }
                 if !model.isLoading && model.posts.isEmpty && model.errorMessage == nil {

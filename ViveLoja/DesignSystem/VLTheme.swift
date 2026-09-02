@@ -27,8 +27,14 @@ enum VLTheme {
     static var onBrand: Color { resolve(brand: (0x062E3B, 0x062E3B), catppuccin: (0xEFF1F5, 0x1E1E2E)) }
     static var navy: Color { resolve(brand: (0x00567C, 0x7FD4EE), catppuccin: (0x7E29EE, 0xCBA6F7)) }
 
-    static var background: Color { resolve(brand: (0xF7FAFB, 0x0B1114), catppuccin: (0xE6E9EF, 0x181825)) }
-    static var surface: Color { resolve(brand: (0xFFFFFF, 0x131B20), catppuccin: (0xEFF1F5, 0x1E1E2E)) }
+    /// The page behind everything. Catppuccin uses its `base`.
+    static var background: Color { resolve(brand: (0xF7FAFB, 0x0B1114), catppuccin: (0xEFF1F5, 0x1E1E2E)) }
+    /// Cards and rows sitting on `background`. Catppuccin uses `mantle` in the
+    /// light theme and `surface0` in the dark one, which is how the palette is
+    /// meant to separate panels from the page. Every accent above clears AA on
+    /// this as well as on `background`, and the two stay about 1.1:1 apart —
+    /// the same faint separation UIKit gives `secondarySystemBackground`.
+    static var surface: Color { resolve(brand: (0xEEF3F5, 0x131B20), catppuccin: (0xE6E9EF, 0x313244)) }
 
     static func itemColor(_ item: ExploreItem) -> Color {
         switch item {
@@ -67,7 +73,7 @@ struct VLGlassModifier: ViewModifier {
             if reduceTransparency {
                 content
                     .padding(1)
-                    .background(Color(uiColor: .secondarySystemBackground), in: shape)
+                    .background(VLTheme.surface, in: shape)
                     .clipShape(shape)
             } else {
                 content

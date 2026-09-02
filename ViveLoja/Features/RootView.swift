@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 struct RootView: View {
+    @Binding var selectedTab: MainTabView.Tab
     @Environment(SessionStore.self) private var session
     @State private var showAuth = false
 
@@ -9,7 +10,7 @@ struct RootView: View {
         @Bindable var session = session
         Group {
             if session.isRestoring { ProgressView("Cargando Vive Loja…") }
-            else { MainTabView() }
+            else { MainTabView(selectedTab: $selectedTab) }
         }
         .tint(VLTheme.indigo)
         .alert("Sesión vencida", isPresented: $session.isSessionExpired) {
@@ -26,7 +27,8 @@ struct RootView: View {
 struct MainTabView: View {
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @Environment(SessionStore.self) private var session
-    @State private var selectedTab = Tab.home
+    /// Owned by the app so a palette change cannot reset it. See ViveLojaApp.
+    @Binding var selectedTab: Tab
     @State private var avatarIcon: UIImage?
 
     enum Tab: Hashable { case home, explore, saved, messages, account }

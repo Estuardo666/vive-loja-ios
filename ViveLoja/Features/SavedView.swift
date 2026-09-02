@@ -128,7 +128,7 @@ struct SavedView: View {
                 Spacer()
             }
             .padding(12)
-            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("saved-\(favorite.kind)-\(favorite.itemId)")
             .contextMenu { removeButton(favorite) }
@@ -136,7 +136,7 @@ struct SavedView: View {
             Label("Contenido guardado", systemImage: "bookmark.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .accessibilityLabel("Contenido guardado, \(favorite.kind)")
                 .contextMenu { removeButton(favorite) }
         }
