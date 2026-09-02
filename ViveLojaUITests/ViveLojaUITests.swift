@@ -14,6 +14,31 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "tabs-default")
     }
 
+    /// The account screen is built entirely out of List rows, so when a
+    /// TapGesture on the TabView started competing with row selection every
+    /// control on it went dead while the rest of the app looked fine. Tap two
+    /// of those rows for real rather than only asserting they exist.
+    func testAccountRowsRespondToTaps() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting"]
+        app.launch()
+
+        let account = app.tabBars.buttons["Cuenta"]
+        XCTAssertTrue(account.waitForExistence(timeout: 8))
+        account.tap()
+
+        let palette = app.otherElements["palette-picker"]
+        XCTAssertTrue(palette.waitForExistence(timeout: 5))
+        app.buttons["Catppuccin"].tap()
+        XCTAssertTrue(app.buttons["Catppuccin"].isSelected)
+
+        let signIn = app.buttons["Inicia sesión o regístrate"]
+        XCTAssertTrue(signIn.waitForExistence(timeout: 5))
+        signIn.tap()
+        XCTAssertTrue(app.staticTexts["Descubre lo mejor de Loja."].waitForExistence(timeout: 5))
+        attachScreenshot(named: "account-auth-sheet")
+    }
+
     func testExploreTabShowsSearchControl() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]

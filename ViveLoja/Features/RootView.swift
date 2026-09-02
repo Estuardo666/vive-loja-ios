@@ -40,7 +40,11 @@ struct MainTabView: View {
             MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
             AccountView().tabItem { accountTabLabel }.tag(Tab.account)
         }
-        .vlDismissKeyboardOnTap()
+        // Environment-backed, so it reaches every List and ScrollView below.
+        // This used to be a TapGesture attached to the whole TabView, which
+        // competed with the row selection inside every List and left the
+        // buttons on the account screen dead to the touch.
+        .scrollDismissesKeyboard(.interactively)
         .task(id: session.avatarURL) { await loadAvatarIcon() }
         .sheet(item: $deepLinkRouter.destination) { destination in
             DeepLinkDestinationView(destination: destination)
