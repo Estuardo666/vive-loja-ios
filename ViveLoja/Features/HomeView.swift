@@ -134,21 +134,23 @@ struct HomeView: View {
                                 .buttonStyle(.plain)
                                 .accessibilityLabel("Abrir actualidad de Loja")
                             }
-                            ForEach(model.promotions.prefix(3)) { promotion in
-                                HStack(spacing: 12) {
-                                    Image(systemName: "tag.fill")
-                                        .font(.title3)
-                                        .foregroundStyle(VLTheme.coral)
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Text(promotion.title).font(.headline).lineLimit(2)
-                                        Text(promotion.venue.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.coral)
+                            VLGlassEffectContainer(spacing: 12) {
+                                ForEach(model.promotions.prefix(3)) { promotion in
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "tag.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(VLTheme.coral)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(promotion.title).font(.headline).lineLimit(2)
+                                            Text(promotion.venue.name).font(.caption.weight(.semibold)).foregroundStyle(VLTheme.coral)
+                                        }
+                                        Spacer()
                                     }
-                                    Spacer()
+                                    .padding(14)
+                                    .vlGlass(tint: VLTheme.coral.opacity(0.1))
+                                    .accessibilityElement(children: .combine)
+                                    .accessibilityLabel("\(promotion.title), \(promotion.venue.name)")
                                 }
-                                .padding(14)
-                                .vlGlass(tint: VLTheme.coral.opacity(0.1))
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel("\(promotion.title), \(promotion.venue.name)")
                             }
                         }
                     }

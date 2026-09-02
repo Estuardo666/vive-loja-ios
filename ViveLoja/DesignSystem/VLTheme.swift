@@ -36,6 +36,30 @@ struct VLGlassModifier: ViewModifier {
     }
 }
 
+/// Coordinates multiple Liquid Glass surfaces so they share one material field
+/// and morph together when the surrounding layout changes. When the user asks
+/// for reduced transparency we keep the same hierarchy but render solid cards.
+struct VLGlassEffectContainer<Content: View>: View {
+    private let spacing: CGFloat
+    private let content: Content
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    init(spacing: CGFloat = 12, @ViewBuilder content: () -> Content) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    var body: some View {
+        if reduceTransparency {
+            content
+        } else {
+            GlassEffectContainer(spacing: spacing) {
+                content
+            }
+        }
+    }
+}
+
 extension View {
     func vlGlass(tint: Color? = nil, radius: CGFloat = 20) -> some View {
         modifier(VLGlassModifier(tint: tint, radius: radius))
