@@ -1,6 +1,56 @@
 import MapKit
 import SwiftUI
 
+/// The basemap looks MapKit offers. There is no JSON styling as in Google Maps;
+/// the platform exposes these configurations plus the light/dark appearance,
+/// which it applies to the basemap itself. That is why the explore map no longer
+/// paints a scrim of its own: a dark tint over the tiles buried the street names.
+enum MapStyleOption: String, CaseIterable, Identifiable, Sendable {
+    case standard
+    case muted
+    case satellite
+    case hybrid
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .standard: return "Estándar"
+        case .muted: return "Silenciado"
+        case .satellite: return "Satélite"
+        case .hybrid: return "Híbrido"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .standard: return "map"
+        case .muted: return "map.fill"
+        case .satellite: return "globe.americas"
+        case .hybrid: return "globe.americas.fill"
+        }
+    }
+
+    var configuration: MKMapConfiguration {
+        switch self {
+        case .standard:
+            let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .default)
+            configuration.pointOfInterestFilter = .excludingAll
+            return configuration
+        case .muted:
+            let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
+            configuration.pointOfInterestFilter = .excludingAll
+            return configuration
+        case .satellite:
+            return MKImageryMapConfiguration(elevationStyle: .flat)
+        case .hybrid:
+            let configuration = MKHybridMapConfiguration(elevationStyle: .flat)
+            configuration.pointOfInterestFilter = .excludingAll
+            return configuration
+        }
+    }
+}
+
 /// Native MapKit surface used for the explore map. MKMapView is intentional here:
 /// it gives us clustering, delegate selection and overlays that the SwiftUI Map
 /// abstraction does not expose consistently across iOS releases.
@@ -9,12 +59,16 @@ struct ClusteredMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
     @Binding var selectedItemID: String?
     let radiusMeters: CLLocationDistance
-    /// Anchor for the search area. It is set explicitly by the caller and only
-    /// moves when a search actually runs — deriving it from the live region made
-    /// the overlay rebuild on every pan, which is what made it flicker.
+    /// Anchor for the search area. Set explicitly by the caller and only moved
+    /// when a search runs — deriving it from the live region made the overlay
+    /// rebuild on every pan, which is what made it flicker.
     let circleCenter: CLLocationCoordinate2D
-    /// Avatar drawn on the blue dot, when the signed-in user has one.
     let userPhotoURL: URL?
+    let mapStyle: MapStyleOption
+    /// Active route, drawn under the pins. Hides the radius ring while set.
+    let route: MKRoute?
+    /// While guiding, MapKit owns the camera and follows the user's heading.
+    let isGuiding: Bool
     let onRegionChange: (MKCoordinateRegion) -> Void
 
     func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
@@ -23,18 +77,13 @@ struct ClusteredMapView: UIViewRepresentable {
         let mapView = MKMapView(frame: .zero)
         mapView.accessibilityIdentifier = "explore-map"
         mapView.delegate = context.coordinator
-        let configuration = MKStandardMapConfiguration(elevationStyle: .flat, emphasisStyle: .muted)
-        configuration.pointOfInterestFilter = .excludingAll
-        mapView.preferredConfiguration = configuration
         mapView.showsCompass = true
         mapView.showsScale = true
         mapView.showsUserLocation = true
-        // Flat, north-up rendering: cheaper to draw and the extra freedom buys
-        // nothing on a city map.
         mapView.isPitchEnabled = false
-        mapView.isRotateEnabled = false
         mapView.setRegion(region, animated: false)
-        context.coordinator.syncSpotlight(on: mapView, center: circleCenter, radius: radiusMeters)
+        context.coordinator.applyStyle(mapStyle, to: mapView)
+        context.coordinator.syncRadiusRing(on: mapView, center: circleCenter, radius: radiusMeters, hidden: route != nil)
         return mapView
     }
 
@@ -50,14 +99,18 @@ struct ClusteredMapView: UIViewRepresentable {
         let added = incoming.filter { !currentIDs.contains($0.id) }
         if !added.isEmpty { mapView.addAnnotations(added) }
 
-        context.coordinator.syncSpotlight(on: mapView, center: circleCenter, radius: radiusMeters)
+        context.coordinator.applyStyle(mapStyle, to: mapView)
+        context.coordinator.syncRadiusRing(on: mapView, center: circleCenter, radius: radiusMeters, hidden: route != nil)
+        context.coordinator.syncRoute(on: mapView, route: route)
+        context.coordinator.applyGuidance(isGuiding, to: mapView)
         context.coordinator.refreshUserAvatar(on: mapView, url: userPhotoURL)
 
         if selectedItemID == nil, !mapView.selectedAnnotations.isEmpty {
             mapView.selectedAnnotations.forEach { mapView.deselectAnnotation($0, animated: false) }
         }
 
-        if !mapView.region.isApproximatelyEqual(to: region) {
+        // While guiding MapKit drives the camera; forcing a region would fight it.
+        if !isGuiding, !mapView.region.isApproximatelyEqual(to: region) {
             mapView.setRegion(region, animated: true)
         }
     }
@@ -65,24 +118,69 @@ struct ClusteredMapView: UIViewRepresentable {
     @MainActor
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: ClusteredMapView
-        private var spotlightCenter: CLLocationCoordinate2D?
-        private var spotlightRadius: CLLocationDistance?
+        private var ringCenter: CLLocationCoordinate2D?
+        private var ringRadius: CLLocationDistance?
+        private var ringHidden = false
         private var appliedAvatarURL: URL?
+        private var appliedStyle: MapStyleOption?
+        private var appliedRoute: MKRoute?
+        private var appliedGuidance = false
 
         init(parent: ClusteredMapView) { self.parent = parent }
 
-        /// Replaces the scrim only when the area it describes actually moved.
-        func syncSpotlight(on mapView: MKMapView, center: CLLocationCoordinate2D, radius: CLLocationDistance) {
-            if let spotlightCenter, let spotlightRadius,
-               abs(spotlightCenter.latitude - center.latitude) < 0.00001,
-               abs(spotlightCenter.longitude - center.longitude) < 0.00001,
-               abs(spotlightRadius - radius) < 1 {
+        func applyStyle(_ style: MapStyleOption, to mapView: MKMapView) {
+            guard style != appliedStyle else { return }
+            appliedStyle = style
+            mapView.preferredConfiguration = style.configuration
+        }
+
+        /// Replaces the ring only when the area it describes actually moved.
+        func syncRadiusRing(on mapView: MKMapView, center: CLLocationCoordinate2D, radius: CLLocationDistance, hidden: Bool) {
+            if hidden {
+                if !ringHidden {
+                    mapView.removeOverlays(mapView.overlays.filter { $0 is MKCircle })
+                    ringHidden = true
+                    ringCenter = nil
+                    ringRadius = nil
+                }
                 return
             }
-            mapView.removeOverlays(mapView.overlays.filter { $0 is MapSpotlightOverlay })
-            mapView.addOverlay(MapSpotlightOverlay.make(center: center, radius: radius), level: .aboveLabels)
-            spotlightCenter = center
-            spotlightRadius = radius
+            if !ringHidden, let ringCenter, let ringRadius,
+               abs(ringCenter.latitude - center.latitude) < 0.00001,
+               abs(ringCenter.longitude - center.longitude) < 0.00001,
+               abs(ringRadius - radius) < 1 {
+                return
+            }
+            mapView.removeOverlays(mapView.overlays.filter { $0 is MKCircle })
+            mapView.addOverlay(MKCircle(center: center, radius: radius), level: .aboveRoads)
+            ringHidden = false
+            ringCenter = center
+            ringRadius = radius
+        }
+
+        func syncRoute(on mapView: MKMapView, route: MKRoute?) {
+            guard route !== appliedRoute else { return }
+            appliedRoute = route
+            mapView.removeOverlays(mapView.overlays.filter { $0 is RouteCasingPolyline || $0 is RoutePolyline })
+            guard let route else { return }
+            let points = route.polyline.points()
+            let casing = RouteCasingPolyline(points: points, count: route.polyline.pointCount)
+            let line = RoutePolyline(points: points, count: route.polyline.pointCount)
+            mapView.addOverlay(casing, level: .aboveRoads)
+            mapView.addOverlay(line, level: .aboveRoads)
+        }
+
+        func applyGuidance(_ isGuiding: Bool, to mapView: MKMapView) {
+            guard isGuiding != appliedGuidance else { return }
+            appliedGuidance = isGuiding
+            // Heading-follow needs rotation, which we keep off for browsing.
+            mapView.isRotateEnabled = isGuiding
+            mapView.setUserTrackingMode(isGuiding ? .followWithHeading : .none, animated: true)
+            if !isGuiding {
+                let camera = mapView.camera
+                camera.heading = 0
+                mapView.setCamera(camera, animated: true)
+            }
         }
 
         func refreshUserAvatar(on mapView: MKMapView, url: URL?) {
@@ -137,6 +235,7 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            guard !parent.isGuiding else { return }
             // Writing the region back re-enters updateUIView, so only do it when
             // the map really settled somewhere else.
             guard !mapView.region.isApproximatelyEqual(to: parent.region) else { return }
@@ -145,54 +244,36 @@ struct ClusteredMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
-            guard let spotlight = overlay as? MapSpotlightOverlay else { return MKOverlayRenderer(overlay: overlay) }
-            let renderer = MKPolygonRenderer(polygon: spotlight)
-            // Even-odd fill: the world is dimmed, the radius stays clear, so the
-            // streets inside the search area remain readable.
-            renderer.fillColor = UIColor { traits in
-                traits.userInterfaceStyle == .dark
-                    ? UIColor.black.withAlphaComponent(0.58)
-                    : UIColor.black.withAlphaComponent(0.20)
+            if let casing = overlay as? RouteCasingPolyline {
+                let renderer = MKPolylineRenderer(polyline: casing)
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.9)
+                renderer.lineWidth = 11
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+                return renderer
             }
-            renderer.strokeColor = UIColor(VLTheme.indigo)
+            if let line = overlay as? RoutePolyline {
+                let renderer = MKPolylineRenderer(polyline: line)
+                renderer.strokeColor = UIColor(VLTheme.indigo)
+                renderer.lineWidth = 7
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+                return renderer
+            }
+            guard let circle = overlay as? MKCircle else { return MKOverlayRenderer(overlay: overlay) }
+            let renderer = MKCircleRenderer(circle: circle)
+            // Outline only. A filled disc over the tiles is what washed the map out.
+            renderer.fillColor = UIColor(VLTheme.indigo).withAlphaComponent(0.06)
+            renderer.strokeColor = UIColor(VLTheme.indigo).withAlphaComponent(0.9)
             renderer.lineWidth = 2.5
             return renderer
         }
     }
 }
 
-/// World polygon with the search radius punched out, so everything *outside* the
-/// radius is dimmed. Drawing a filled circle on top of a dark scrim instead made
-/// the inside look lighter than the surrounding map and hid the street names.
-final class MapSpotlightOverlay: MKPolygon {
-    private static let circleSegments = 90
-
-    static func make(center: CLLocationCoordinate2D, radius: CLLocationDistance) -> MapSpotlightOverlay {
-        let rect = MKMapRect.world
-        let outer = [
-            MKMapPoint(x: rect.minX, y: rect.minY),
-            MKMapPoint(x: rect.maxX, y: rect.minY),
-            MKMapPoint(x: rect.maxX, y: rect.maxY),
-            MKMapPoint(x: rect.minX, y: rect.maxY),
-        ]
-        let hole = circle(center: center, radius: radius)
-        return MapSpotlightOverlay(points: outer, count: outer.count, interiorPolygons: [hole])
-    }
-
-    private static func circle(center: CLLocationCoordinate2D, radius: CLLocationDistance) -> MKPolygon {
-        let earthRadius = 6_371_000.0
-        let latitudeDelta = radius / earthRadius * 180 / .pi
-        let longitudeDelta = latitudeDelta / max(cos(center.latitude * .pi / 180), 0.000001)
-        let coordinates = (0..<circleSegments).map { step -> CLLocationCoordinate2D in
-            let angle = Double(step) / Double(circleSegments) * 2 * .pi
-            return CLLocationCoordinate2D(
-                latitude: center.latitude + latitudeDelta * sin(angle),
-                longitude: center.longitude + longitudeDelta * cos(angle)
-            )
-        }
-        return MKPolygon(coordinates: coordinates, count: coordinates.count)
-    }
-}
+/// Distinct subclasses so the renderer can tell the two route layers apart.
+final class RoutePolyline: MKPolyline {}
+final class RouteCasingPolyline: MKPolyline {}
 
 final class MapItemAnnotation: NSObject, MKAnnotation {
     static let reuseID = "explore-item"

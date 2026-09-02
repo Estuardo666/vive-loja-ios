@@ -89,6 +89,9 @@ struct ExploreView: View {
     @State private var location = LocationService()
     @Environment(SessionStore.self) private var session
     @State private var useNearMe = false
+    @State private var routeService = RouteService()
+    @State private var mapStyle: MapStyleOption = .standard
+    @State private var showRouteSteps = false
 
     var body: some View {
         NavigationStack {
@@ -138,6 +141,10 @@ struct ExploreView: View {
                 guard !isUITesting else { return }
                 Task { await runSearch() }
             }
+            .onChange(of: location.location?.timestamp) { _, _ in
+                guard let fix = location.location, routeService.isGuiding else { return }
+                Task { await routeService.update(with: fix) }
+            }
             .onChange(of: radiusMeters) { _, _ in
                 let center = searchCenter
                 withAnimation(reduceMotion ? nil : Animation.snappy) { mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters) }
@@ -146,10 +153,16 @@ struct ExploreView: View {
             }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
-                    MapItemPeekView(item: item)
+                    MapItemPeekView(item: item) {
+                        self.selectedMapItemID = nil
+                        Task { await startRoute(to: item) }
+                    }
                         .presentationDetents([.height(MapItemPeekView.height(for: item))])
                         .presentationDragIndicator(.visible)
                 }
+            }
+            .sheet(isPresented: $showRouteSteps) {
+                RouteStepsSheet(service: routeService).presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showFilters) {
                 ExploreFiltersView(model: model) {
@@ -175,6 +188,49 @@ struct ExploreView: View {
         } else {
             await model.search()
         }
+    }
+
+    private func startRoute(to item: ExploreItem) async {
+        guard let target = item.coordinate else { return }
+        guard let origin = location.location?.coordinate ?? location.coordinate.map({ CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lng) }) else {
+            location.requestCurrentLocation()
+            routeService.stop()
+            return
+        }
+        location.startTracking()
+        await routeService.start(
+            to: RouteService.Destination(name: item.title, latitude: target.lat, longitude: target.lng),
+            from: origin,
+            mode: routeService.mode
+        )
+    }
+
+    private func changeRouteMode(_ mode: RouteService.Mode) async {
+        guard let origin = location.location?.coordinate else { return }
+        await routeService.changeMode(mode, from: origin)
+    }
+
+    private func stopRoute() {
+        routeService.stop()
+        location.stopTracking()
+    }
+
+    private var mapStylePicker: some View {
+        Menu {
+            Picker("Estilo del mapa", selection: $mapStyle) {
+                ForEach(MapStyleOption.allCases) { style in
+                    Label(style.label, systemImage: style.symbol).tag(style)
+                }
+            }
+        } label: {
+            Image(systemName: "square.3.layers.3d")
+                .font(.headline)
+                .frame(width: 28, height: 22)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+        }
+        .vlGlass(radius: 14)
+        .accessibilityLabel("Estilo del mapa")
     }
 
     private var radiusPicker: some View {
@@ -220,6 +276,9 @@ struct ExploreView: View {
                 radiusMeters: radiusMeters,
                 circleCenter: searchCenter,
                 userPhotoURL: session.avatarURL,
+                mapStyle: mapStyle,
+                route: routeService.route,
+                isGuiding: routeService.isGuiding,
                 onRegionChange: { newRegion in
                     guard showMap, !useNearMe, !isUITesting else { return }
                     searchCenter = newRegion.center
@@ -248,6 +307,7 @@ struct ExploreView: View {
                 .accessibilityIdentifier("explore-near-me")
                 .accessibilityLabel("Cerca de mí")
                 .accessibilityAddTraits(useNearMe ? [.isSelected] : [])
+                mapStylePicker
                 radiusPicker
                     .pickerStyle(.menu)
                     .padding(.horizontal, 10)
@@ -257,6 +317,14 @@ struct ExploreView: View {
             .padding(16)
             .overlay(alignment: .bottomTrailing) {
                 if location.isRequesting { ProgressView().controlSize(.small).padding(.trailing, 20) }
+            }
+            if routeService.destination != nil {
+                VStack { Spacer(); RouteGuidanceBanner(
+                    service: routeService,
+                    onChangeMode: { mode in Task { await changeRouteMode(mode) } },
+                    onShowSteps: { showRouteSteps = true },
+                    onStop: { stopRoute() }
+                ).padding(.bottom, 12) }
             }
             if useNearMe, let message = location.errorMessage {
                 Text(message)

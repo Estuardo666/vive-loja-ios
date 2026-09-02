@@ -4,6 +4,8 @@ import SwiftUI
 /// type badge, name, date, address and a CTA into the full profile.
 struct MapItemPeekView: View {
     let item: ExploreItem
+    /// Starts in-map guidance; the caller owns the route because the map does.
+    let onDirections: () -> Void
     @State private var showFullProfile = false
 
     /// Detent height for `item`, so the sheet hugs its content instead of
@@ -29,19 +31,30 @@ struct MapItemPeekView: View {
             }
             Label(address, systemImage: "mappin.and.ellipse")
                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
-            Button {
-                showFullProfile = true
-            } label: {
-                HStack {
-                    Text(isVenue ? "Ver local" : "Ver evento").font(.subheadline.weight(.semibold))
-                    Spacer()
-                    Image(systemName: "arrow.right")
+            HStack(spacing: 10) {
+                if item.coordinate != nil {
+                    Button(action: onDirections) {
+                        Label("Cómo llegar", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.vertical, 2)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.indigo)
+                    .accessibilityIdentifier("map-peek-directions")
                 }
-                .padding(.vertical, 2)
+                Button {
+                    showFullProfile = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(isVenue ? "Ver local" : "Ver evento").font(.subheadline.weight(.semibold))
+                        Image(systemName: "arrow.right")
+                    }
+                    .padding(.vertical, 2)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(VLTheme.itemColor(item))
+                .accessibilityIdentifier("map-peek-open")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(VLTheme.itemColor(item))
-            .accessibilityIdentifier("map-peek-open")
         }
         .padding(.horizontal, 20)
         .padding(.top, 14)
