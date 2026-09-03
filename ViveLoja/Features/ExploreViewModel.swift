@@ -82,6 +82,50 @@ final class ExploreViewModel {
         }
     }
 
+    /// Date shortcuts for the agenda. The backend already accepted
+    /// `eventDatePreset` and the filter sheet already had a picker for it; the
+    /// values were just never reachable in one tap from the map.
+    enum DatePreset: String, CaseIterable, Identifiable {
+        case today
+        case tomorrow
+        case thisWeekend = "thisWeekend"
+
+        var id: String { rawValue }
+
+        var label: String {
+            switch self {
+            case .today: return "Hoy"
+            case .tomorrow: return "Mañana"
+            case .thisWeekend: return "Fin de semana"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .today: return "sun.max"
+            case .tomorrow: return "sunrise"
+            case .thisWeekend: return "calendar"
+            }
+        }
+    }
+
+    /// Selecting a date shortcut implies looking for events, so the type filter
+    /// follows; clearing it puts the search back to everything. `type` carries
+    /// the sentinel "all" rather than being optional.
+    func toggleDatePreset(_ preset: DatePreset) {
+        if eventDatePreset == preset.rawValue {
+            eventDatePreset = nil
+            if type == "event" { type = "all" }
+        } else {
+            eventDatePreset = preset.rawValue
+            type = "event"
+        }
+    }
+
+    func isDatePresetActive(_ preset: DatePreset) -> Bool {
+        eventDatePreset == preset.rawValue
+    }
+
     func loadCategories() async {
         guard categories.isEmpty else { return }
         if let payload: HomePayload = try? await APIClient.shared.get("/home") { categories = payload.categories }

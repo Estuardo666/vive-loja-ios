@@ -136,6 +136,15 @@ struct MobileRecommendations: Decodable, Sendable {
 struct ViewRequest: Codable, Sendable {
     let kind: String
     let itemId: String
+    /// Which surface the view came from. The web and the PWA send their own
+    /// values, so "popular now" can be broken down by platform later.
+    let source: String
+
+    init(kind: String, itemId: String, source: String = "ios") {
+        self.kind = kind
+        self.itemId = itemId
+        self.source = source
+    }
 }
 
 struct ViewResponse: Decodable, Sendable {
@@ -239,6 +248,12 @@ struct MobileTokens: Codable, Sendable {
 struct LoginRequest: Codable, Sendable { let email: String; let password: String }
 struct RegisterRequest: Codable, Sendable { let name: String; let email: String; let password: String }
 struct RefreshRequest: Codable, Sendable { let refreshToken: String }
+/// Logout also drops the APNs token server-side, so a signed-out phone stops
+/// receiving the previous account's notifications immediately.
+struct LogoutRequest: Codable, Sendable {
+    let refreshToken: String
+    let deviceToken: String?
+}
 struct AppleLoginRequest: Codable, Sendable {
     let identityToken: String
     let nonce: String?
@@ -370,10 +385,15 @@ struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
     let content: String?
     let status: String?
     let createdAt: Date
+    /// Reply written by the business owner, from the app or the web dashboard.
+    let ownerReply: String?
+    let ownerReplyAt: Date?
     let user: MobileReviewUser?
     let photos: [MobileReviewPhoto]
 
-    private enum CodingKeys: String, CodingKey { case id, rating, title, content, comment, status, createdAt, user, photos }
+    private enum CodingKeys: String, CodingKey {
+        case id, rating, title, content, comment, status, createdAt, ownerReply, ownerReplyAt, user, photos
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -387,6 +407,8 @@ struct MobileReview: Decodable, Identifiable, Hashable, Sendable {
         }
         status = try container.decodeIfPresent(String.self, forKey: .status)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
+        ownerReply = try container.decodeIfPresent(String.self, forKey: .ownerReply)
+        ownerReplyAt = try container.decodeIfPresent(Date.self, forKey: .ownerReplyAt)
         user = try container.decodeIfPresent(MobileReviewUser.self, forKey: .user)
         photos = try container.decodeIfPresent([MobileReviewPhoto].self, forKey: .photos) ?? []
     }
@@ -420,6 +442,11 @@ struct VenueDetail: Decodable, Sendable {
     let avgRating: Double?
     let reviewCount: Int
     let verified: Bool
+    /// Ownership flags. Absent on payloads from a server that predates claims,
+    /// where nobody owns anything from the app's point of view.
+    let claimed: Bool?
+    let isOwnedByMe: Bool?
+    let canReclaim: Bool?
     let categories: [Category]
     let media: [MobileMedia]
     let services: [MobileService]
@@ -487,6 +514,9 @@ struct HomePayload: Codable, Sendable {
     let featuredEvents: [ExploreEvent]?
     let latestVenues: [ExploreVenue]?
     let relatedEvents: [ExploreEvent]?
+    /// Ranked by the shared view log across app, web and PWA. Absent on older
+    /// deployments, in which case the section simply does not render.
+    let popularNow: [ExploreVenue]?
     let posts: [MobilePost]?
     let promotions: [MobilePromotion]?
 }
@@ -516,27 +546,6 @@ struct MobilePromotion: Codable, Identifiable, Hashable, Sendable {
     let terms: String?
     let featured: Bool
     let venue: MobileVenueSummary
-}
-struct MobileRouteStop: Codable, Identifiable, Hashable, Sendable {
-    let id: String
-    let title: String
-    let notes: String?
-    let duration: String?
-    let order: Int
-    let venue: MobileVenueShort?
-}
-struct MobileVenueShort: Codable, Hashable, Sendable { let id: String; let name: String; let slug: String }
-struct MobileRoute: Codable, Identifiable, Hashable, Sendable {
-    let id: String
-    let title: String
-    let slug: String
-    let description: String
-    let image: URL?
-    let duration: String?
-    let difficulty: String?
-    let type: String
-    let featured: Bool
-    let stops: [MobileRouteStop]
 }
 struct MobileCollection: Codable, Identifiable, Hashable, Sendable {
     let id: String
@@ -724,12 +733,48 @@ struct CreatePostRequest: Codable, Sendable {
 }
 
 struct CreateRouteStopRequest: Codable, Sendable {
-    let venueId: String?; let title: String; let notes: String?; let duration: String?
+    let venueId: String?
+    let title: String
+    let notes: String?
+    let duration: String?
+    /// 1-based. Omitted means day 1, which is how single-day routes behaved
+    /// before itineraries existed.
+    let day: Int?
+    /// "HH:mm".
+    let startTime: String?
+
+    init(venueId: String?, title: String, notes: String?, duration: String?, day: Int? = nil, startTime: String? = nil) {
+        self.venueId = venueId
+        self.title = title
+        self.notes = notes
+        self.duration = duration
+        self.day = day
+        self.startTime = startTime
+    }
 }
 
 struct CreateRouteRequest: Codable, Sendable {
-    let title: String; let description: String; let content: String?; let image: URL?
-    let duration: String?; let difficulty: String?; let type: String; let stops: [CreateRouteStopRequest]?
+    let title: String
+    let description: String
+    let content: String?
+    let image: URL?
+    let duration: String?
+    let difficulty: String?
+    let type: String
+    let days: Int?
+    let stops: [CreateRouteStopRequest]?
+
+    init(title: String, description: String, content: String?, image: URL?, duration: String?, difficulty: String?, type: String, days: Int? = nil, stops: [CreateRouteStopRequest]? = nil) {
+        self.title = title
+        self.description = description
+        self.content = content
+        self.image = image
+        self.duration = duration
+        self.difficulty = difficulty
+        self.type = type
+        self.days = days
+        self.stops = stops
+    }
 }
 
 struct ModeratedDraft: Decodable, Sendable { let id: String; let status: String }
@@ -779,10 +824,28 @@ struct MobilePostDraft: Codable, Identifiable, Hashable, Sendable {
 struct MobileRouteStopDraft: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let venueId: String?
+    let day: Int
     let order: Int
     let title: String
     let notes: String?
     let duration: String?
+    let startTime: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, venueId, day, order, title, notes, duration, startTime
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        venueId = try container.decodeIfPresent(String.self, forKey: .venueId)
+        day = try container.decodeIfPresent(Int.self, forKey: .day) ?? 1
+        order = try container.decodeIfPresent(Int.self, forKey: .order) ?? 0
+        title = try container.decode(String.self, forKey: .title)
+        notes = try container.decodeIfPresent(String.self, forKey: .notes)
+        duration = try container.decodeIfPresent(String.self, forKey: .duration)
+        startTime = try container.decodeIfPresent(String.self, forKey: .startTime)
+    }
 }
 
 struct MobileRouteDraft: Codable, Identifiable, Hashable, Sendable {
@@ -797,6 +860,7 @@ struct MobileRouteDraft: Codable, Identifiable, Hashable, Sendable {
     let type: String
     let status: String
     let createdAt: Date
+    let days: Int?
     let stops: [MobileRouteStopDraft]
 }
 

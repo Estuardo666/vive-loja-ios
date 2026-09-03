@@ -36,11 +36,13 @@ final class SavedViewModel {
 struct SavedView: View {
     @Environment(SavedStore.self) private var saved
     @Environment(SessionStore.self) private var session
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @State private var model = SavedViewModel()
     private let fixtures = HomeViewModel.fixtures
 
     var body: some View {
-        NavigationStack {
+        @Bindable var deepLinkRouter = deepLinkRouter
+        return NavigationStack(path: $deepLinkRouter.savedPath) {
             Group {
                 if session.user != nil {
                     remoteContent
@@ -50,6 +52,7 @@ struct SavedView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Guardados")
+            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)
             .task(id: session.user?.id) {
                 if let token = session.accessToken {

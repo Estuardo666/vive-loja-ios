@@ -5,6 +5,7 @@ import SwiftUI
 struct ExploreView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(SessionStore.self) private var session
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @State private var model = ExploreViewModel()
     @State private var mapRegion = ExploreView.region(around: CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422), radiusMeters: 1_000)
     /// Anchor of the search area. Kept separate from the live map region so
@@ -25,7 +26,8 @@ struct ExploreView: View {
     private static let radiusSteps: [CLLocationDistance] = [100, 500, 1_000, 2_000, 3_000, 5_000]
 
     var body: some View {
-        NavigationStack {
+        @Bindable var deepLinkRouter = deepLinkRouter
+        return NavigationStack(path: $deepLinkRouter.explorePath) {
             ZStack(alignment: .top) {
                 content
                 header
@@ -44,6 +46,7 @@ struct ExploreView: View {
                 }
             }
             .navigationTitle("Explorar")
+            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -161,6 +164,12 @@ struct ExploreView: View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
+                    // Date shortcuts lead: "what is on tonight" is the most
+                    // common question this screen answers.
+                    ForEach(ExploreViewModel.DatePreset.allCases) { preset in
+                        dateChip(for: preset)
+                    }
+                    Divider().frame(height: 20)
                     ForEach(model.quickCategories, id: \.id) { category in
                         quickChip(for: category)
                     }
@@ -175,34 +184,6 @@ struct ExploreView: View {
                 .padding(.trailing, 16)
                 .layoutPriority(1)
         }
-    }
-
-    /// Softens the edge the chips now clip against. A fixed-width ramp rather
-    /// than a percentage, so the fade looks the same whatever the row's width
-    /// works out to once the map controls have taken theirs.
-    private var chipFade: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                .frame(width: 24)
-        }
-    }
-
-    private func quickChip(for category: Category) -> some View {
-        let isOn = model.categorySlugs.contains(category.slug)
-        return Button {
-            model.toggleQuickCategory(category.slug)
-        } label: {
-            Text("\(category.icon ?? "📍") \(category.name)")
-                .font(.footnote.weight(.semibold))
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .foregroundStyle(isOn ? Color.white : Color.primary)
-        }
-        .background(Capsule().fill(isOn ? VLTheme.indigo : Color.clear))
-        .vlGlass(radius: 20)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
     }
 
     /// Near-me, radius and basemap style, all the same size and side by side.
@@ -375,4 +356,56 @@ struct ExploreView: View {
     }
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
+}
+
+// Chip builders for the control row. Kept in an extension so ExploreView's
+// own body stays within the linter's type body limit.
+private extension ExploreView {
+/// Softens the edge the chips now clip against. A fixed-width ramp rather
+    /// than a percentage, so the fade looks the same whatever the row's width
+    /// works out to once the map controls have taken theirs.
+    private var chipFade: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 24)
+        }
+    }
+
+    private func dateChip(for preset: ExploreViewModel.DatePreset) -> some View {
+        let isOn = model.isDatePresetActive(preset)
+        return Button {
+            model.toggleDatePreset(preset)
+            Task { await runSearch() }
+        } label: {
+            Label(preset.label, systemImage: preset.icon)
+                .font(.footnote.weight(.semibold))
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+        }
+        .background(Capsule().fill(isOn ? VLTheme.coral : Color.clear))
+        .vlGlass(radius: 20)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+        .accessibilityLabel("Eventos: \(preset.label)")
+    }
+
+    private func quickChip(for category: Category) -> some View {
+        let isOn = model.categorySlugs.contains(category.slug)
+        return Button {
+            model.toggleQuickCategory(category.slug)
+        } label: {
+            Text("\(category.icon ?? "📍") \(category.name)")
+                .font(.footnote.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+        }
+        .background(Capsule().fill(isOn ? VLTheme.indigo : Color.clear))
+        .vlGlass(radius: 20)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+    }
 }

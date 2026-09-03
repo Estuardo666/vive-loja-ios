@@ -103,8 +103,3 @@ struct CreateRouteView: View {
     }
     private func save() async { guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/routes", body: CreateRouteRequest(title: title.trimmed, description: description.trimmed, content: nil, image: nil, duration: duration.nilIfEmpty, difficulty: difficulty.nilIfEmpty, type: type.trimmed, stops: nil), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la ruta."; VLFeedback.error() } }
 }
-
-private extension String {
-    var trimmed: String { trimmingCharacters(in: .whitespacesAndNewlines) }
-    var nilIfEmpty: String? { let value = trimmed; return value.isEmpty ? nil : value }
-}

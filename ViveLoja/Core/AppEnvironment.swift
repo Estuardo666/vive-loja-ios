@@ -35,6 +35,35 @@ enum AppEnvironment: Sendable {
 
     /// Public URL of a published article, matching the site's /blog/[slug].
     func articleURL(slug: String) -> URL {
-        webBaseURL.appending(path: "blog").appending(path: slug)
+        shareURL(for: .post, slug: slug)
+    }
+
+    /// Canonical public URL of a shareable resource. Mirrors
+    /// `src/lib/canonical-urls.ts` on the backend: the site, the share sheets,
+    /// the push payloads and the Universal Links association file all have to
+    /// agree on these paths, or a shared link opens Safari instead of the app.
+    func shareURL(for kind: ShareableKind, slug: String) -> URL {
+        webBaseURL.appending(path: kind.pathSegment).appending(path: slug)
+    }
+}
+
+/// Content that has a public web page and can be opened by a Universal Link.
+enum ShareableKind: String, Sendable, CaseIterable {
+    case venue
+    case event
+    case post
+    case watchEvent
+    case route
+    case collection
+
+    var pathSegment: String {
+        switch self {
+        case .venue: return "locales"
+        case .event: return "eventos"
+        case .post: return "blog"
+        case .watchEvent: return "partidos"
+        case .route: return "rutas"
+        case .collection: return "colecciones"
+        }
     }
 }

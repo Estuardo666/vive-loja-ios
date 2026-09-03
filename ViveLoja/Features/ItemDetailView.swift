@@ -6,6 +6,10 @@ struct ItemDetailView: View {
     let item: ExploreItem
     @Environment(SavedStore.self) private var saved
     @Environment(SessionStore.self) private var session
+    @Environment(PushService.self) private var push
+    @State private var showOwnerClaim = false
+    /// Review the owner is answering, if any.
+    @State private var replyingTo: MobileReview?
     @Environment(\.openURL) private var openURL
     @State private var resolvedItem: ExploreItem?
     @State private var venueDetail: VenueDetail?
@@ -38,9 +42,18 @@ struct ItemDetailView: View {
                             if reminderScheduled {
                                 LocalReminderScheduler.shared.cancel(eventID: event.id)
                                 reminderScheduled = false
-                            } else if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
-                                reminderScheduled = true
-                                VLFeedback.success()
+                            } else {
+                                // Asking here is the whole point of asking in
+                                // context: the user has just said they want to
+                                // be reminded. The same grant covers the server
+                                // reminder, so both paths are unlocked at once.
+                                if push.authorization == .notDetermined {
+                                    await push.requestAuthorization()
+                                }
+                                if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
+                                    reminderScheduled = true
+                                    VLFeedback.success()
+                                }
                             }
                         }
                     } label: {
@@ -49,6 +62,7 @@ struct ItemDetailView: View {
                     .buttonStyle(.bordered)
                     .tint(VLTheme.coral)
                 }
+                ownerSection
                 servicesSection
                 hoursSection
                 menuSection
@@ -66,6 +80,14 @@ struct ItemDetailView: View {
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .task { if !isUITesting { await loadDetail() } }
+        .sheet(item: $replyingTo) { review in
+            OwnerReplyComposerView(review: review) { Task { await loadDetail() } }
+        }
+        .sheet(isPresented: $showOwnerClaim) {
+            if case .venue(let venue) = displayedItem {
+                OwnerClaimView(venueId: venue.id, venueName: venue.name)
+            }
+        }
         .sheet(isPresented: $showReviewComposer) {
             ReviewComposerView(item: displayedItem) { Task { await loadDetail() } }
                 .presentationDetents([.medium, .large])
@@ -104,6 +126,19 @@ struct ItemDetailView: View {
         }
     }
 
+    /// Lives in ItemDetailSections so this type stays under the linter's body
+    /// length limit.
+    @ViewBuilder
+    private var ownerSection: some View {
+        if case .venue(let venue) = displayedItem {
+            VenueOwnerSection(
+                venue: venue,
+                detail: venueDetail,
+                onClaim: { showOwnerClaim = true }
+            )
+        }
+    }
+
     private var actionBar: some View {
         HStack(spacing: 12) {
             Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
@@ -128,6 +163,18 @@ struct ItemDetailView: View {
                 Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill") }
                     .buttonStyle(.bordered)
                     .accessibilityLabel("Contactar por WhatsApp")
+                // Not everyone uses WhatsApp, and a listing without a plain
+                // phone call is a directory that cannot be called.
+                if let callURL = URL(string: "tel://\(phone.filter { $0.isNumber || $0 == "+" })") {
+                    Button { openURL(callURL) } label: { Label("Llamar", systemImage: "phone.fill") }
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("Llamar al local")
+                }
+            }
+            if case .venue(let venue) = displayedItem, let website = venue.website {
+                Button { openURL(website) } label: { Label("Sitio web", systemImage: "safari") }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Abrir sitio web")
             }
             if session.user != nil {
                 Menu {
@@ -194,50 +241,13 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var menuSection: some View {
-        if case .venue = displayedItem, !detailMenu.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Menú").font(.title2.weight(.semibold))
-                ForEach(detailMenu) { category in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(category.name).font(.headline)
-                        ForEach(category.items.filter(\.isAvailable)) { item in
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name).font(.subheadline.weight(.semibold))
-                                    if let description = item.description { Text(description).font(.caption).foregroundStyle(.secondary) }
-                                }
-                                Spacer()
-                                if let price = item.price { Text(price, format: .currency(code: "USD")).font(.subheadline.weight(.semibold)) }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-            }
-        }
+        // Extracted to ItemDetailSections so this type stays under the linter's
+        // body length limit.
+        VenueMenuSection(categories: isVenue ? detailMenu : [])
     }
 
-    @ViewBuilder
     private var productsSection: some View {
-        if case .venue = displayedItem, !detailProducts.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Productos").font(.title2.weight(.semibold))
-                ForEach(detailProducts.filter(\.isAvailable)) { product in
-                    HStack(spacing: 10) {
-                        VLAsyncImage(url: product.image, height: 56).frame(width: 72).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(product.name).font(.subheadline.weight(.semibold))
-                            if let description = product.description { Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-                        }
-                        Spacer()
-                        if let price = product.price { Text(price, format: .currency(code: "USD")).font(.caption.weight(.semibold)) }
-                    }
-                    .padding(10)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-            }
-        }
+        VenueProductsSection(products: isVenue ? detailProducts : [])
     }
 
     @ViewBuilder
@@ -292,7 +302,13 @@ struct ItemDetailView: View {
                 if detailReviews.isEmpty {
                     Text("Sé la primera persona en compartir su experiencia.").font(.subheadline).foregroundStyle(.secondary)
                 } else {
-                    ForEach(detailReviews) { review in ReviewRow(review: review) }
+                    ForEach(detailReviews) { review in
+                        ReviewRow(
+                            review: review,
+                            canReply: venueDetail?.isOwnedByMe == true,
+                            onReply: { replyingTo = review }
+                        )
+                    }
                 }
             }
         }
@@ -326,16 +342,9 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var mapSection: some View {
-        if let coordinate = displayedItem.coordinate {
-            Map(initialPosition: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))) {
-                Marker(displayedItem.title, coordinate: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng))
-            }
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            Button("Abrir en Apple Maps", systemImage: "map") { openURL(URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)")!) }
-                .buttonStyle(.bordered)
-            UberRideButton(latitude: coordinate.lat, longitude: coordinate.lng, destinationName: displayedItem.title)
-        }
+        // Extracted to ItemDetailSections so this type stays under the linter's
+        // body length limit.
+        ItemLocationSection(coordinate: displayedItem.coordinate, title: displayedItem.title)
     }
 
     @ViewBuilder
@@ -362,7 +371,15 @@ struct ItemDetailView: View {
     private var detailQuestions: [MobileQuestion] { switch displayedItem { case .venue: return venueDetail?.questions ?? []; case .event: return eventDetail?.questions ?? [] } }
     private var averageRating: Double? { switch displayedItem { case .venue(let value): return value.avgRating; case .event(let value): return value.avgRating } }
     private var reviewCount: Int { switch displayedItem { case .venue(let value): return value.reviewCount; case .event(let value): return value.reviewCount } }
-    private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
+    /// Canonical link, built from the same table the site and the Universal
+    /// Links file use, so a shared URL reopens the app instead of Safari.
+    private var shareURL: String {
+        switch displayedItem {
+        case .venue(let value): return AppEnvironment.current.shareURL(for: .venue, slug: value.slug).absoluteString
+        case .event(let value): return AppEnvironment.current.shareURL(for: .event, slug: value.slug).absoluteString
+        }
+    }
+    private var isVenue: Bool { if case .venue = displayedItem { return true }; return false }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
 }
@@ -376,12 +393,12 @@ private extension ItemDetailView {
                 venueDetail = detail
                 resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
                 await loadFollowing(for: detail.id)
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id))
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id), bearer: session.accessToken)
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
                 resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id))
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id), bearer: session.accessToken)
             }
         } catch { actionMessage = (error as? LocalizedError)?.errorDescription }
     }
@@ -443,6 +460,10 @@ private extension Array {
 
 private struct ReviewRow: View {
     let review: MobileReview
+    /// Set when the reader owns the listing, which turns on the reply button.
+    var canReply: Bool = false
+    var onReply: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -458,10 +479,89 @@ private struct ReviewRow: View {
                     HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72).frame(width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
                 }
             }
+
+            // Owner replies were stored by the web dashboard but never shown
+            // here, so the app looked like nobody answered. Same visual
+            // treatment the answered questions use.
+            if let reply = review.ownerReply, !reply.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Respuesta del negocio", systemImage: "arrow.turn.down.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VLTheme.emerald)
+                    Text(reply).font(.subheadline).foregroundStyle(.secondary)
+                    if let repliedAt = review.ownerReplyAt {
+                        Text(repliedAt.formatted(date: .abbreviated, time: .omitted))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(VLTheme.emerald.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else if canReply {
+                Button("Responder", systemImage: "text.bubble") { onReply?() }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.emerald)
+            }
         }
         .padding(12)
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Composer for the owner's reply to a single review.
+struct OwnerReplyComposerView: View {
+    let review: MobileReview
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var session
+    @State private var reply = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Tu respuesta") {
+                    TextField("Escribe una respuesta pública", text: $reply, axis: .vertical)
+                        .lineLimit(4...10)
+                }
+                if let errorMessage {
+                    Section { Text(errorMessage).font(.subheadline).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Responder reseña")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Publicar") { Task { await save() } }
+                        .disabled(reply.trimmed.isEmpty || isSaving || session.accessToken == nil)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let token = session.accessToken else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let _: ReviewReplyResponse = try await APIClient.shared.patch(
+                "/me/reviews/\(review.id)/reply",
+                body: ReviewReplyRequest(reply: reply.trimmed),
+                bearer: token
+            )
+            VLFeedback.success()
+            onSaved()
+            dismiss()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la respuesta."
+            VLFeedback.error()
+        }
     }
 }
 

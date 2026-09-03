@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct VLAsyncImage: View {
     let url: URL?
@@ -47,8 +48,14 @@ struct VLItemCard: View {
                     Spacer()
                     Image(systemName: "heart").foregroundStyle(.secondary)
                 }
-                Text(item.title).font(.headline).foregroundStyle(.primary).lineLimit(2)
-                Text(itemSubtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(item.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(itemSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(Color(uiColor: .label))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
         }

@@ -34,7 +34,6 @@ struct MainTabView: View {
     enum Tab: Hashable { case home, explore, saved, messages, account }
 
     var body: some View {
-        @Bindable var deepLinkRouter = deepLinkRouter
         TabView(selection: $selectedTab) {
             HomeView().tabItem { Label("Inicio", systemImage: "house.fill") }.tag(Tab.home)
             ExploreView().tabItem { Label("Explorar", systemImage: "map.fill") }.tag(Tab.explore)
@@ -48,8 +47,9 @@ struct MainTabView: View {
         // buttons on the account screen dead to the touch.
         .scrollDismissesKeyboard(.interactively)
         .task(id: session.avatarURL) { await loadAvatarIcon() }
-        .sheet(item: $deepLinkRouter.destination) { destination in
-            DeepLinkDestinationView(destination: destination)
+        .onChange(of: deepLinkRouter.pendingDestination) { _, pending in
+            guard pending != nil, let tab = deepLinkRouter.consumePendingDestination() else { return }
+            selectedTab = tab
         }
     }
 }
@@ -89,43 +89,5 @@ extension MainTabView {
             ))
         }
         return rendered.withRenderingMode(.alwaysOriginal)
-    }
-}
-
-private struct DeepLinkDestinationView: View {
-    let destination: DeepLinkRouter.Destination
-
-    var body: some View {
-        switch destination {
-        case .venue(let slug):
-            ItemDetailView(item: .venue(ExploreVenue.placeholder(slug: slug)))
-        case .event(let slug):
-            ItemDetailView(item: .event(ExploreEvent.placeholder(slug: slug)))
-        case .post(let slug):
-            // Was BlogView, which dropped the reader on the index instead of
-            // the article they tapped.
-            VLSafariView(url: AppEnvironment.current.articleURL(slug: slug))
-                .ignoresSafeArea()
-        case .watchEvent(let slug):
-            WatchEventDetailView(event: MobileWatchEvent.placeholder(slug: slug))
-        }
-    }
-}
-
-private extension MobileWatchEvent {
-    static func placeholder(slug: String) -> MobileWatchEvent {
-        MobileWatchEvent(id: "deep-link-watch-\(slug)", name: "Cargando…", slug: slug, type: "OTHER", description: nil, image: nil, matchDate: .now, matchTime: nil, competition: nil, performers: [], featured: false, viewCount: 0, venueCount: nil)
-    }
-}
-
-private extension ExploreVenue {
-    static func placeholder(slug: String) -> ExploreVenue {
-        ExploreVenue(id: "deep-link-venue-\(slug)", name: "Cargando…", slug: slug, description: nil, image: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [])
-    }
-}
-
-private extension ExploreEvent {
-    static func placeholder(slug: String) -> ExploreEvent {
-        ExploreEvent(id: "deep-link-event-\(slug)", title: "Cargando…", slug: slug, description: nil, image: nil, startDate: .now, endDate: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, price: nil, avgRating: nil, reviewCount: 0, categories: [])
     }
 }

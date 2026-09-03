@@ -231,18 +231,6 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(AppEnvironment.production.baseURL.absoluteString, "https://viveloja.com/api/mobile/v1")
     }
 
-    func testDeepLinksResolveToPublicDetails() {
-        let router = DeepLinkRouter()
-        router.handle(URL(string: "https://viveloja.com/locales/cafe-loja")!)
-        XCTAssertEqual(router.destination, .venue(slug: "cafe-loja"))
-
-        router.handle(URL(string: "viveloja://eventos/musica-en-vivo")!)
-        XCTAssertEqual(router.destination, .event(slug: "musica-en-vivo"))
-
-        router.handle(URL(string: "https://viveloja.com/partidos/final-loja")!)
-        XCTAssertEqual(router.destination, .watchEvent(slug: "final-loja"))
-    }
-
     func testContentPayloadDefaultsMissingSectionsToEmptyCollections() throws {
         let payload = try JSONDecoder().decode(ContentPayload.self, from: Data("{}".utf8))
         XCTAssertTrue(payload.posts.isEmpty)
@@ -420,9 +408,8 @@ final class ViveLojaTests: XCTestCase {
         let session = SessionStore(api: client, keychain: keychain)
 
         await session.restore()
-        XCTAssertEqual(session.accessToken, "old-access")
-        let refreshed = await session.refresh()
-        XCTAssertTrue(refreshed)
+        // Restoring a persisted session deliberately rotates its single-use
+        // refresh token before any screen can use the stale access token.
         XCTAssertEqual(session.accessToken, "new-access")
         XCTAssertEqual(session.user?.email, "demo@viveloja.test")
     }

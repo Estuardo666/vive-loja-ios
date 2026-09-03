@@ -1,5 +1,6 @@
 import Observation
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class HomeViewModel {
     var categories: [Category] = []
     var latestVenues: [ExploreVenue] = []
     var relatedEvents: [ExploreEvent] = []
+    var popularNow: [ExploreVenue] = []
     var posts: [MobilePost] = []
     var promotions: [MobilePromotion] = []
     var recommendations: MobileRecommendations?
@@ -28,6 +30,7 @@ final class HomeViewModel {
             categories = payload.categories
             latestVenues = payload.latestVenues ?? featuredVenues
             relatedEvents = payload.relatedEvents ?? []
+            popularNow = payload.popularNow ?? []
             posts = payload.posts ?? []
             promotions = payload.promotions ?? []
             if let accessToken {
@@ -47,9 +50,12 @@ final class HomeViewModel {
 struct HomeView: View {
     @State private var model = HomeViewModel()
     @Environment(SessionStore.self) private var session
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
-        NavigationStack {
+        @Bindable var deepLinkRouter = deepLinkRouter
+        return NavigationStack(path: $deepLinkRouter.homePath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     hero
@@ -61,6 +67,21 @@ struct HomeView: View {
                                     NavigationLink(destination: ItemDetailView(item: item)) {
                                         VLItemCard(item: item).frame(width: 265)
                                     }.buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                    if !model.popularNow.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Popular ahora", action: nil)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(model.popularNow) { venue in
+                                        NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
+                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                         }
@@ -156,12 +177,12 @@ struct HomeView: View {
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Explora Loja", action: nil)
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        LazyVGrid(columns: categoryColumns, spacing: 12) {
                             if model.categories.isEmpty {
-                                category("🍽️", "Restaurantes", VLTheme.coral)
-                                category("🎵", "Eventos", VLTheme.indigo)
-                                category("☕", "Cafeterías", .brown)
-                                category("🌿", "Rutas", VLTheme.emerald)
+                                category(systemImage: "fork.knife", title: "Restaurantes", color: VLTheme.coral)
+                                category(systemImage: "music.note", title: "Eventos", color: VLTheme.indigo)
+                                category(systemImage: "cup.and.saucer.fill", title: "Cafeterías", color: .brown)
+                                category(systemImage: "leaf.fill", title: "Rutas", color: VLTheme.emerald)
                             } else {
                                 ForEach(model.categories.prefix(6), id: \.id) { value in
                                     category(value.icon ?? "✨", value.name, color(for: value.color))
@@ -182,6 +203,7 @@ struct HomeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Vive Loja")
+            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
             .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
@@ -211,13 +233,44 @@ struct HomeView: View {
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
+    private var categoryColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible()),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
+    }
+
     private func category(_ emoji: String, _ title: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) { Text(emoji).font(.title); Text(title).font(.headline) }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(emoji).font(.title).accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Color(uiColor: .label))
+                .fixedSize(horizontal: false, vertical: true)
+        }
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.2)) }
+            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
             .accessibilityElement(children: .combine)
             .accessibilityHint("Explorar categoría")
+    }
+
+    private func category(systemImage: String, title: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.title)
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Color(uiColor: .label))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+        .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Explorar categoría")
     }
 
     private func color(for value: String?) -> Color {

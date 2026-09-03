@@ -81,6 +81,7 @@ private struct PasswordUpdateResponse: Decodable, Sendable { let updated: Bool }
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
+    @Environment(PushService.self) private var push
     @State private var showAuth = false
     @State private var showPasswordSheet = false
     @State private var model = AccountViewModel()
@@ -169,8 +170,21 @@ struct AccountView: View {
                         Button("Cambiar contraseña", systemImage: "lock.rotation") { showPasswordSheet = true }
                             .disabled(model.isSaving || session.accessToken == nil)
                     }
+                    Section("Notificaciones") {
+                        NavigationLink {
+                            NotificationSettingsView()
+                        } label: {
+                            Label("Preferencias de notificaciones", systemImage: "bell.badge")
+                        }
+                    }
                     Section {
-                        Button("Cerrar sesión", role: .destructive) { session.signOut() }
+                        Button("Cerrar sesión", role: .destructive) {
+                            // Revoked before the token is cleared, so this phone
+                            // stops receiving the account's pushes right away.
+                            let deviceToken = push.deviceToken
+                            Task { await push.revokeToken() }
+                            session.signOut(deviceToken: deviceToken)
+                        }
                     }
                 } else {
                     Section {

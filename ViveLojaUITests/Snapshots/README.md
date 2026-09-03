@@ -1,8 +1,9 @@
 # Snapshot baseline
 
-These PNGs are the reviewed iPhone 17 Pro / iOS 26.2 Simulator output from
-GitHub Actions run [33562298241](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33562298241),
-on commit `9f39b51`. They cover every screenshot attachment emitted by the UI
+These PNGs are reviewed iPhone 17 Pro / iOS 26.2 Simulator output from GitHub
+Actions runs [33727217727](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33727217727)
+and [33731372504](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33731372504),
+on commits `019453a` and `f82c202`. They cover every screenshot attachment emitted by the UI
 test suite (clear, dark, Dynamic Type, reduced motion/transparency, map,
 creation and expired-session recovery).
 
