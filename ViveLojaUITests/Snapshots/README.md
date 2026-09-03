@@ -2,8 +2,8 @@
 
 These PNGs are reviewed iPhone 17 Pro / iOS 26.2 Simulator output from GitHub
 Actions runs [33727217727](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33727217727)
-and [33728764921](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33728764921),
-on commits `019453a` and `80244c8`. They cover every screenshot attachment emitted by the UI
+and [33731372504](https://github.com/Estuardo666/vive-loja-ios/actions/runs/33731372504),
+on commits `019453a` and `f82c202`. They cover every screenshot attachment emitted by the UI
 test suite (clear, dark, Dynamic Type, reduced motion/transparency, map,
 creation and expired-session recovery).
 
