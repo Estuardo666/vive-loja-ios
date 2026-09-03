@@ -36,7 +36,6 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(signIn.waitForExistence(timeout: 5))
         signIn.tap()
         XCTAssertTrue(app.staticTexts["Descubre lo mejor de Loja."].waitForExistence(timeout: 5))
-        attachScreenshot(named: "account-auth-sheet")
     }
 
     func testExploreTabShowsSearchControl() {
