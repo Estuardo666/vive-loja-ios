@@ -186,54 +186,6 @@ struct ExploreView: View {
         }
     }
 
-    /// Softens the edge the chips now clip against. A fixed-width ramp rather
-    /// than a percentage, so the fade looks the same whatever the row's width
-    /// works out to once the map controls have taken theirs.
-    private var chipFade: some View {
-        HStack(spacing: 0) {
-            Rectangle()
-            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
-                .frame(width: 24)
-        }
-    }
-
-    private func dateChip(for preset: ExploreViewModel.DatePreset) -> some View {
-        let isOn = model.isDatePresetActive(preset)
-        return Button {
-            model.toggleDatePreset(preset)
-            Task { await runSearch() }
-        } label: {
-            Label(preset.label, systemImage: preset.icon)
-                .font(.footnote.weight(.semibold))
-                .labelStyle(.titleAndIcon)
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .foregroundStyle(isOn ? Color.white : Color.primary)
-        }
-        .background(Capsule().fill(isOn ? VLTheme.coral : Color.clear))
-        .vlGlass(radius: 20)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
-        .accessibilityLabel("Eventos: \(preset.label)")
-    }
-
-    private func quickChip(for category: Category) -> some View {
-        let isOn = model.categorySlugs.contains(category.slug)
-        return Button {
-            model.toggleQuickCategory(category.slug)
-        } label: {
-            Text("\(category.icon ?? "📍") \(category.name)")
-                .font(.footnote.weight(.semibold))
-                .lineLimit(1)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 7)
-                .foregroundStyle(isOn ? Color.white : Color.primary)
-        }
-        .background(Capsule().fill(isOn ? VLTheme.indigo : Color.clear))
-        .vlGlass(radius: 20)
-        .accessibilityAddTraits(isOn ? [.isSelected] : [])
-    }
-
     /// Near-me, radius and basemap style, all the same size and side by side.
     private var mapControls: some View {
         HStack(spacing: 6) {
@@ -404,4 +356,56 @@ struct ExploreView: View {
     }
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
+}
+
+// Chip builders for the control row. Kept in an extension so ExploreView's
+// own body stays within the linter's type body limit.
+private extension ExploreView {
+/// Softens the edge the chips now clip against. A fixed-width ramp rather
+    /// than a percentage, so the fade looks the same whatever the row's width
+    /// works out to once the map controls have taken theirs.
+    private var chipFade: some View {
+        HStack(spacing: 0) {
+            Rectangle()
+            LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                .frame(width: 24)
+        }
+    }
+
+    private func dateChip(for preset: ExploreViewModel.DatePreset) -> some View {
+        let isOn = model.isDatePresetActive(preset)
+        return Button {
+            model.toggleDatePreset(preset)
+            Task { await runSearch() }
+        } label: {
+            Label(preset.label, systemImage: preset.icon)
+                .font(.footnote.weight(.semibold))
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+        }
+        .background(Capsule().fill(isOn ? VLTheme.coral : Color.clear))
+        .vlGlass(radius: 20)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+        .accessibilityLabel("Eventos: \(preset.label)")
+    }
+
+    private func quickChip(for category: Category) -> some View {
+        let isOn = model.categorySlugs.contains(category.slug)
+        return Button {
+            model.toggleQuickCategory(category.slug)
+        } label: {
+            Text("\(category.icon ?? "📍") \(category.name)")
+                .font(.footnote.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .foregroundStyle(isOn ? Color.white : Color.primary)
+        }
+        .background(Capsule().fill(isOn ? VLTheme.indigo : Color.clear))
+        .vlGlass(radius: 20)
+        .accessibilityAddTraits(isOn ? [.isSelected] : [])
+    }
 }
