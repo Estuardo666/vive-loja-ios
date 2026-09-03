@@ -103,18 +103,27 @@ struct ContentHubView: View {
                 }
                 contentSection("Rutas para descubrir", icon: "figure.hiking") {
                     ForEach(model.routes) { route in
-                        HStack(spacing: 12) {
-                            Image(systemName: "map.fill").font(.title2).foregroundStyle(VLTheme.emerald)
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(route.title).font(.headline)
-                                Text([route.duration, route.difficulty].compactMap { $0 }.joined(separator: " · "))
-                                    .font(.caption).foregroundStyle(.secondary)
+                        // The row used to be inert, so the stops it counted
+                        // were never reachable from the app.
+                        NavigationLink {
+                            RouteDetailView(slug: route.slug, placeholderTitle: route.title)
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "map.fill").font(.title2).foregroundStyle(VLTheme.emerald)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(route.title).font(.headline)
+                                    Text([route.days > 1 ? "\(route.days) días" : nil, route.duration, route.difficulty]
+                                        .compactMap { $0 }
+                                        .joined(separator: " · "))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Text("\(route.stopCount) paradas").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             }
-                            Spacer()
-                            Text("\(route.stops.count) paradas").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                            .padding(14)
+                            .vlGlass(tint: VLTheme.emerald.opacity(0.1))
                         }
-                        .padding(14)
-                        .vlGlass(tint: VLTheme.emerald.opacity(0.1))
+                        .buttonStyle(.plain)
                     }
                 }
                 contentSection("Colecciones de la comunidad", icon: "square.stack.3d.up.fill") {

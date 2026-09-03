@@ -8,6 +8,7 @@ final class HomeViewModel {
     var categories: [Category] = []
     var latestVenues: [ExploreVenue] = []
     var relatedEvents: [ExploreEvent] = []
+    var popularNow: [ExploreVenue] = []
     var posts: [MobilePost] = []
     var promotions: [MobilePromotion] = []
     var recommendations: MobileRecommendations?
@@ -28,6 +29,7 @@ final class HomeViewModel {
             categories = payload.categories
             latestVenues = payload.latestVenues ?? featuredVenues
             relatedEvents = payload.relatedEvents ?? []
+            popularNow = payload.popularNow ?? []
             posts = payload.posts ?? []
             promotions = payload.promotions ?? []
             if let accessToken {
@@ -47,9 +49,11 @@ final class HomeViewModel {
 struct HomeView: View {
     @State private var model = HomeViewModel()
     @Environment(SessionStore.self) private var session
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
 
     var body: some View {
-        NavigationStack {
+        @Bindable var deepLinkRouter = deepLinkRouter
+        return NavigationStack(path: $deepLinkRouter.homePath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     hero
@@ -61,6 +65,21 @@ struct HomeView: View {
                                     NavigationLink(destination: ItemDetailView(item: item)) {
                                         VLItemCard(item: item).frame(width: 265)
                                     }.buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
+                    if !model.popularNow.isEmpty {
+                        VStack(alignment: .leading, spacing: 14) {
+                            VLSectionHeader(title: "Popular ahora", action: nil)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                LazyHStack(spacing: 14) {
+                                    ForEach(model.popularNow) { venue in
+                                        NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
+                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
                                 }
                             }
                         }
@@ -182,6 +201,7 @@ struct HomeView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Vive Loja")
+            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
             .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }

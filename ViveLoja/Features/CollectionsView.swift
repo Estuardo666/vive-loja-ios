@@ -17,14 +17,61 @@ final class CollectionsViewModel {
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus colecciones." }
     }
 
-    func create(name: String, accessToken: String?) async -> Bool {
+    func create(name: String, isPublic: Bool, accessToken: String?) async -> Bool {
         guard let accessToken else { return false }
         do {
-            let created: MobileOwnedCollection = try await APIClient.shared.post("/me/collections", body: CollectionRequest(name: name, description: nil, icon: "bookmark.fill", isPublic: false), bearer: accessToken)
+            let created: MobileOwnedCollection = try await APIClient.shared.post(
+                "/me/collections",
+                body: CollectionRequest(name: name, description: nil, icon: "bookmark.fill", isPublic: isPublic),
+                bearer: accessToken
+            )
             collections.insert(created, at: 0)
             VLFeedback.success()
             return true
         } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo crear la colección."; VLFeedback.error(); return false }
+    }
+
+    /// Flips a collection between private and shareable. A public collection is
+    /// reachable at `/colecciones/{slug}` and by Universal Link.
+    func setVisibility(_ collection: MobileOwnedCollection, isPublic: Bool, accessToken: String?) async {
+        guard let accessToken else { return }
+        do {
+            let updated: MobileOwnedCollection = try await APIClient.shared.patch(
+                "/me/collections/\(collection.id)",
+                body: CollectionRequest(name: collection.name, description: collection.description, icon: collection.icon, isPublic: isPublic),
+                bearer: accessToken
+            )
+            if let index = collections.firstIndex(where: { $0.id == updated.id }) {
+                collections[index] = updated
+            }
+            VLFeedback.success()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cambiar la visibilidad."
+            VLFeedback.error()
+        }
+    }
+
+    /// Adds a venue, event, post or route to a collection. `CollectionItemRequest`
+    /// existed but nothing ever called it, so collections could only ever be
+    /// filled from the web.
+    func addItem(to collectionId: String, kind: String, itemId: String, accessToken: String?) async -> Bool {
+        guard let accessToken else { return false }
+        do {
+            let updated: MobileOwnedCollection = try await APIClient.shared.post(
+                "/me/collections/\(collectionId)",
+                body: CollectionItemRequest(kind: kind, itemId: itemId, note: nil, order: nil),
+                bearer: accessToken
+            )
+            if let index = collections.firstIndex(where: { $0.id == updated.id }) {
+                collections[index] = updated
+            }
+            VLFeedback.success()
+            return true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo agregar a la colección."
+            VLFeedback.error()
+            return false
+        }
     }
 }
 
@@ -33,6 +80,7 @@ struct CollectionsView: View {
     @State private var model = CollectionsViewModel()
     @State private var showCreate = false
     @State private var name = ""
+    @State private var makePublic = false
 
     var body: some View {
         Group {
@@ -49,9 +97,42 @@ struct CollectionsView: View {
                             Image(systemName: collection.icon ?? "folder.fill").foregroundStyle(VLTheme.indigo)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(collection.name).font(.headline)
-                                Text("\(collection.items.count) elementos").font(.caption).foregroundStyle(.secondary)
+                                HStack(spacing: 6) {
+                                    Text("\(collection.items.count) elementos")
+                                    if collection.isPublic {
+                                        Label("Pública", systemImage: "globe")
+                                            .foregroundStyle(VLTheme.emerald)
+                                    }
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if collection.isPublic {
+                                ShareLink(item: AppEnvironment.current.shareURL(for: .collection, slug: collection.slug)) {
+                                    Image(systemName: "square.and.arrow.up")
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel("Compartir colección")
                             }
                         }
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            Task {
+                                await model.setVisibility(
+                                    collection,
+                                    isPublic: !collection.isPublic,
+                                    accessToken: session.accessToken
+                                )
+                            }
+                        } label: {
+                            Label(
+                                collection.isPublic ? "Hacer privada" : "Hacer pública",
+                                systemImage: collection.isPublic ? "lock" : "globe"
+                            )
+                        }
+                        .tint(collection.isPublic ? .gray : VLTheme.emerald)
                     }
                 }
             }
@@ -62,11 +143,19 @@ struct CollectionsView: View {
         .refreshable { await model.load(accessToken: session.accessToken) }
         .sheet(isPresented: $showCreate) {
             NavigationStack {
-                Form { TextField("Nombre", text: $name) }
+                Form {
+                    TextField("Nombre", text: $name)
+                    Toggle("Colección pública", isOn: $makePublic)
+                    if makePublic {
+                        Text("Cualquiera con el enlace podrá verla y guardarla.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                     .navigationTitle("Nueva colección")
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { showCreate = false } }
-                        ToolbarItem(placement: .confirmationAction) { Button("Crear") { Task { if await model.create(name: name.trimmingCharacters(in: .whitespacesAndNewlines), accessToken: session.accessToken) { name = ""; showCreate = false } } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).count < 2) }
+                        ToolbarItem(placement: .confirmationAction) { Button("Crear") { Task { if await model.create(name: name.trimmed, isPublic: makePublic, accessToken: session.accessToken) { name = ""; makePublic = false; showCreate = false } } }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).count < 2) }
                     }
             }
             .presentationDetents([.medium])

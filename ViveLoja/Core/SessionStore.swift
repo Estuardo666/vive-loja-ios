@@ -133,12 +133,15 @@ final class SessionStore {
         }
     }
 
-    func signOut() {
+    func signOut(deviceToken: String? = nil) {
         let token = refreshToken
         clear()
         guard let token else { return }
         Task {
-            let _: EmptyResponse? = try? await api.post("/auth/logout", body: RefreshRequest(refreshToken: token))
+            let _: EmptyResponse? = try? await api.post(
+                "/auth/logout",
+                body: LogoutRequest(refreshToken: token, deviceToken: deviceToken)
+            )
         }
     }
 

@@ -6,6 +6,10 @@ struct ItemDetailView: View {
     let item: ExploreItem
     @Environment(SavedStore.self) private var saved
     @Environment(SessionStore.self) private var session
+    @Environment(PushService.self) private var push
+    @State private var showOwnerClaim = false
+    /// Review the owner is answering, if any.
+    @State private var replyingTo: MobileReview?
     @Environment(\.openURL) private var openURL
     @State private var resolvedItem: ExploreItem?
     @State private var venueDetail: VenueDetail?
@@ -38,9 +42,18 @@ struct ItemDetailView: View {
                             if reminderScheduled {
                                 LocalReminderScheduler.shared.cancel(eventID: event.id)
                                 reminderScheduled = false
-                            } else if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
-                                reminderScheduled = true
-                                VLFeedback.success()
+                            } else {
+                                // Asking here is the whole point of asking in
+                                // context: the user has just said they want to
+                                // be reminded. The same grant covers the server
+                                // reminder, so both paths are unlocked at once.
+                                if push.authorization == .notDetermined {
+                                    await push.requestAuthorization()
+                                }
+                                if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
+                                    reminderScheduled = true
+                                    VLFeedback.success()
+                                }
                             }
                         }
                     } label: {
@@ -49,6 +62,7 @@ struct ItemDetailView: View {
                     .buttonStyle(.bordered)
                     .tint(VLTheme.coral)
                 }
+                ownerSection
                 servicesSection
                 hoursSection
                 menuSection
@@ -66,6 +80,14 @@ struct ItemDetailView: View {
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .task { if !isUITesting { await loadDetail() } }
+        .sheet(item: $replyingTo) { review in
+            OwnerReplyComposerView(review: review) { Task { await loadDetail() } }
+        }
+        .sheet(isPresented: $showOwnerClaim) {
+            if case .venue(let venue) = displayedItem {
+                OwnerClaimView(venueId: venue.id, venueName: venue.name)
+            }
+        }
         .sheet(isPresented: $showReviewComposer) {
             ReviewComposerView(item: displayedItem) { Task { await loadDetail() } }
                 .presentationDetents([.medium, .large])
@@ -104,6 +126,49 @@ struct ItemDetailView: View {
         }
     }
 
+    /// Verification badge, owner shortcut and the claim call to action. Only one
+    /// of them applies at a time, driven by the flags the venue endpoint adds
+    /// when the request carries a session.
+    @ViewBuilder
+    private var ownerSection: some View {
+        if case .venue(let venue) = displayedItem {
+            VStack(alignment: .leading, spacing: 10) {
+                if venueDetail?.verified ?? venue.verified {
+                    Label("Negocio verificado", systemImage: "checkmark.seal.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(VLTheme.emerald)
+                }
+
+                if venueDetail?.isOwnedByMe == true {
+                    NavigationLink {
+                        BusinessDashboardView(slug: venue.slug)
+                    } label: {
+                        Label("Panel de mi negocio", systemImage: "chart.bar.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(VLTheme.indigo)
+                } else if venueDetail?.canReclaim == true {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("¿Eres el dueño de este negocio?")
+                            .font(.subheadline.weight(.semibold))
+                        Text("Reclámalo para responder reseñas, actualizar la información y ver tus métricas.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        // `canReclaim` is only true when the request carried a
+                        // session, so the CTA never appears to a signed-out reader.
+                        Button("Reclamar este negocio", systemImage: "person.badge.shield.checkmark") {
+                            showOwnerClaim = true
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(VLTheme.emerald)
+                    }
+                    .padding(14)
+                    .vlGlass(tint: VLTheme.emerald.opacity(0.08))
+                }
+            }
+        }
+    }
+
     private var actionBar: some View {
         HStack(spacing: 12) {
             Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
@@ -128,6 +193,18 @@ struct ItemDetailView: View {
                 Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill") }
                     .buttonStyle(.bordered)
                     .accessibilityLabel("Contactar por WhatsApp")
+                // Not everyone uses WhatsApp, and a listing without a plain
+                // phone call is a directory that cannot be called.
+                if let callURL = URL(string: "tel://\(phone.filter { $0.isNumber || $0 == "+" })") {
+                    Button { openURL(callURL) } label: { Label("Llamar", systemImage: "phone.fill") }
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("Llamar al local")
+                }
+            }
+            if case .venue(let venue) = displayedItem, let website = venue.website {
+                Button { openURL(website) } label: { Label("Sitio web", systemImage: "safari") }
+                    .buttonStyle(.bordered)
+                    .accessibilityLabel("Abrir sitio web")
             }
             if session.user != nil {
                 Menu {
@@ -292,7 +369,13 @@ struct ItemDetailView: View {
                 if detailReviews.isEmpty {
                     Text("Sé la primera persona en compartir su experiencia.").font(.subheadline).foregroundStyle(.secondary)
                 } else {
-                    ForEach(detailReviews) { review in ReviewRow(review: review) }
+                    ForEach(detailReviews) { review in
+                        ReviewRow(
+                            review: review,
+                            canReply: venueDetail?.isOwnedByMe == true,
+                            onReply: { replyingTo = review }
+                        )
+                    }
                 }
             }
         }
@@ -362,7 +445,14 @@ struct ItemDetailView: View {
     private var detailQuestions: [MobileQuestion] { switch displayedItem { case .venue: return venueDetail?.questions ?? []; case .event: return eventDetail?.questions ?? [] } }
     private var averageRating: Double? { switch displayedItem { case .venue(let value): return value.avgRating; case .event(let value): return value.avgRating } }
     private var reviewCount: Int { switch displayedItem { case .venue(let value): return value.reviewCount; case .event(let value): return value.reviewCount } }
-    private var shareURL: String { switch displayedItem { case .venue(let value): return "https://viveloja.com/locales/\(value.slug)"; case .event(let value): return "https://viveloja.com/eventos/\(value.slug)" } }
+    /// Canonical link, built from the same table the site and the Universal
+    /// Links file use, so a shared URL reopens the app instead of Safari.
+    private var shareURL: String {
+        switch displayedItem {
+        case .venue(let value): return AppEnvironment.current.shareURL(for: .venue, slug: value.slug).absoluteString
+        case .event(let value): return AppEnvironment.current.shareURL(for: .event, slug: value.slug).absoluteString
+        }
+    }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
 }
@@ -376,12 +466,12 @@ private extension ItemDetailView {
                 venueDetail = detail
                 resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
                 await loadFollowing(for: detail.id)
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id))
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id), bearer: session.accessToken)
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
                 resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id))
+                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id), bearer: session.accessToken)
             }
         } catch { actionMessage = (error as? LocalizedError)?.errorDescription }
     }
@@ -443,6 +533,10 @@ private extension Array {
 
 private struct ReviewRow: View {
     let review: MobileReview
+    /// Set when the reader owns the listing, which turns on the reply button.
+    var canReply: Bool = false
+    var onReply: (() -> Void)?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -458,10 +552,89 @@ private struct ReviewRow: View {
                     HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72).frame(width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
                 }
             }
+
+            // Owner replies were stored by the web dashboard but never shown
+            // here, so the app looked like nobody answered. Same visual
+            // treatment the answered questions use.
+            if let reply = review.ownerReply, !reply.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Respuesta del negocio", systemImage: "arrow.turn.down.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(VLTheme.emerald)
+                    Text(reply).font(.subheadline).foregroundStyle(.secondary)
+                    if let repliedAt = review.ownerReplyAt {
+                        Text(repliedAt.formatted(date: .abbreviated, time: .omitted))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(VLTheme.emerald.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            } else if canReply {
+                Button("Responder", systemImage: "text.bubble") { onReply?() }
+                    .font(.caption.weight(.semibold))
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.emerald)
+            }
         }
         .padding(12)
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Composer for the owner's reply to a single review.
+struct OwnerReplyComposerView: View {
+    let review: MobileReview
+    let onSaved: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @Environment(SessionStore.self) private var session
+    @State private var reply = ""
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Tu respuesta") {
+                    TextField("Escribe una respuesta pública", text: $reply, axis: .vertical)
+                        .lineLimit(4...10)
+                }
+                if let errorMessage {
+                    Section { Text(errorMessage).font(.subheadline).foregroundStyle(.red) }
+                }
+            }
+            .navigationTitle("Responder reseña")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) { Button("Cancelar") { dismiss() } }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Publicar") { Task { await save() } }
+                        .disabled(reply.trimmed.isEmpty || isSaving || session.accessToken == nil)
+                }
+            }
+        }
+    }
+
+    private func save() async {
+        guard let token = session.accessToken else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let _: ReviewReplyResponse = try await APIClient.shared.patch(
+                "/me/reviews/\(review.id)/reply",
+                body: ReviewReplyRequest(reply: reply.trimmed),
+                bearer: token
+            )
+            VLFeedback.success()
+            onSaved()
+            dismiss()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la respuesta."
+            VLFeedback.error()
+        }
     }
 }
 
