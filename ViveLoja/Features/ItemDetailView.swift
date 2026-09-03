@@ -126,46 +126,16 @@ struct ItemDetailView: View {
         }
     }
 
-    /// Verification badge, owner shortcut and the claim call to action. Only one
-    /// of them applies at a time, driven by the flags the venue endpoint adds
-    /// when the request carries a session.
+    /// Lives in ItemDetailSections so this type stays under the linter's body
+    /// length limit.
     @ViewBuilder
     private var ownerSection: some View {
         if case .venue(let venue) = displayedItem {
-            VStack(alignment: .leading, spacing: 10) {
-                if venueDetail?.verified ?? venue.verified {
-                    Label("Negocio verificado", systemImage: "checkmark.seal.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(VLTheme.emerald)
-                }
-
-                if venueDetail?.isOwnedByMe == true {
-                    NavigationLink {
-                        BusinessDashboardView(slug: venue.slug)
-                    } label: {
-                        Label("Panel de mi negocio", systemImage: "chart.bar.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(VLTheme.indigo)
-                } else if venueDetail?.canReclaim == true {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("¿Eres el dueño de este negocio?")
-                            .font(.subheadline.weight(.semibold))
-                        Text("Reclámalo para responder reseñas, actualizar la información y ver tus métricas.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        // `canReclaim` is only true when the request carried a
-                        // session, so the CTA never appears to a signed-out reader.
-                        Button("Reclamar este negocio", systemImage: "person.badge.shield.checkmark") {
-                            showOwnerClaim = true
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(VLTheme.emerald)
-                    }
-                    .padding(14)
-                    .vlGlass(tint: VLTheme.emerald.opacity(0.08))
-                }
-            }
+            VenueOwnerSection(
+                venue: venue,
+                detail: venueDetail,
+                onClaim: { showOwnerClaim = true }
+            )
         }
     }
 
@@ -271,50 +241,13 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var menuSection: some View {
-        if case .venue = displayedItem, !detailMenu.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Menú").font(.title2.weight(.semibold))
-                ForEach(detailMenu) { category in
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(category.name).font(.headline)
-                        ForEach(category.items.filter(\.isAvailable)) { item in
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name).font(.subheadline.weight(.semibold))
-                                    if let description = item.description { Text(description).font(.caption).foregroundStyle(.secondary) }
-                                }
-                                Spacer()
-                                if let price = item.price { Text(price, format: .currency(code: "USD")).font(.subheadline.weight(.semibold)) }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-            }
-        }
+        // Extracted to ItemDetailSections so this type stays under the linter's
+        // body length limit.
+        VenueMenuSection(categories: isVenue ? detailMenu : [])
     }
 
-    @ViewBuilder
     private var productsSection: some View {
-        if case .venue = displayedItem, !detailProducts.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Productos").font(.title2.weight(.semibold))
-                ForEach(detailProducts.filter(\.isAvailable)) { product in
-                    HStack(spacing: 10) {
-                        VLAsyncImage(url: product.image, height: 56).frame(width: 72).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(product.name).font(.subheadline.weight(.semibold))
-                            if let description = product.description { Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-                        }
-                        Spacer()
-                        if let price = product.price { Text(price, format: .currency(code: "USD")).font(.caption.weight(.semibold)) }
-                    }
-                    .padding(10)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                }
-            }
-        }
+        VenueProductsSection(products: isVenue ? detailProducts : [])
     }
 
     @ViewBuilder
@@ -409,16 +342,9 @@ struct ItemDetailView: View {
 
     @ViewBuilder
     private var mapSection: some View {
-        if let coordinate = displayedItem.coordinate {
-            Map(initialPosition: .region(MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng), span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))) {
-                Marker(displayedItem.title, coordinate: CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng))
-            }
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            Button("Abrir en Apple Maps", systemImage: "map") { openURL(URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)")!) }
-                .buttonStyle(.bordered)
-            UberRideButton(latitude: coordinate.lat, longitude: coordinate.lng, destinationName: displayedItem.title)
-        }
+        // Extracted to ItemDetailSections so this type stays under the linter's
+        // body length limit.
+        ItemLocationSection(coordinate: displayedItem.coordinate, title: displayedItem.title)
     }
 
     @ViewBuilder
@@ -453,6 +379,7 @@ struct ItemDetailView: View {
         case .event(let value): return AppEnvironment.current.shareURL(for: .event, slug: value.slug).absoluteString
         }
     }
+    private var isVenue: Bool { if case .venue = displayedItem { return true }; return false }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
 }

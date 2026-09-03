@@ -1,3 +1,5 @@
+import CoreLocation
+import MapKit
 import SwiftUI
 
 /// Detail sections ported from the web experience (`venue-detail.tsx` sidebar).
@@ -129,5 +131,153 @@ struct UberRideButton: View {
             "dropoff%5Bnickname%5D=\(name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "")",
         ].joined(separator: "&")
         return components?.url
+    }
+}
+
+
+/// Verification badge, owner shortcut and the claim call to action. Only one of
+/// them applies at a time, driven by the flags the venue endpoint adds when the
+/// request carries a session.
+struct VenueOwnerSection: View {
+    let venue: ExploreVenue
+    let detail: VenueDetail?
+    let onClaim: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if detail?.verified ?? venue.verified {
+                Label("Negocio verificado", systemImage: "checkmark.seal.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(VLTheme.emerald)
+            }
+
+            if detail?.isOwnedByMe == true {
+                NavigationLink {
+                    BusinessDashboardView(slug: venue.slug)
+                } label: {
+                    Label("Panel de mi negocio", systemImage: "chart.bar.fill")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(VLTheme.indigo)
+            } else if detail?.canReclaim == true {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("¿Eres el dueño de este negocio?")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Reclámalo para responder reseñas, actualizar la información y ver tus métricas.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    // `canReclaim` is only true when the request carried a
+                    // session, so the CTA never appears to a signed-out reader.
+                    Button("Reclamar este negocio", systemImage: "person.badge.shield.checkmark", action: onClaim)
+                        .buttonStyle(.bordered)
+                        .tint(VLTheme.emerald)
+                }
+                .padding(14)
+                .vlGlass(tint: VLTheme.emerald.opacity(0.08))
+            }
+        }
+    }
+}
+
+
+/// Menu of a venue, grouped by category. Only available items are listed.
+struct VenueMenuSection: View {
+    let categories: [MobileMenuCategory]
+
+    var body: some View {
+        if !categories.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Menú").font(.title2.weight(.semibold))
+                ForEach(categories) { category in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(category.name).font(.headline)
+                        ForEach(category.items.filter(\.isAvailable)) { item in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name).font(.subheadline.weight(.semibold))
+                                    if let description = item.description {
+                                        Text(description).font(.caption).foregroundStyle(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                if let price = item.price {
+                                    Text(price, format: .currency(code: "USD")).font(.subheadline.weight(.semibold))
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+}
+
+/// Products a venue sells, as opposed to menu items it serves.
+struct VenueProductsSection: View {
+    let products: [MobileProduct]
+
+    var body: some View {
+        let available = products.filter(\.isAvailable)
+        if !available.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Productos").font(.title2.weight(.semibold))
+                ForEach(available) { product in
+                    HStack(spacing: 10) {
+                        VLAsyncImage(url: product.image, height: 56)
+                            .frame(width: 72)
+                            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(product.name).font(.subheadline.weight(.semibold))
+                            if let description = product.description {
+                                Text(description).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                            }
+                        }
+                        Spacer()
+                        if let price = product.price {
+                            Text(price, format: .currency(code: "USD")).font(.caption.weight(.semibold))
+                        }
+                    }
+                    .padding(10)
+                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+        }
+    }
+}
+
+
+/// Map, Apple Maps hand-off and the Uber deep link for anything with a
+/// coordinate. Renders nothing when the item has none.
+struct ItemLocationSection: View {
+    let coordinate: (lat: Double, lng: Double)?
+    let title: String
+
+    var body: some View {
+        if let coordinate {
+            let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
+            Map(
+                initialPosition: .region(
+                    MKCoordinateRegion(
+                        center: center,
+                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                    )
+                )
+            ) {
+                Marker(title, coordinate: center)
+            }
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+
+            if let mapsURL = URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)") {
+                Link(destination: mapsURL) {
+                    Label("Abrir en Apple Maps", systemImage: "map")
+                }
+                .buttonStyle(.bordered)
+            }
+
+            UberRideButton(latitude: coordinate.lat, longitude: coordinate.lng, destinationName: title)
+        }
     }
 }
