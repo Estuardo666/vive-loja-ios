@@ -263,7 +263,7 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
         app.collectionViews.firstMatch.swipeUp()
-        let publications = app.descendants(matching: .any)["my-publications"]
+        let publications = app.buttons["my-publications"]
         XCTAssertTrue(publications.waitForExistence(timeout: 5))
         publications.tap()
         let destination = app.navigationBars["Mis publicaciones"]
