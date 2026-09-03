@@ -262,9 +262,13 @@ final class ViveLojaUITests: XCTestCase {
         let account = app.tabBars.buttons["Cuenta"]
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
-        app.collectionViews.firstMatch.swipeUp()
+        let accountList = app.collectionViews.firstMatch
+        XCTAssertTrue(accountList.waitForExistence(timeout: 5))
         let publications = app.buttons["my-publications"]
         XCTAssertTrue(publications.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !publications.isHittable {
+            accountList.swipeUp(velocity: .slow)
+        }
         XCTAssertTrue(publications.isHittable)
         publications.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let destination = app.navigationBars["Mis publicaciones"]
