@@ -50,6 +50,7 @@ struct HomeView: View {
     @State private var model = HomeViewModel()
     @Environment(SessionStore.self) private var session
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         @Bindable var deepLinkRouter = deepLinkRouter
@@ -175,12 +176,12 @@ struct HomeView: View {
                     }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Explora Loja", action: nil)
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        LazyVGrid(columns: categoryColumns, spacing: 12) {
                             if model.categories.isEmpty {
-                                category("🍽️", "Restaurantes", VLTheme.coral)
-                                category("🎵", "Eventos", VLTheme.indigo)
-                                category("☕", "Cafeterías", .brown)
-                                category("🌿", "Rutas", VLTheme.emerald)
+                                category(systemImage: "fork.knife", title: "Restaurantes", color: VLTheme.coral)
+                                category(systemImage: "music.note", title: "Eventos", color: VLTheme.indigo)
+                                category(systemImage: "cup.and.saucer.fill", title: "Cafeterías", color: .brown)
+                                category(systemImage: "leaf.fill", title: "Rutas", color: VLTheme.emerald)
                             } else {
                                 ForEach(model.categories.prefix(6), id: \.id) { value in
                                     category(value.icon ?? "✨", value.name, color(for: value.color))
@@ -231,13 +232,38 @@ struct HomeView: View {
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
+    private var categoryColumns: [GridItem] {
+        Array(
+            repeating: GridItem(.flexible()),
+            count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
+        )
+    }
+
     private func category(_ emoji: String, _ title: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) { Text(emoji).font(.title); Text(title).font(.headline) }
+        VStack(alignment: .leading, spacing: 8) {
+            Text(emoji).font(.title).accessibilityHidden(true)
+            Text(title).font(.headline).foregroundStyle(.primary)
+        }
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(color.opacity(0.12), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color.opacity(0.2)) }
+            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
             .accessibilityElement(children: .combine)
             .accessibilityHint("Explorar categoría")
+    }
+
+    private func category(systemImage: String, title: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.title)
+                .foregroundStyle(color)
+                .accessibilityHidden(true)
+            Text(title).font(.headline).foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Explorar categoría")
     }
 
     private func color(for value: String?) -> Color {

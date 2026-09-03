@@ -33,6 +33,7 @@ struct VLSectionHeader: View {
 
 struct VLItemCard: View {
     let item: ExploreItem
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -47,8 +48,14 @@ struct VLItemCard: View {
                     Spacer()
                     Image(systemName: "heart").foregroundStyle(.secondary)
                 }
-                Text(item.title).font(.headline).foregroundStyle(.primary).lineLimit(2)
-                Text(itemSubtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                Text(item.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                Text(itemSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
             }
             .padding(12)
         }
