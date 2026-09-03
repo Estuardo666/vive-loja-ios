@@ -300,7 +300,7 @@ final class ViveLojaUITests: XCTestCase {
         for attempt in 1...3 {
             do {
                 try app.performAccessibilityAudit { issue in
-                    isKnownFixtureTextAuditFalsePositive(issue)
+                    self.isKnownFixtureTextAuditFalsePositive(issue)
                 }
                 return
             } catch let error as NSError
