@@ -148,15 +148,26 @@ extension PushService: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        let userInfo = response.notification.request.content.userInfo
-        await MainActor.run { handle(userInfo: userInfo) }
+        // `userInfo` is [AnyHashable: Any] and therefore not Sendable, so the
+        // link is read here and only the String crosses to the main actor.
+        let link = PushService.deepLink(in: response.notification.request.content.userInfo)
+        guard let link else { return }
+        await MainActor.run { open(link: link) }
     }
 
     /// Routes the payload's `deepLink` through the same parser Universal Links
     /// use, so a tapped notification lands exactly where a shared link would.
     func handle(userInfo: [AnyHashable: Any]) {
-        guard let link = userInfo["deepLink"] as? String ?? userInfo["url"] as? String,
-              let url = URL(string: link) else { return }
+        guard let link = PushService.deepLink(in: userInfo) else { return }
+        open(link: link)
+    }
+
+    func open(link: String) {
+        guard let url = URL(string: link) else { return }
         router?.handle(url)
+    }
+
+    nonisolated static func deepLink(in userInfo: [AnyHashable: Any]) -> String? {
+        userInfo["deepLink"] as? String ?? userInfo["url"] as? String
     }
 }
