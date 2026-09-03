@@ -124,13 +124,12 @@ final class PushService: NSObject {
         }
     }
 
-    /// Debug builds are signed for the APNs sandbox; anything else is not.
+    /// Read from the build settings rather than guessed from #if DEBUG, which
+    /// got the Staging configuration wrong: it is a release build signed for the
+    /// sandbox, so it would have registered production tokens against a
+    /// development entitlement.
     private static var apnsEnvironment: String {
-        #if DEBUG
-        return "sandbox"
-        #else
-        return "production"
-        #endif
+        AppEnvironment.current.apnsEnvironment
     }
 }
 

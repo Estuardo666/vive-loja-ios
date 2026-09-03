@@ -20,6 +20,8 @@ settings:
     IPHONEOS_DEPLOYMENT_TARGET: "26.0"
     DEVELOPMENT_TEAM: ""
     CODE_SIGNING_ALLOWED: "NO"
+    # Fallback for any configuration that does not set it; the xcconfigs do.
+    VL_APS_ENVIRONMENT: development
     SWIFT_STRICT_CONCURRENCY: complete
 targets:
   ViveLoja:
@@ -43,6 +45,7 @@ targets:
         INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
         INFOPLIST_KEY_VL_API_BASE_URL: "$(VL_API_BASE_URL)"
+        INFOPLIST_KEY_VL_APS_ENVIRONMENT: "$(VL_APS_ENVIRONMENT)"
         SWIFT_EMIT_LOC_STRINGS: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

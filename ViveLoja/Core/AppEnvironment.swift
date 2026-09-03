@@ -33,6 +33,22 @@ enum AppEnvironment: Sendable {
         return url
     }
 
+    /// APNs environment this build is signed for, injected from
+    /// `VL_APS_ENVIRONMENT` — the same build setting that fills the
+    /// `aps-environment` entitlement. Registering a sandbox token against the
+    /// production gateway (or the reverse) makes every push fail with
+    /// BadDeviceToken, and nothing surfaces the mismatch at build time.
+    var apnsEnvironment: String {
+        let configured = Bundle.main.object(forInfoDictionaryKey: "VL_APS_ENVIRONMENT") as? String
+        guard let value = configured?.trimmingCharacters(in: .whitespacesAndNewlines),
+              value == "sandbox" || value == "development" || value == "production" else {
+            return "production"
+        }
+        // Apple spells the sandbox "development" in the entitlement; the backend
+        // and APNs call it "sandbox".
+        return value == "development" ? "sandbox" : value
+    }
+
     /// Public URL of a published article, matching the site's /blog/[slug].
     func articleURL(slug: String) -> URL {
         shareURL(for: .post, slug: slug)

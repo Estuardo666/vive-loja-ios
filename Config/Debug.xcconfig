@@ -1,2 +1,7 @@
 // Local development uses the public backend until a dedicated staging host exists.
 VL_API_BASE_URL = https://viveloja.com/api/mobile/v1
+
+// APNs environment this configuration is signed for. It feeds both the
+// aps-environment entitlement and the token the app registers, so the two
+// cannot disagree.
+VL_APS_ENVIRONMENT = development

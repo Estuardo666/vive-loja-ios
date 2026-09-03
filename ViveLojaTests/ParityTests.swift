@@ -8,6 +8,19 @@ import XCTest
 /// type body limit.
 @MainActor
 final class ParityTests: XCTestCase {
+    /// `/me/devices` validates the environment against ["sandbox", "production"],
+    /// so the entitlement's own spelling ("development") must never reach it —
+    /// the whole registration would 422 and the device would silently never
+    /// receive a push.
+    func testAPNsEnvironmentIsAValueTheBackendAccepts() {
+        let value = AppEnvironment.current.apnsEnvironment
+        XCTAssertTrue(
+            ["sandbox", "production"].contains(value),
+            "apnsEnvironment resolved to \(value), which /me/devices rejects"
+        )
+        XCTAssertNotEqual(value, "development")
+    }
+
     func testDeepLinksResolveToPublicDetails() {
         let router = DeepLinkRouter()
         router.handle(URL(string: "https://viveloja.com/locales/cafe-loja")!)
