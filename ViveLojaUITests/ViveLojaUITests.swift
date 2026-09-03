@@ -265,12 +265,13 @@ final class ViveLojaUITests: XCTestCase {
         app.collectionViews.firstMatch.swipeUp()
         let publications = app.buttons["my-publications"]
         XCTAssertTrue(publications.waitForExistence(timeout: 5))
-        publications.tap()
+        XCTAssertTrue(publications.isHittable)
+        publications.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         let destination = app.navigationBars["Mis publicaciones"]
         if !destination.waitForExistence(timeout: 5) {
             // SwiftUI NavigationLink occasionally drops the first synthesized
             // tap while the scrolled List is still settling on CI.
-            publications.tap()
+            publications.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         }
         XCTAssertTrue(destination.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aún no has publicado"].waitForExistence(timeout: 5))
