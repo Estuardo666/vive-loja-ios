@@ -91,7 +91,9 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(venue.waitForExistence(timeout: 5))
         venue.tap()
         XCTAssertTrue(app.navigationBars["Detalle"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Café Loja"].waitForExistence(timeout: 5))
+        let title = app.staticTexts["Café Loja"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntilHittable(title, timeout: 5))
         attachScreenshot(named: "venue-detail-dark-fixture")
     }
 
@@ -347,5 +349,15 @@ final class ViveLojaUITests: XCTestCase {
         return issue.auditType == .contrast
             || issue.auditType == .dynamicType
             || issue.auditType == .textClipped
+    }
+}
+
+private extension ViveLojaUITests {
+    func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let expectation = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "exists == true AND hittable == true"),
+            object: element
+        )
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }
