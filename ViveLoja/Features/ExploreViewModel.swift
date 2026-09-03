@@ -110,11 +110,12 @@ final class ExploreViewModel {
     }
 
     /// Selecting a date shortcut implies looking for events, so the type filter
-    /// follows; clearing it puts the search back to everything.
+    /// follows; clearing it puts the search back to everything. `type` carries
+    /// the sentinel "all" rather than being optional.
     func toggleDatePreset(_ preset: DatePreset) {
         if eventDatePreset == preset.rawValue {
             eventDatePreset = nil
-            if type == "event" { type = nil }
+            if type == "event" { type = "all" }
         } else {
             eventDatePreset = preset.rawValue
             type = "event"
