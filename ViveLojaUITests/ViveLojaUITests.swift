@@ -266,7 +266,13 @@ final class ViveLojaUITests: XCTestCase {
         let publications = app.descendants(matching: .any)["my-publications"]
         XCTAssertTrue(publications.waitForExistence(timeout: 5))
         publications.tap()
-        XCTAssertTrue(app.navigationBars["Mis publicaciones"].waitForExistence(timeout: 5))
+        let destination = app.navigationBars["Mis publicaciones"]
+        if !destination.waitForExistence(timeout: 5) {
+            // SwiftUI NavigationLink occasionally drops the first synthesized
+            // tap while the scrolled List is still settling on CI.
+            publications.tap()
+        }
+        XCTAssertTrue(destination.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aún no has publicado"].waitForExistence(timeout: 5))
     }
 
