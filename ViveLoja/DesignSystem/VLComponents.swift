@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct VLAsyncImage: View {
     let url: URL?
@@ -33,7 +34,6 @@ struct VLSectionHeader: View {
 
 struct VLItemCard: View {
     let item: ExploreItem
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -51,11 +51,11 @@ struct VLItemCard: View {
                 Text(item.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(itemSubtitle)
                     .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? nil : 1)
+                    .foregroundStyle(Color(uiColor: .label))
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(12)
         }

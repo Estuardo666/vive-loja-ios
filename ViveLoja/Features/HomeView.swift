@@ -1,5 +1,6 @@
 import Observation
 import SwiftUI
+import UIKit
 
 @MainActor
 @Observable
@@ -242,10 +243,13 @@ struct HomeView: View {
     private func category(_ emoji: String, _ title: String, _ color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(emoji).font(.title).accessibilityHidden(true)
-            Text(title).font(.headline).foregroundStyle(.primary)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Color(uiColor: .label))
+                .fixedSize(horizontal: false, vertical: true)
         }
             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
             .accessibilityElement(children: .combine)
             .accessibilityHint("Explorar categoría")
@@ -257,10 +261,13 @@ struct HomeView: View {
                 .font(.title)
                 .foregroundStyle(color)
                 .accessibilityHidden(true)
-            Text(title).font(.headline).foregroundStyle(.primary)
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(Color(uiColor: .label))
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
         .accessibilityElement(children: .combine)
         .accessibilityHint("Explorar categoría")
