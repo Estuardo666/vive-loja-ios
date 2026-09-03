@@ -257,15 +257,35 @@ struct ItemLocationSection: View {
     var body: some View {
         if let coordinate {
             let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
-            Map(
-                initialPosition: .region(
-                    MKCoordinateRegion(
-                        center: center,
-                        span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                    )
-                )
-            ) {
-                Marker(title, coordinate: center)
+            Group {
+                if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+                    ZStack {
+                        VLTheme.surface
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 52))
+                            .foregroundStyle(.secondary)
+                        VStack(spacing: 4) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(VLTheme.indigo)
+                            Text(title)
+                                .font(.caption.weight(.semibold))
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Mapa de \(title)")
+                } else {
+                    Map(
+                        initialPosition: .region(
+                            MKCoordinateRegion(
+                                center: center,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            )
+                        )
+                    ) {
+                        Marker(title, coordinate: center)
+                    }
+                }
             }
             .frame(height: 200)
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
