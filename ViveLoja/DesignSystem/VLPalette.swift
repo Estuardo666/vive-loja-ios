@@ -41,6 +41,12 @@ final class ThemeStore {
     }
 
     init() {
+        // XCTest reuses the simulator app container between test methods. A
+        // palette selected by one test must not change later screenshots or
+        // accessibility audits.
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            UserDefaults.standard.removeObject(forKey: VLPalette.storageKey)
+        }
         palette = VLPalette.current
     }
 }

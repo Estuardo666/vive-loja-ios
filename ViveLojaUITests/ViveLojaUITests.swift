@@ -27,7 +27,7 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
 
-        let palette = app.otherElements["palette-picker"]
+        let palette = app.buttons["palette-picker"].firstMatch
         XCTAssertTrue(palette.waitForExistence(timeout: 5))
         app.buttons["Catppuccin"].tap()
         XCTAssertTrue(app.buttons["Catppuccin"].isSelected)
@@ -136,9 +136,10 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(explore.waitForExistence(timeout: 8))
         explore.tap()
 
+        // Explore opens on the map. Keep this tolerant of a future return to a
+        // list-first default while still proving the map is reachable.
         let mapButton = app.buttons["Ver mapa"]
-        XCTAssertTrue(mapButton.waitForExistence(timeout: 5))
-        mapButton.tap()
+        if mapButton.waitForExistence(timeout: 1) { mapButton.tap() }
         XCTAssertTrue(app.descendants(matching: .any)["explore-map"].waitForExistence(timeout: 8))
 
         let filters = app.buttons["Filtros de exploración"]

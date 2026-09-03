@@ -64,6 +64,10 @@ final class SessionStore {
     /// `refresh()` before, so every session silently died after 15 minutes and
     /// authenticated screens just stopped working.
     func refreshIfNeeded(force: Bool = false) async {
+        // UI-test sessions use deterministic fixture tokens. Sending those to
+        // production when the scene becomes active invalidates the fixture and
+        // leaves authenticated UI tests looking signed out.
+        guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
         guard refreshToken != nil else { return }
         if force || accessTokenExpiry == nil {
             await refresh()

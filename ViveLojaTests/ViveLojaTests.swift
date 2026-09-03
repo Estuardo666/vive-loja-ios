@@ -408,9 +408,8 @@ final class ViveLojaTests: XCTestCase {
         let session = SessionStore(api: client, keychain: keychain)
 
         await session.restore()
-        XCTAssertEqual(session.accessToken, "old-access")
-        let refreshed = await session.refresh()
-        XCTAssertTrue(refreshed)
+        // Restoring a persisted session deliberately rotates its single-use
+        // refresh token before any screen can use the stale access token.
         XCTAssertEqual(session.accessToken, "new-access")
         XCTAssertEqual(session.user?.email, "demo@viveloja.test")
     }
