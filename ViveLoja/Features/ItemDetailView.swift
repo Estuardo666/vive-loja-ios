@@ -361,6 +361,9 @@ struct ItemDetailView: View {
         }
     }
 
+}
+
+private extension ItemDetailView {
     private var imageURL: URL? { switch displayedItem { case .venue(let value): return value.image; case .event(let value): return value.image } }
     private var location: String { switch displayedItem { case .venue(let value): return value.location ?? "Loja"; case .event(let value): return value.location ?? "Loja" } }
     private var description: String { switch displayedItem { case .venue(let value): return value.description ?? "Descubre este lugar en Loja."; case .event(let value): return value.description ?? "Un evento para vivir Loja." } }
@@ -386,9 +389,6 @@ struct ItemDetailView: View {
     private var isVenue: Bool { if case .venue = displayedItem { return true }; return false }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
-}
-
-private extension ItemDetailView {
     func loadDetail() async {
         do {
             switch item {
