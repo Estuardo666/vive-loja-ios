@@ -110,7 +110,6 @@ struct ExploreView: View {
                         self.selectedMapItemID = nil
                         Task { await startRoute(to: item) }
                     }
-                    .presentationDetents([.height(MapItemPeekView.height(for: item))])
                     .presentationDragIndicator(.visible)
                 }
             }

@@ -52,6 +52,7 @@ struct TodayInLojaView: View {
     @State private var model = TodayViewModel()
     @Environment(DeepLinkRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
+    @ScaledMetric(relativeTo: .body) private var eventPageHeight: CGFloat = 430
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -61,9 +62,27 @@ struct TodayInLojaView: View {
                 Button("Reintentar") { Task { await model.load() } }
             } else if let data = model.payload {
                 Text(data.date).font(.caption).foregroundStyle(.secondary)
-                cards("En la agenda de hoy", items: data.events, empty: "No hay eventos publicados para lo que queda de hoy.")
+                Text("En la agenda de hoy").font(.headline)
+                if data.events.isEmpty {
+                    Text("No hay eventos publicados para lo que queda de hoy.").foregroundStyle(.secondary)
+                } else {
+                    TabView {
+                        ForEach(data.events) { item in visualCard(item, hero: true).padding(.bottom, 28) }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: data.events.count > 1 ? .always : .never))
+                    .frame(height: eventPageHeight)
+                    .accessibilityLabel("Eventos de hoy")
+                }
+                NavigationLink("Hoy, mañana y fin de semana", destination: AgendaView())
                 cards("Abiertos ahora", items: data.openVenues, empty: "No hay horarios confirmados para este momento.")
-                cards("Una ruta de hasta tres horas", items: data.routes, empty: "Estamos preparando rutas cortas por Loja.")
+                Text("Rutas turísticas de hasta tres horas").font(.headline)
+                if data.routes.isEmpty {
+                    Text("No hay rutas cortas publicadas todavía.").foregroundStyle(.secondary)
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(data.routes) { visualCard($0, hero: false) }
+                    }
+                }
                 cards("Colecciones de locales", items: data.collections, empty: "Pronto encontrarás selecciones de lugares con consejos locales.")
                 Text("Los horarios pueden cambiar en feriados. Confirma antes de salir.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -82,6 +101,28 @@ struct TodayInLojaView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.load() } }
         }
+    }
+
+    private func visualCard(_ item: TodayCard, hero: Bool) -> some View {
+        Button {
+            if let destination = DeepLinkRouter.destination(kind: item.kind, slug: item.slug) { router.open(destination) }
+        } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                VLAsyncImage(url: item.image, height: hero ? 220 : 130)
+                    .clipped()
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(item.title).font(hero ? .title2.bold() : .headline).lineLimit(2)
+                    if let subtitle = item.subtitle { Text(subtitle).font(.subheadline).foregroundStyle(.secondary).lineLimit(2) }
+                    if let start = item.startDate {
+                        Text("\(Self.eventTime(start)) · \(item.price.map { $0 == 0 ? "Gratis" : String(format: "$%.2f", $0) } ?? "Consultar precio")")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                }.padding([.horizontal, .bottom], 12)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18))
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+        }.buttonStyle(.plain)
     }
 
     private func cards(_ title: String, items: [TodayCard], empty: String) -> some View {

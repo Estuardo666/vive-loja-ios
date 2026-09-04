@@ -7,13 +7,7 @@ struct MapItemPeekView: View {
     /// Starts in-map guidance; the caller owns the route because the map does.
     let onDirections: () -> Void
     @State private var showFullProfile = false
-
-    /// Detent height for `item`, so the sheet hugs its content instead of
-    /// leaving dead space under the CTA. Events carry one extra row.
-    static func height(for item: ExploreItem) -> CGFloat {
-        if case .event = item { return 208 }
-        return 176
-    }
+    @State private var contentHeight: CGFloat = 220
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -62,6 +56,9 @@ struct MapItemPeekView: View {
         .padding(.horizontal, 20)
         .padding(.top, 14)
         .padding(.bottom, 10)
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        .presentationDetents([.height(contentHeight)])
         // Presented from the peek itself so the profile opens full screen without
         // racing the sheet's own dismissal.
         .fullScreenCover(isPresented: $showFullProfile) {

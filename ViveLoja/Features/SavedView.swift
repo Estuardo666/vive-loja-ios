@@ -52,6 +52,13 @@ struct SavedView: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Guardados")
+            .toolbar {
+                if session.user != nil {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        NavigationLink(destination: EventUpdatesView()) { Label("Cambios en eventos", systemImage: "bell.badge") }
+                    }
+                }
+            }
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)
             .task(id: session.user?.id) {

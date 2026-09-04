@@ -25,6 +25,10 @@ struct ItemDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                if eventDetail?.status == "CANCELLED" {
+                    Label("Evento cancelado. Consulta al organizador si compraste entradas.", systemImage: "calendar.badge.exclamationmark")
+                        .font(.headline).foregroundStyle(.red).padding()
+                }
                 gallery
                 VStack(alignment: .leading, spacing: 10) {
                     Text(displayedItem.title).font(.largeTitle.weight(.bold))
@@ -36,7 +40,7 @@ struct ItemDetailView: View {
                     }
                 }
                 actionBar
-                if case .event(let event) = displayedItem {
+                if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED" {
                     Button {
                         Task {
                             if reminderScheduled {
@@ -397,6 +401,10 @@ private extension ItemDetailView {
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
+                if detail.status == "CANCELLED" {
+                    LocalReminderScheduler.shared.cancel(eventID: detail.id)
+                    reminderScheduled = false
+                }
                 resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
                 let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id), bearer: session.accessToken)
             }

@@ -93,13 +93,66 @@ struct CreateRouteView: View {
     @Environment(SessionStore.self) private var session
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""; @State private var description = ""; @State private var type = "cultural"; @State private var duration = ""; @State private var difficulty = ""; @State private var isSaving = false; @State private var errorMessage: String?
-    private var isValid: Bool { title.trimmed.count >= 3 && description.trimmed.count >= 10 && type.trimmed.count >= 2 }
+    @State private var minutes = ""
+    @State private var imageURL = ""
+    @State private var stops: [TourStopDraft] = []
+    private var isValid: Bool {
+        title.trimmed.count >= 3 && description.trimmed.count >= 10 && !stops.isEmpty &&
+        (Int(minutes).map { (1...20160).contains($0) } ?? false) &&
+        (imageURL.isEmpty || URL(string: imageURL)?.scheme == "https") &&
+        stops.allSatisfy { $0.title.trimmed.count >= 2 &&
+            (Double($0.lat).map { (-90...90).contains($0) } ?? false) &&
+            (Double($0.lng).map { (-180...180).contains($0) } ?? false) }
+    }
     var body: some View {
         Form {
-            Section("Ruta") { TextField("Título", text: $title); TextField("Descripción", text: $description, axis: .vertical).lineLimit(3...7); TextField("Tipo", text: $type); TextField("Duración (opcional)", text: $duration); TextField("Dificultad (opcional)", text: $difficulty) }
+            Section("Ruta turística") {
+                Text("Un recorrido cultural, gastronómico o de ocio con paradas. No es una ficha de senderismo.").font(.footnote).foregroundStyle(.secondary)
+                TextField("Título", text: $title)
+                TextField("Descripción", text: $description, axis: .vertical).lineLimit(3...7)
+                Picker("Tipo", selection: $type) {
+                    Text("Cultural").tag("cultural")
+                    Text("Gastronómica").tag("gastronomic")
+                    Text("Vida nocturna").tag("nightlife")
+                    Text("Naturaleza").tag("nature")
+                }
+                TextField("Duración total en minutos", text: $minutes).keyboardType(.numberPad)
+                TextField("Imagen de portada (https://…)", text: $imageURL).keyboardType(.URL).textInputAutocapitalization(.never)
+            }
+            Section("Paradas en orden") {
+                ForEach($stops) { $stop in
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextField("Nombre de la parada", text: $stop.title)
+                        TextField("Consejo local", text: $stop.notes)
+                        TextField("Latitud, por ejemplo -3.993", text: $stop.lat).keyboardType(.numbersAndPunctuation)
+                        TextField("Longitud, por ejemplo -79.204", text: $stop.lng).keyboardType(.numbersAndPunctuation)
+                    }
+                }.onDelete { stops.remove(atOffsets: $0) }.onMove { stops.move(fromOffsets: $0, toOffset: $1) }
+                Button("Añadir parada") { stops.append(TourStopDraft()) }.disabled(stops.count >= 100)
+            }
             Section { if let errorMessage { Text(errorMessage).foregroundStyle(.red) }; Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }.disabled(!isValid || isSaving) }
         }
         .navigationTitle("Nueva ruta")
+        .toolbar { EditButton() }
     }
-    private func save() async { guard let token = session.accessToken else { errorMessage = signedOutMessage; VLFeedback.error(); return }; isSaving = true; defer { isSaving = false }; do { let _: ModeratedDraft = try await APIClient.shared.post("/me/routes", body: CreateRouteRequest(title: title.trimmed, description: description.trimmed, content: nil, image: nil, duration: duration.nilIfEmpty, difficulty: difficulty.nilIfEmpty, type: type.trimmed, stops: nil), bearer: token); VLFeedback.success(); dismiss() } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la ruta."; VLFeedback.error() } }
+    private func save() async {
+        guard isValid, let token = session.accessToken else { errorMessage = signedOutMessage; return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let rows = stops.map { CreateRouteStopRequest(venueId: nil, title: $0.title.trimmed, notes: $0.notes.nilIfEmpty, duration: nil, day: 1, lat: Double($0.lat), lng: Double($0.lng)) }
+            let request = CreateRouteRequest(title: title.trimmed, description: description.trimmed, content: nil,
+                image: imageURL.isEmpty ? nil : URL(string: imageURL), duration: "\(minutes) min", difficulty: nil, type: type, stops: rows, estimatedMinutes: Int(minutes))
+            let _: ModeratedDraft = try await APIClient.shared.post("/me/routes", body: request, bearer: token)
+            VLFeedback.success(); dismiss()
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo publicar la ruta."; VLFeedback.error() }
+    }
+}
+
+private struct TourStopDraft: Identifiable {
+    let id = UUID()
+    var title = ""
+    var notes = ""
+    var lat = ""
+    var lng = ""
 }

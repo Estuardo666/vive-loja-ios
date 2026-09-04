@@ -101,15 +101,16 @@ struct ContentHubView: View {
                         .vlGlass(tint: VLTheme.coral.opacity(0.1))
                     }
                 }
-                contentSection("Rutas para descubrir", icon: "figure.hiking") {
+                contentSection("Rutas para descubrir", icon: "map.fill") {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                     ForEach(model.routes) { route in
                         // The row used to be inert, so the stops it counted
                         // were never reachable from the app.
                         NavigationLink {
                             RouteDetailView(slug: route.slug, placeholderTitle: route.title)
                         } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "map.fill").font(.title2).foregroundStyle(VLTheme.emerald)
+                            VStack(alignment: .leading, spacing: 12) {
+                                VLAsyncImage(url: route.image, height: 130).clipped()
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(route.title).font(.headline)
                                     Text([route.days > 1 ? "\(route.days) días" : nil, route.duration, route.difficulty]
@@ -117,7 +118,6 @@ struct ContentHubView: View {
                                         .joined(separator: " · "))
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
-                                Spacer()
                                 Text("\(route.stopCount) paradas").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                             }
                             .padding(14)
@@ -125,9 +125,11 @@ struct ContentHubView: View {
                         }
                         .buttonStyle(.plain)
                     }
+                    }
                 }
                 contentSection("Colecciones de la comunidad", icon: "square.stack.3d.up.fill") {
                     ForEach(model.collections) { collection in
+                        NavigationLink(destination: DeepLinkDestinationView(destination: .collection(slug: collection.slug))) {
                         HStack(spacing: 12) {
                             Text(collection.icon ?? "✨").font(.title2)
                             VStack(alignment: .leading, spacing: 4) {
@@ -139,6 +141,7 @@ struct ContentHubView: View {
                         }
                         .padding(14)
                         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }.buttonStyle(.plain)
                     }
                 }
                 contentSection("Transmisiones en vivo", icon: "play.tv.fill") {

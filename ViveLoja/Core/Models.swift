@@ -461,6 +461,7 @@ struct VenueDetail: Decodable, Sendable {
 }
 
 struct EventDetail: Decodable, Sendable {
+    let status: String?
     let id: String
     let title: String
     let slug: String
@@ -733,6 +734,8 @@ struct CreatePostRequest: Codable, Sendable {
 }
 
 struct CreateRouteStopRequest: Codable, Sendable {
+    let lat: Double?
+    let lng: Double?
     let venueId: String?
     let title: String
     let notes: String?
@@ -743,7 +746,9 @@ struct CreateRouteStopRequest: Codable, Sendable {
     /// "HH:mm".
     let startTime: String?
 
-    init(venueId: String?, title: String, notes: String?, duration: String?, day: Int? = nil, startTime: String? = nil) {
+    init(venueId: String?, title: String, notes: String?, duration: String?, day: Int? = nil, startTime: String? = nil, lat: Double? = nil, lng: Double? = nil) {
+        self.lat = lat
+        self.lng = lng
         self.venueId = venueId
         self.title = title
         self.notes = notes
@@ -754,6 +759,7 @@ struct CreateRouteStopRequest: Codable, Sendable {
 }
 
 struct CreateRouteRequest: Codable, Sendable {
+    let estimatedMinutes: Int?
     let title: String
     let description: String
     let content: String?
@@ -764,7 +770,8 @@ struct CreateRouteRequest: Codable, Sendable {
     let days: Int?
     let stops: [CreateRouteStopRequest]?
 
-    init(title: String, description: String, content: String?, image: URL?, duration: String?, difficulty: String?, type: String, days: Int? = nil, stops: [CreateRouteStopRequest]? = nil) {
+    init(title: String, description: String, content: String?, image: URL?, duration: String?, difficulty: String?, type: String, days: Int? = nil, stops: [CreateRouteStopRequest]? = nil, estimatedMinutes: Int? = nil) {
+        self.estimatedMinutes = estimatedMinutes
         self.title = title
         self.description = description
         self.content = content

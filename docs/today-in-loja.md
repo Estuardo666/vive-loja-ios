@@ -1,5 +1,22 @@
 # Hoy en Loja
 
+## Agenda and layout update
+
+Home events use a paged, one-card-per-view image carousel. Tourist routes in Home
+and Discover use image grids. AgendaView consumes `/agenda` with today, tomorrow,
+weekend and upcoming filters, grouped using America/Guayaquil dates. Unknown price
+is labelled as such. Route creation includes numeric minutes, cover image URL and
+ordered custom stops with coordinates, backed by the existing moderated `/me/routes`.
+
+Saved → Changes in events consumes `/me/event-updates`. Event detail reads the
+optional status, marks cancellations and removes an existing local reminder when
+the cancelled detail is opened. Push delivery uses the existing APNs setup; an
+offline local reminder cannot be withdrawn remotely without the app handling the update.
+
+MapItemPeekView measures its content for the presentation detent, avoiding a fixed
+empty area underneath while accommodating longer addresses and larger text.
+Backend migration `20260904020000_event_update_notices` must precede rollout.
+
 Home presents `TodayInLojaView`, backed by `/api/mobile/v1/today` from the same
 API environment as the rest of the app. Cards navigate through DeepLinkRouter
 to existing venue, event, route and public collection screens. Event times use
