@@ -268,11 +268,26 @@ struct Category: Codable, Hashable, Sendable {
     let color: String?
 }
 
+/// Open/closed state resolved on the server in Loja time (UTC-5), so the app never
+/// recomputes it from raw hours and never disagrees with the "abierto ahora" filter.
+/// Absent on payloads from a server that predates it.
+struct OpenState: Codable, Hashable, Sendable {
+    let isOpen: Bool
+    let closesAt: String?
+    let opensAt: String?
+
+    var label: String {
+        if isOpen { return closesAt.map { "Abierto · cierra \($0)" } ?? "Abierto" }
+        return opensAt.map { "Cerrado · abre \($0)" } ?? "Cerrado"
+    }
+}
+
 struct ExploreVenue: Codable, Identifiable, Hashable, Sendable {
     let id: String; let name: String; let slug: String; let description: String?
     let image: URL?; let location: String?; let address: String?; let lat: Double?; let lng: Double?
     let featured: Bool; let phone: String?; let website: URL?; let priceRange: String?
     let avgRating: Double?; let reviewCount: Int; let verified: Bool; let categories: [Category]
+    let openState: OpenState?
 }
 
 struct ExploreEvent: Codable, Identifiable, Hashable, Sendable {
@@ -452,6 +467,7 @@ struct VenueDetail: Decodable, Sendable {
     let services: [MobileService]
     let operatingHours: MobileOperatingHours?
     let businessHours: [MobileBusinessHours]?
+    let openState: OpenState?
     let menu: [MobileMenuCategory]?
     let products: [MobileProduct]?
     let events: [MobileVenueEvent]?

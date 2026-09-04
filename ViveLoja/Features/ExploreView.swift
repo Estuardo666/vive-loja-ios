@@ -263,7 +263,14 @@ struct ExploreView: View {
                 ForEach(model.items) { item in
                     NavigationLink(destination: ItemDetailView(item: item)) { VLItemCard(item: item) }
                         .buttonStyle(.plain)
+                        .onAppear {
+                            // Scroll infinito: al ver el ultimo resultado se pide la
+                            // siguiente pagina con los skips que devuelve el backend.
+                            guard item.id == model.items.last?.id, model.canLoadMore else { return }
+                            Task { await model.loadMore() }
+                        }
                 }
+                if model.isLoadingMore { ProgressView().padding(.vertical, 12) }
                 if let error = model.errorMessage {
                     ContentUnavailableView("No se pudo actualizar", systemImage: "wifi.exclamationmark", description: Text(error))
                 }

@@ -71,13 +71,20 @@ struct VLItemCard: View {
                     .font(.subheadline)
                     .foregroundStyle(Color(uiColor: .label))
                     .fixedSize(horizontal: false, vertical: true)
+                if let openState {
+                    // Server-computed in Loja time, so it always agrees with the
+                    // "abierto ahora" filter.
+                    Label(openState.label, systemImage: openState.isOpen ? "clock.badge.checkmark" : "clock.badge.xmark")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(openState.isOpen ? Color.green : Color.secondary)
+                }
             }
             .padding(12)
         }
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.quaternary) }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)")
+        .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)\(openState.map { ", \($0.label)" } ?? "")")
         .accessibilityHint("Toca para ver el detalle")
         .accessibilityAction(named: Text("Ver foto y fuente")) { showPhoto = true }
         .sheet(isPresented: $showPhoto) {
@@ -102,6 +109,13 @@ struct VLItemCard: View {
     }
 
     private var isVenue: Bool { if case .venue = item { true } else { false } }
+    private var openState: OpenState? {
+        switch item {
+        case .venue(let value): return value.openState
+        case .event: return nil
+        }
+    }
+
     private var itemSubtitle: String {
         switch item {
         case .venue(let value): return value.location ?? "Loja"

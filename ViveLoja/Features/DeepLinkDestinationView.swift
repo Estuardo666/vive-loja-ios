@@ -36,7 +36,7 @@ extension MobileWatchEvent {
 
 extension ExploreVenue {
     static func placeholder(slug: String) -> ExploreVenue {
-        ExploreVenue(id: "deep-link-venue-\(slug)", name: "Cargando…", slug: slug, description: nil, image: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [])
+        ExploreVenue(id: "deep-link-venue-\(slug)", name: "Cargando…", slug: slug, description: nil, image: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [], openState: nil)
     }
 }
 

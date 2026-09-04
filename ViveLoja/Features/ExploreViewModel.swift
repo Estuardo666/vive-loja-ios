@@ -24,12 +24,69 @@ final class ExploreViewModel {
     var categories: [Category] = []
     var items: [ExploreItem] = HomeViewModel.fixtures
     var isLoading = false
+    var isLoadingMore = false
     var errorMessage: String?
+    /// Paging cursors returned by the backend. Nil means "nothing loaded yet",
+    /// so the list is showing fixtures rather than a finished page.
+    private(set) var pageInfo: ExplorePageInfo?
+    /// Repeated so "load more" keeps the same search area as the first page.
+    private var lastCenter: CLLocationCoordinate2D?
+    private var lastRadiusMeters: CLLocationDistance?
+
+    private static let pageSize = 60
+
+    var canLoadMore: Bool {
+        guard let pageInfo else { return false }
+        return pageInfo.hasMoreVenues || pageInfo.hasMoreEvents
+    }
 
     func search(center: CLLocationCoordinate2D? = nil, radiusMeters: CLLocationDistance? = nil) async {
         isLoading = true
         defer { isLoading = false }
-        var queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "type", value: type), URLQueryItem(name: "take", value: "60")]
+        lastCenter = center
+        lastRadiusMeters = radiusMeters
+        let queryItems = buildQuery(center: center, radiusMeters: radiusMeters, venueSkip: 0, eventSkip: 0)
+        do {
+            let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
+            items = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
+            pageInfo = payload.pageInfo
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+    }
+
+    /// Next page of the current search. The skips come from the backend, which
+    /// counts rows read rather than rows returned, so filtered pages do not repeat.
+    func loadMore() async {
+        guard !isLoading, !isLoadingMore, let pageInfo, canLoadMore else { return }
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+        let queryItems = buildQuery(
+            center: lastCenter,
+            radiusMeters: lastRadiusMeters,
+            venueSkip: pageInfo.nextVenueSkip,
+            eventSkip: pageInfo.nextEventSkip
+        )
+        do {
+            let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
+            let existing = Set(items.map(\.id))
+            let incoming = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
+            items += incoming.filter { !existing.contains($0.id) }
+            self.pageInfo = payload.pageInfo
+        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+    }
+
+    private func buildQuery(
+        center: CLLocationCoordinate2D?,
+        radiusMeters: CLLocationDistance?,
+        venueSkip: Int,
+        eventSkip: Int
+    ) -> [URLQueryItem] {
+        var queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "type", value: type),
+            URLQueryItem(name: "take", value: String(Self.pageSize)),
+            URLQueryItem(name: "venueSkip", value: String(venueSkip)),
+            URLQueryItem(name: "eventSkip", value: String(eventSkip)),
+        ]
         if let minRating { queryItems.append(URLQueryItem(name: "minRating", value: String(minRating))) }
         if openNow { queryItems.append(URLQueryItem(name: "openNow", value: "true")) }
         if verified { queryItems.append(URLQueryItem(name: "verified", value: "true")) }
@@ -51,10 +108,7 @@ final class ExploreViewModel {
             ]
         }
         queryItems.removeAll { $0.value?.isEmpty == true }
-        do {
-            let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
-            items = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
-        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+        return queryItems
     }
 
     /// Chips shown as quick filters. Ordered by what a city guide gets asked for

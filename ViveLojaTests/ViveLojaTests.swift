@@ -124,7 +124,7 @@ private final class SSEStubURLProtocol: URLProtocol, @unchecked Sendable {
 final class ViveLojaTests: XCTestCase {
     func testExploreVenueAndEventHaveStableIdentifiers() {
         let category = Category(id: "c", name: "Cafés", slug: "cafes", icon: "☕", color: nil)
-        let venue = ExploreVenue(id: "v", name: "Café", slug: "cafe", description: "", image: nil, location: "Centro", address: nil, lat: -4, lng: -79, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [category])
+        let venue = ExploreVenue(id: "v", name: "Café", slug: "cafe", description: "", image: nil, location: "Centro", address: nil, lat: -4, lng: -79, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [category], openState: nil)
         let event = ExploreEvent(id: "e", title: "Evento", slug: "evento", description: "", image: nil, startDate: Date(), endDate: nil, location: "Loja", address: nil, lat: -4, lng: -79, featured: false, price: nil, avgRating: nil, reviewCount: 0, categories: [])
         XCTAssertEqual(ExploreItem.venue(venue).id, "venue-v")
         XCTAssertEqual(ExploreItem.event(event).id, "event-e")
@@ -285,6 +285,39 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertNil(model.eventDatePreset)
     }
 
+    func testExplorePayloadCarriesServerOpenStateAndPaging() throws {
+        let decoder = JSONDecoder.viveLoja
+        let payload = try decoder.decode(ExplorePayload.self, from: Data("""
+        {
+          "venues":[{"id":"v1","name":"Bar","slug":"bar","description":"","image":null,"location":"Centro",
+            "address":null,"lat":null,"lng":null,"featured":false,"phone":null,"website":null,"priceRange":null,
+            "avgRating":null,"reviewCount":0,"verified":false,"categories":[],
+            "openState":{"isOpen":true,"closesAt":"02:00"}}],
+          "events":[],
+          "pageInfo":{"hasMoreVenues":true,"hasMoreEvents":false,"nextVenueSkip":60,"nextEventSkip":0}
+        }
+        """.utf8))
+        XCTAssertEqual(payload.venues.first?.openState?.isOpen, true)
+        XCTAssertEqual(payload.venues.first?.openState?.label, "Abierto · cierra 02:00")
+        XCTAssertEqual(payload.pageInfo?.nextVenueSkip, 60)
+    }
+
+    func testExploreVenueDecodesWithoutOpenState() throws {
+        // Servidores anteriores no envian openState: la app no debe romperse.
+        let decoder = JSONDecoder.viveLoja
+        let venue = try decoder.decode(ExploreVenue.self, from: Data("""
+        {"id":"v1","name":"Bar","slug":"bar","description":"","image":null,"location":null,"address":null,
+         "lat":null,"lng":null,"featured":false,"phone":null,"website":null,"priceRange":null,
+         "avgRating":null,"reviewCount":0,"verified":false,"categories":[]}
+        """.utf8))
+        XCTAssertNil(venue.openState)
+    }
+
+    func testOpenStateLabelsClosedVenue() {
+        XCTAssertEqual(OpenState(isOpen: false, closesAt: nil, opensAt: "09:00").label, "Cerrado · abre 09:00")
+        XCTAssertEqual(OpenState(isOpen: false, closesAt: nil, opensAt: nil).label, "Cerrado")
+    }
+
     func testReviewAcceptsLegacyCommentField() throws {
         let decoder = JSONDecoder.viveLoja
         let review = try decoder.decode(MobileReview.self, from: Data("""
@@ -328,10 +361,12 @@ final class ViveLojaTests: XCTestCase {
           "products":[{"id":"p1","name":"Café lojano","description":null,"price":2,"image":null,"isAvailable":true,"isFeatured":false,"order":0}],
           "events":[{"id":"e1","title":"Cata","slug":"cata","startDate":"2026-05-01T18:00:00Z","location":"Café","address":null}],
           "promotions":[{"id":"promo1","title":"2x1","description":"Dos por uno","image":null,"discount":"50%","validFrom":"2026-04-01T00:00:00Z","validUntil":"2026-05-01T00:00:00Z","terms":null,"featured":true}],
-          "reviews":[],"questions":[]
+          "reviews":[],"questions":[],
+          "openState":{"isOpen":false,"opensAt":"08:00"}
         }
         """.utf8))
         XCTAssertEqual(detail.businessHours?.count, 1)
+        XCTAssertEqual(detail.openState?.label, "Cerrado · abre 08:00")
         XCTAssertEqual(detail.menu?.first?.items.first?.name, "Bolón")
         XCTAssertEqual(detail.products?.first?.price, 2)
         XCTAssertEqual(detail.events?.first?.title, "Cata")

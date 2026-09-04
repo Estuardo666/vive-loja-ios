@@ -163,7 +163,7 @@ private extension FavoriteSummary {
     var exploreItem: ExploreItem? {
         switch kind {
         case "venue":
-            return .venue(ExploreVenue(id: id, name: title, slug: slug, description: description, image: image, location: subtitle, address: address, lat: lat, lng: lng, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: []))
+            return .venue(ExploreVenue(id: id, name: title, slug: slug, description: description, image: image, location: subtitle, address: address, lat: lat, lng: lng, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [], openState: nil))
         case "event":
             return .event(ExploreEvent(id: id, title: title, slug: slug, description: description, image: image, startDate: startDate ?? .now, endDate: nil, location: subtitle, address: address, lat: lat, lng: lng, featured: false, price: nil, avgRating: nil, reviewCount: 0, categories: []))
         default:

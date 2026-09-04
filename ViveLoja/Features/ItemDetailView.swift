@@ -218,7 +218,16 @@ struct ItemDetailView: View {
     private var hoursSection: some View {
         if case .venue = displayedItem, !detailBusinessHours.isEmpty || venueDetail?.operatingHours != nil {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Horarios").font(.title2.weight(.semibold))
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Horarios").font(.title2.weight(.semibold))
+                    Spacer()
+                    // Estado resuelto en el servidor con la hora de Loja (feriados incluidos).
+                    if let openState = venueDetail?.openState {
+                        Label(openState.label, systemImage: openState.isOpen ? "clock.badge.checkmark" : "clock.badge.xmark")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(openState.isOpen ? Color.green : Color.secondary)
+                    }
+                }
                 if !detailBusinessHours.isEmpty {
                     ForEach(detailBusinessHours) { hours in
                         HStack {
@@ -400,7 +409,7 @@ private extension ItemDetailView {
             case .venue(let value):
                 let detail: VenueDetail = try await APIClient.shared.get("/venues/\(value.slug)")
                 venueDetail = detail
-                resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories))
+                resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories, openState: detail.openState))
                 await loadFollowing(for: detail.id)
                 let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id), bearer: session.accessToken)
             case .event(let value):
