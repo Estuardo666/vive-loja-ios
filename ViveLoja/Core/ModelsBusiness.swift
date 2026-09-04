@@ -151,6 +151,13 @@ struct MobileVenueInsights: Codable, Sendable {
     let upcomingReservations: Int
     /// How far back `viewSeries` can reach; older rows are purged server-side.
     let retentionDays: Int
+    let interactions: MobileInteractionMetrics?
+}
+
+struct MobileInteractionMetrics: Codable, Sendable {
+    let days: Int
+    let saves: Int
+    let directions: Int
 }
 
 // MARK: - Public collections

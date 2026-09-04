@@ -344,7 +344,7 @@ struct ItemDetailView: View {
     private var mapSection: some View {
         // Extracted to ItemDetailSections so this type stays under the linter's
         // body length limit.
-        ItemLocationSection(coordinate: displayedItem.coordinate, title: displayedItem.title)
+        ItemLocationSection(coordinate: displayedItem.coordinate, title: displayedItem.title, trackedItem: displayedItem)
     }
 
     @ViewBuilder

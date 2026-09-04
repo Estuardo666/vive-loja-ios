@@ -33,7 +33,10 @@ struct MapItemPeekView: View {
                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
             HStack(spacing: 10) {
                 if item.coordinate != nil {
-                    Button(action: onDirections) {
+                    Button {
+                        InteractionTracker.directions(item: item)
+                        onDirections()
+                    } label: {
                         Label("Cómo llegar", systemImage: "arrow.triangle.turn.up.right.diamond.fill")
                             .font(.subheadline.weight(.semibold))
                             .padding(.vertical, 2)

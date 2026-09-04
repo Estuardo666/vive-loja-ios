@@ -165,7 +165,7 @@ private extension RouteDetailView {
         } else {
             VStack(alignment: .leading, spacing: 14) {
                 ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
-                    RouteStopRow(stop: stop, position: index + 1)
+                    RouteStopRow(stop: stop, position: index + 1, routeId: model.route?.id)
                 }
             }
         }
@@ -188,6 +188,7 @@ private extension RouteDetailView {
 private struct RouteStopRow: View {
     let stop: MobileRouteStop
     let position: Int
+    let routeId: String?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -219,6 +220,7 @@ private struct RouteStopRow: View {
                 }
                 if let coordinate = stop.coordinate {
                     Button("Cómo llegar", systemImage: "location.fill") {
+                        if let routeId { InteractionTracker.directions(kind: "route", itemId: routeId) }
                         openInMaps(coordinate: coordinate, name: stop.venue?.name ?? stop.title)
                     }
                     .font(.caption.weight(.semibold))

@@ -253,6 +253,8 @@ struct VenueProductsSection: View {
 struct ItemLocationSection: View {
     let coordinate: (lat: Double, lng: Double)?
     let title: String
+    var trackedItem: ExploreItem?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         if let coordinate {
@@ -291,7 +293,10 @@ struct ItemLocationSection: View {
             .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
 
             if let mapsURL = URL(string: "http://maps.apple.com/?ll=\(coordinate.lat),\(coordinate.lng)") {
-                Link(destination: mapsURL) {
+                Button {
+                    if let trackedItem { InteractionTracker.directions(item: trackedItem) }
+                    openURL(mapsURL)
+                } label: {
                     Label("Abrir en Apple Maps", systemImage: "map")
                 }
                 .buttonStyle(.bordered)

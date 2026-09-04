@@ -44,6 +44,10 @@ struct BusinessDashboardView: View {
                            caption: "Últimos \(insights.retentionDays) días")
                     metric("Vistas totales", value: "\(insights.lifetimeViews)", caption: nil)
                     metric("Guardados", value: "\(insights.favorites)", caption: nil)
+                    if let activity = insights.interactions {
+                        metric("Nuevos guardados", value: "\(activity.saves)", caption: "Últimos \(activity.days) días")
+                        metric("Cómo llegar", value: "\(activity.directions)", caption: "Clics, no visitas físicas · \(activity.days) días")
+                    }
                     if let rating = insights.avgRating {
                         metric(
                             "Calificación",

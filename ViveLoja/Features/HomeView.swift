@@ -59,6 +59,9 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
                     hero
+                    if !ProcessInfo.processInfo.arguments.contains("-uiTesting") || ProcessInfo.processInfo.arguments.contains("-uiTesting-today") {
+                        TodayInLojaView()
+                    }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Destacados", action: nil)
                         ScrollView(.horizontal, showsIndicators: false) {

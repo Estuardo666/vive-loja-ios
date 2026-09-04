@@ -2,6 +2,16 @@ import XCTest
 
 @MainActor
 final class ViveLojaUITests: XCTestCase {
+    func testTodayEmptyStateWithoutNetwork() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTesting", "-uiTesting-today"]
+        app.launch()
+        for _ in 0..<4 where !app.staticTexts["Hoy en Loja"].isHittable { app.swipeUp() }
+        XCTAssertTrue(app.staticTexts["Hoy en Loja"].exists)
+        XCTAssertTrue(app.staticTexts["En la agenda de hoy"].exists)
+        XCTAssertTrue(app.staticTexts["No hay eventos publicados para lo que queda de hoy."].exists)
+    }
+
     func testMainTabsAreReachableWithoutNetwork() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTesting"]
