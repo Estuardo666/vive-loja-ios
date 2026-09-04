@@ -48,6 +48,7 @@ struct VLSectionHeader: View {
 
 struct VLItemCard: View {
     let item: ExploreItem
+    @State private var showPhoto = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -75,9 +76,29 @@ struct VLItemCard: View {
         }
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.quaternary) }
-        .accessibilityElement(children: .contain)
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)")
         .accessibilityHint("Toca para ver el detalle")
+        .accessibilityAction(named: Text("Ver foto y fuente")) { showPhoto = true }
+        .sheet(isPresented: $showPhoto) {
+            NavigationStack {
+                Group {
+                    switch item {
+                    case .venue(let venue):
+                        VLAsyncImage(url: venue.image, height: 250, googleVenueSlug: venue.slug)
+                    case .event(let event):
+                        VLAsyncImage(url: event.image, height: 250)
+                    }
+                }
+                .navigationTitle("Foto")
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Cerrar") { showPhoto = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+        }
     }
 
     private var isVenue: Bool { if case .venue = item { true } else { false } }
