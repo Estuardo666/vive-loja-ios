@@ -108,7 +108,7 @@ struct TodayInLojaView: View {
             if let destination = DeepLinkRouter.destination(kind: item.kind, slug: item.slug) { router.open(destination) }
         } label: {
             VStack(alignment: .leading, spacing: 10) {
-                VLAsyncImage(url: item.image, height: hero ? 220 : 130)
+                VLAsyncImage(url: item.image, height: hero ? 220 : 130, googleVenueSlug: item.kind == "venue" ? item.slug : nil)
                     .clipped()
                 VStack(alignment: .leading, spacing: 5) {
                     Text(item.title).font(hero ? .title2.bold() : .headline).lineLimit(2)

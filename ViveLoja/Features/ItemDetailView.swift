@@ -124,10 +124,15 @@ struct ItemDetailView: View {
                     }
                 }
             } else {
-                VLAsyncImage(url: imageURL, height: 250)
+                VLAsyncImage(url: imageURL, height: 250, googleVenueSlug: googleVenueSlug)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
         }
+    }
+
+    private var googleVenueSlug: String? {
+        if case .venue(let venue) = displayedItem { return venue.slug }
+        return nil
     }
 
     /// Lives in ItemDetailSections so this type stays under the linter's body

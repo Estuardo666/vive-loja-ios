@@ -4,16 +4,30 @@ import UIKit
 struct VLAsyncImage: View {
     let url: URL?
     let height: CGFloat
+    var googleVenueSlug: String?
 
     var body: some View {
         AsyncImage(url: url) { phase in
             switch phase {
             case .success(let image): image.resizable().scaledToFill()
+            case .failure:
+                fallback
+            case .empty:
+                if url == nil { fallback } else { placeholder }
             default: Rectangle().fill(.quaternary).overlay { Image(systemName: "photo").foregroundStyle(.secondary) }
             }
         }
         .frame(maxWidth: .infinity).frame(height: height).clipped()
-        .accessibilityLabel("Imagen")
+    }
+
+    @ViewBuilder private var fallback: some View {
+        if let googleVenueSlug {
+            VLGoogleVenuePhoto(slug: googleVenueSlug, large: height >= 250, height: height)
+        } else { placeholder }
+    }
+
+    private var placeholder: some View {
+        Rectangle().fill(.quaternary).overlay { Image(systemName: "photo").foregroundStyle(.secondary) }
     }
 }
 
@@ -38,7 +52,7 @@ struct VLItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             switch item {
-            case .venue(let venue): VLAsyncImage(url: venue.image, height: 150)
+            case .venue(let venue): VLAsyncImage(url: venue.image, height: 150, googleVenueSlug: venue.slug)
             case .event(let event): VLAsyncImage(url: event.image, height: 150)
             }
             VStack(alignment: .leading, spacing: 6) {
@@ -61,7 +75,7 @@ struct VLItemCard: View {
         }
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.quaternary) }
-        .accessibilityElement(children: .ignore)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)")
         .accessibilityHint("Toca para ver el detalle")
     }
