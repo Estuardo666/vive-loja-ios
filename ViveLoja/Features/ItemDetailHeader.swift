@@ -190,3 +190,9 @@ struct VenueHoursSection: View {
         [("Lunes", hours.mon), ("Martes", hours.tue), ("Miércoles", hours.wed), ("Jueves", hours.thu), ("Viernes", hours.fri), ("Sábado", hours.sat), ("Domingo", hours.sun)]
     }
 }
+
+/// Moved here with `dayName`, its only caller. It was fileprivate in
+/// ItemDetailView, which is why the extracted section could not see it.
+private extension Array {
+    func safeValue(at index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
+}

@@ -437,10 +437,6 @@ private struct FollowingStateResponse: Decodable, Sendable {
     let following: Bool
 }
 
-private extension Array {
-    func safeValue(at index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
-}
-
 private struct ReviewRow: View {
     let review: MobileReview
     /// Set when the reader owns the listing, which turns on the reply button.
