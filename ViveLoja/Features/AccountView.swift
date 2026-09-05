@@ -207,6 +207,16 @@ struct AccountView: View {
                     }
                     .accessibilityIdentifier("appearance-link")
                 }
+                // Only administrators see this; the endpoints behind it check
+                // the role again, so hiding it is convenience, not security.
+                if model.profile?.role == "ADMIN" {
+                    Section("Administración") {
+                        NavigationLink(destination: HomeSectionsAdminView()) {
+                            Label("Pantalla de inicio", systemImage: "rectangle.3.group")
+                        }
+                        .accessibilityIdentifier("admin-home-sections-link")
+                    }
+                }
             }
             .vlScreen()
             .navigationTitle("Cuenta")

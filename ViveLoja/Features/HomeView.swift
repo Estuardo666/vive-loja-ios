@@ -5,6 +5,9 @@ import UIKit
 @MainActor
 @Observable
 final class HomeViewModel {
+    /// Server-driven composition. Empty means the backend did not send one, and
+    /// the view falls back to the sections built from the legacy payload keys.
+    var sections: [HomeSection] = []
     var featured: [ExploreItem] = HomeViewModel.fixtures
     var categories: [Category] = []
     var latestVenues: [ExploreVenue] = []
@@ -24,6 +27,7 @@ final class HomeViewModel {
         defer { isLoading = false }
         do {
             let payload: HomePayload = try await APIClient.shared.get("/home")
+            sections = (payload.sections ?? []).filter(\.isRenderable)
             let featuredVenues = payload.featuredVenues ?? payload.venues
             let featuredEvents = payload.featuredEvents ?? payload.events
             featured = featuredVenues.map(ExploreItem.venue) + featuredEvents.map(ExploreItem.event)
@@ -58,10 +62,70 @@ struct HomeView: View {
         return NavigationStack(path: $deepLinkRouter.homePath) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
-                    hero
-                    if !ProcessInfo.processInfo.arguments.contains("-uiTesting") || ProcessInfo.processInfo.arguments.contains("-uiTesting-today") {
-                        TodayInLojaView()
+                    searchEntry
+                    if model.sections.isEmpty {
+                        // No configured composition (older backend, or the very
+                        // first run before seeding): keep the previous screen.
+                        legacyHome
+                    } else {
+                        ForEach(model.sections) { section in
+                            if section.type == .todayInLoja {
+                                if showsTodayInLoja { TodayInLojaView() }
+                            } else {
+                                HomeSectionView(section: section)
+                            }
+                        }
                     }
+                }
+                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .overlay(alignment: .bottom) { mapButton }
+            .vlScreen()
+            .navigationTitle("Vive Loja")
+            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .refreshable { await model.load(accessToken: session.accessToken) }
+            .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
+        }
+    }
+
+    /// Entry point to search: the home only shows the field, the typing happens
+    /// on Explorar, which already owns the query, the filters and the map.
+    private var searchEntry: some View {
+        NavigationLink(destination: ExploreView()) {
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                Text("Descubre Loja").foregroundStyle(.secondary)
+                Spacer()
+                Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
+            }
+            .font(.body)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(VLTheme.surface, in: Capsule())
+            .overlay { Capsule().stroke(VLTheme.outline) }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Buscar en Loja")
+    }
+
+    private var mapButton: some View {
+        NavigationLink(destination: ExploreView()) {
+            Label("Mapa", systemImage: "map")
+                .font(.headline)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+        .vlGlass(tint: VLTheme.indigo.opacity(0.18), radius: 24)
+        .padding(.bottom, 12)
+        .accessibilityLabel("Abrir el mapa")
+    }
+
+    @ViewBuilder private var legacyHome: some View {
+                    hero
+                    if showsTodayInLoja { TodayInLojaView() }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Destacados", action: nil)
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -201,17 +265,6 @@ struct HomeView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(VLTheme.indigo)
-                }
-                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
-            }
-            .scrollDismissesKeyboard(.interactively)
-            .vlScreen()
-            .navigationTitle("Vive Loja")
-            .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .refreshable { await model.load(accessToken: session.accessToken) }
-            .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
-        }
     }
 
     private var hero: some View {
@@ -233,6 +286,13 @@ struct HomeView: View {
             .buttonStyle(.plain)
         }
         .padding(20).vlGlass(tint: VLTheme.indigo.opacity(0.12), radius: 26)
+    }
+
+    /// Screenshot runs skip the live "Hoy en Loja" block unless the dedicated
+    /// fixture argument asks for it.
+    private var showsTodayInLoja: Bool {
+        !ProcessInfo.processInfo.arguments.contains("-uiTesting")
+            || ProcessInfo.processInfo.arguments.contains("-uiTesting-today")
     }
 
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }

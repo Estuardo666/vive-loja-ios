@@ -561,6 +561,10 @@ struct HomePayload: Codable, Sendable {
     let popularNow: [ExploreVenue]?
     let posts: [MobilePost]?
     let promotions: [MobilePromotion]?
+    /// Server-driven composition: the ordered sections the admin configured.
+    /// Absent on older deployments, in which case the view falls back to the
+    /// fixed sections built from the keys above.
+    let sections: [HomeSection]?
 }
 
 struct MobileTag: Codable, Hashable, Sendable { let id: String; let name: String; let slug: String }
