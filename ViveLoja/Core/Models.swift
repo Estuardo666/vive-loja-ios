@@ -280,6 +280,13 @@ struct OpenState: Codable, Hashable, Sendable {
         if isOpen { return closesAt.map { "Abierto · cierra \($0)" } ?? "Abierto" }
         return opensAt.map { "Cerrado · abre \($0)" } ?? "Cerrado"
     }
+
+    /// Longer wording for the detail screen, where there is room for the whole
+    /// sentence and the state is the headline rather than a card footnote.
+    var detailLabel: String {
+        if isOpen { return closesAt.map { "Abierto ahora · Cierra a las \($0)" } ?? "Abierto ahora" }
+        return opensAt.map { "Cerrado · Abre a las \($0)" } ?? "Cerrado ahora"
+    }
 }
 
 struct ExploreVenue: Codable, Identifiable, Hashable, Sendable {
@@ -440,6 +447,17 @@ struct MobileQuestion: Codable, Identifiable, Hashable, Sendable {
     let user: MobileReviewUser?
 }
 
+/// Badge derived on the server from Google's rating and review count
+/// ("Excelente en Google", "Popular en Google"), so the app and the web page
+/// never disagree about the threshold.
+struct GoogleBadge: Decodable, Hashable, Sendable, Identifiable {
+    let type: String
+    let label: String
+    let icon: String
+
+    var id: String { type }
+}
+
 struct VenueDetail: Decodable, Sendable {
     let id: String
     let name: String
@@ -456,6 +474,13 @@ struct VenueDetail: Decodable, Sendable {
     let priceRange: String?
     let avgRating: Double?
     let reviewCount: Int
+    /// Google's rating for the place. Dropped by the server once its cached
+    /// Places row goes stale, so `nil` means "no Google rating to show", never
+    /// "zero stars". Showing it obliges us to link `googleMapsUrl`.
+    let googleRating: Double?
+    let googleReviewCount: Int?
+    let googleBadges: [GoogleBadge]?
+    let googleMapsUrl: URL?
     let verified: Bool
     /// Ownership flags. Absent on payloads from a server that predates claims,
     /// where nobody owns anything from the app's point of view.

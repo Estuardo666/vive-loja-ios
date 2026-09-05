@@ -7,7 +7,15 @@ struct MapItemPeekView: View {
     /// Starts in-map guidance; the caller owns the route because the map does.
     let onDirections: () -> Void
     @State private var showFullProfile = false
-    @State private var contentHeight: CGFloat = 220
+    /// Seeded at the height this card actually is, not at a guess. The old
+    /// 220pt default was taller than the content, and because the detent set is
+    /// re-read rather than re-selected, the sheet kept the empty strip under
+    /// the buttons for as long as it stayed open.
+    @State private var contentHeight: CGFloat = MapItemPeekView.estimatedHeight
+    @State private var detent: PresentationDetent = .height(MapItemPeekView.estimatedHeight)
+
+    /// Thumbnail row + address + button row + the paddings around them.
+    static let estimatedHeight: CGFloat = 178
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -25,6 +33,11 @@ struct MapItemPeekView: View {
             }
             Label(address, systemImage: "mappin.and.ellipse")
                 .font(.subheadline).foregroundStyle(.secondary).lineLimit(2)
+            if showsGoogleCredit {
+                // The thumbnail's own attribution capsule does not fit at 56pt,
+                // so the credit Google requires lives here instead.
+                Text("Foto de Google Maps").font(.caption2).foregroundStyle(.tertiary)
+            }
             HStack(spacing: 10) {
                 if item.coordinate != nil {
                     Button {
@@ -56,9 +69,16 @@ struct MapItemPeekView: View {
         .padding(.horizontal, 20)
         .padding(.top, 14)
         .padding(.bottom, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-        .presentationDetents([.height(contentHeight)])
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            guard abs(height - contentHeight) > 0.5 else { return }
+            contentHeight = height
+            detent = .height(height)
+        }
+        // Both the set and the selection move together: offering a new height
+        // without selecting it leaves the sheet on the previous one.
+        .presentationDetents([.height(contentHeight)], selection: $detent)
         // Presented from the peek itself so the profile opens full screen without
         // racing the sheet's own dismissal.
         .fullScreenCover(isPresented: $showFullProfile) {
@@ -74,17 +94,44 @@ struct MapItemPeekView: View {
         }
     }
 
+    /// Most venues have no image of their own and are illustrated by their
+    /// Google photo, which is what the cards and the detail screen already do.
+    /// This card used to call `AsyncImage` straight on `image`, so for those
+    /// venues it only ever showed the placeholder. The photo client keeps
+    /// results in memory for five minutes, so a pin the user has already seen
+    /// on a card opens with the picture already there.
     private var thumbnail: some View {
-        AsyncImage(url: imageURL) { image in
-            image.resizable().scaledToFill()
-        } placeholder: {
-            ZStack {
-                VLTheme.itemColor(item).opacity(0.25)
-                Image(systemName: isVenue ? "mappin" : "calendar").foregroundStyle(VLTheme.itemColor(item))
+        Group {
+            if let imageURL {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFill()
+                    case .failure: fallbackThumbnail
+                    default: placeholderThumbnail
+                    }
+                }
+            } else {
+                fallbackThumbnail
             }
         }
         .frame(width: 56, height: 56)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var fallbackThumbnail: some View {
+        if case .venue(let venue) = item {
+            VLGoogleVenuePhoto(slug: venue.slug, large: false, height: 56, showsAttribution: false)
+        } else {
+            placeholderThumbnail
+        }
+    }
+
+    private var placeholderThumbnail: some View {
+        ZStack {
+            VLTheme.itemColor(item).opacity(0.25)
+            Image(systemName: isVenue ? "mappin" : "calendar").foregroundStyle(VLTheme.itemColor(item))
+        }
     }
 
     private var badge: some View {
@@ -97,6 +144,8 @@ struct MapItemPeekView: View {
     }
 
     private var isVenue: Bool { if case .venue = item { return true }; return false }
+
+    private var showsGoogleCredit: Bool { isVenue && imageURL == nil }
 
     private var imageURL: URL? {
         switch item {

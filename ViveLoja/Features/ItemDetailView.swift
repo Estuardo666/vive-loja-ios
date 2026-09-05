@@ -30,15 +30,7 @@ struct ItemDetailView: View {
                         .font(.headline).foregroundStyle(.red).padding()
                 }
                 gallery
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(displayedItem.title).font(.largeTitle.weight(.bold))
-                    Text(location).font(.headline).foregroundStyle(.secondary)
-                    Text(description).font(.body)
-                    if let rating = averageRating {
-                        Label(String(format: "%.1f · %d reseñas", rating, reviewCount), systemImage: "star.fill")
-                            .font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.coral)
-                    }
-                }
+                headerBlock
                 actionBar
                 if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED" {
                     Button {
@@ -148,53 +140,171 @@ struct ItemDetailView: View {
         }
     }
 
-    private var actionBar: some View {
-        HStack(spacing: 12) {
-            Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
-                Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(VLTheme.indigo)
-            ShareLink(item: shareURL) { Label("Compartir", systemImage: "square.and.arrow.up") }
-                .buttonStyle(.bordered)
-            if case .venue = displayedItem, session.user != nil {
-                Button {
-                    Task { await toggleFollowing() }
-                } label: {
-                    Label(isFollowingVenue ? "Siguiendo" : "Seguir", systemImage: isFollowingVenue ? "bell.fill" : "bell")
-                }
-                .buttonStyle(.bordered)
-                .tint(VLTheme.coral)
-                .disabled(isUpdatingFollowing || session.accessToken == nil)
-                .accessibilityLabel(isFollowingVenue ? "Dejar de seguir local" : "Seguir local")
-            }
-            if case .venue(let venue) = displayedItem, let phone = venue.phone, !phone.isEmpty {
-                Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill") }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Contactar por WhatsApp")
-                // Not everyone uses WhatsApp, and a listing without a plain
-                // phone call is a directory that cannot be called.
-                if let callURL = URL(string: "tel://\(phone.filter { $0.isNumber || $0 == "+" })") {
-                    Button { openURL(callURL) } label: { Label("Llamar", systemImage: "phone.fill") }
-                        .buttonStyle(.bordered)
-                        .accessibilityLabel("Llamar al local")
-                }
-            }
-            if case .venue(let venue) = displayedItem, let website = venue.website {
-                Button { openURL(website) } label: { Label("Sitio web", systemImage: "safari") }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Abrir sitio web")
-            }
-            if session.user != nil {
-                Menu {
-                    Button("Escribir reseña", systemImage: "star") { showReviewComposer = true }
-                    Button("Hacer pregunta", systemImage: "questionmark.bubble") { showQuestionComposer = true }
-                    if case .venue = displayedItem { Button("Registrar check-in", systemImage: "checkmark.seal") { showCheckIn = true } }
-                } label: {
-                    Image(systemName: "ellipsis.circle").accessibilityLabel("Más acciones")
-                }
-            }
+    /// Title block. Every text here is width-limited on purpose: the detail
+    /// screen used to lay itself out around the action row, which is wider than
+    /// the screen, and the title was clipped on both edges as a result. The
+    /// action row now scrolls (see `actionBar`) and each text claims the full
+    /// column instead of the widest sibling.
+    private var headerBlock: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(displayedItem.title)
+                .font(.largeTitle.weight(.bold))
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(location)
+                .font(.headline).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(description)
+                .font(.body)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ratingRow
+            googleBadgeRow
+            openStateChip
         }
+    }
+
+    /// Google's rating wins over the ViveLoja average when the place has one,
+    /// the same precedence the web detail page uses. Showing Google content
+    /// obliges us to attribute it, so the row links out to the place.
+    @ViewBuilder
+    private var ratingRow: some View {
+        if let google = googleRatingValue {
+            HStack(spacing: 8) {
+                VLStarRow(rating: google)
+                Text(String(format: "%.1f", google)).font(.subheadline.weight(.semibold))
+                if let url = venueDetail?.googleMapsUrl {
+                    Link(destination: url) {
+                        Text("Google (\(googleReviewCountValue))")
+                            .font(.subheadline).foregroundStyle(VLTheme.indigo)
+                    }
+                    .accessibilityLabel("Ver \(googleReviewCountValue) reseñas en Google Maps")
+                } else {
+                    Text("Google (\(googleReviewCountValue))").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } else if let rating = averageRating {
+            HStack(spacing: 8) {
+                VLStarRow(rating: rating)
+                Text(String(format: "%.1f", rating)).font(.subheadline.weight(.semibold))
+                Text("ViveLoja (\(reviewCount))").font(.subheadline).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(String(format: "%.1f de 5, %d reseñas", rating, reviewCount))
+        }
+    }
+
+    @ViewBuilder
+    private var googleBadgeRow: some View {
+        let badges = venueDetail?.googleBadges ?? []
+        if !badges.isEmpty {
+            // At most two of these, so they sit in a plain row and wrap by
+            // shrinking rather than in a scroll view that would fight the page.
+            HStack(spacing: 8) {
+                ForEach(badges) { badge in
+                    Text("\(badge.icon)  \(badge.label)")
+                        .font(.caption.weight(.semibold))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(VLTheme.indigo.opacity(0.14), in: Capsule())
+                        .foregroundStyle(VLTheme.indigo)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// "Abierto ahora · cierra 24:00" up here, next to the name, rather than
+    /// only down in Horarios — it is the first thing a visitor checks.
+    @ViewBuilder
+    private var openStateChip: some View {
+        if let openState = venueDetail?.openState {
+            Label(openState.detailLabel, systemImage: openState.isOpen ? "clock.badge.checkmark" : "clock.badge.xmark")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .background((openState.isOpen ? Color.green : Color.secondary).opacity(0.16), in: Capsule())
+                .foregroundStyle(openState.isOpen ? Color.green : Color.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var googleRatingValue: Double? {
+        guard let rating = venueDetail?.googleRating, rating > 0 else { return nil }
+        return rating
+    }
+
+    private var googleReviewCountValue: Int { venueDetail?.googleReviewCount ?? 0 }
+
+    /// Scrolls horizontally. There are up to seven actions on a claimed venue
+    /// with a phone and a site, and a plain HStack made the whole screen wider
+    /// than the display: the title spilled past both edges and every button was
+    /// squeezed into a tall, one-letter-per-line column.
+    private var actionBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                Button { saved.toggle(displayedItem, accessToken: session.accessToken) } label: {
+                    Label(saved.contains(displayedItem) ? "Guardado" : "Guardar", systemImage: saved.contains(displayedItem) ? "heart.fill" : "heart")
+                        .vlActionLabel()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(VLTheme.indigo)
+                ShareLink(item: shareURL) { Label("Compartir", systemImage: "square.and.arrow.up").vlActionLabel() }
+                    .buttonStyle(.bordered)
+                if case .venue = displayedItem, session.user != nil {
+                    Button {
+                        Task { await toggleFollowing() }
+                    } label: {
+                        Label(isFollowingVenue ? "Siguiendo" : "Seguir", systemImage: isFollowingVenue ? "bell.fill" : "bell")
+                            .vlActionLabel()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(VLTheme.coral)
+                    .disabled(isUpdatingFollowing || session.accessToken == nil)
+                    .accessibilityLabel(isFollowingVenue ? "Dejar de seguir local" : "Seguir local")
+                }
+                if case .venue(let venue) = displayedItem, let phone = venue.phone, !phone.isEmpty {
+                    Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill").vlActionLabel() }
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("Contactar por WhatsApp")
+                    // Not everyone uses WhatsApp, and a listing without a plain
+                    // phone call is a directory that cannot be called.
+                    if let callURL = URL(string: "tel://\(phone.filter { $0.isNumber || $0 == "+" })") {
+                        Button { openURL(callURL) } label: { Label("Llamar", systemImage: "phone.fill").vlActionLabel() }
+                            .buttonStyle(.bordered)
+                            .accessibilityLabel("Llamar al local")
+                    }
+                }
+                if case .venue(let venue) = displayedItem, let website = venue.website {
+                    Button { openURL(website) } label: { Label("Sitio web", systemImage: "safari").vlActionLabel() }
+                        .buttonStyle(.bordered)
+                        .accessibilityLabel("Abrir sitio web")
+                }
+                if session.user != nil {
+                    Menu {
+                        Button("Escribir reseña", systemImage: "star") { showReviewComposer = true }
+                        Button("Hacer pregunta", systemImage: "questionmark.bubble") { showQuestionComposer = true }
+                        if case .venue = displayedItem { Button("Registrar check-in", systemImage: "checkmark.seal") { showCheckIn = true } }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.title3)
+                            .frame(height: 30)
+                            .accessibilityLabel("Más acciones")
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        // The row sits inside the screen's 20pt padding, so bleed it back out
+        // and pay the margin as a content inset: the chips then scroll edge to
+        // edge instead of stopping short of them.
+        .padding(.horizontal, -20)
+        .contentMargins(.horizontal, 20, for: .scrollContent)
+        // A horizontal ScrollView is flexible in both axes; without this it
+        // would claim vertical space the row does not need.
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder

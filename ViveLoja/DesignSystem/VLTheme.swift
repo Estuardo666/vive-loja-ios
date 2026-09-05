@@ -36,6 +36,31 @@ enum VLTheme {
     /// the same faint separation UIKit gives `secondarySystemBackground`.
     static var surface: Color { resolve(brand: (0xEEF3F5, 0x131B20), catppuccin: (0xE6E9EF, 0x313244)) }
 
+    /// Hairlines and card borders. `.quaternary` is derived from the system
+    /// grey, which reads as a foreign neutral next to Catppuccin's tinted
+    /// surfaces; this is `surface1` in the dark theme and `crust` in the light
+    /// one, the two the palette actually uses for separators.
+    static var outline: Color { resolve(brand: (0xD8E1E5, 0x243038), catppuccin: (0xDCE0E8, 0x45475A)) }
+
+    /// Bars and any chrome that must sit a step behind `surface`. Catppuccin's
+    /// `crust` in the light theme, `mantle` in the dark one.
+    static var chrome: Color { resolve(brand: (0xFFFFFF, 0x080D10), catppuccin: (0xDCE0E8, 0x181825)) }
+
+    /// MapKit has no stylesheet — the platform gives us four basemap
+    /// configurations and the light/dark appearance, nothing else. To bring the
+    /// tiles into the palette we lay this over them in `.color` blend mode,
+    /// which rotates their hue without darkening them, so street names stay as
+    /// readable as they are on the untinted map. `nil` on the brand palette,
+    /// which is what the stock basemap already looks like.
+    static var mapTint: Color? {
+        guard VLPalette.current == .catppuccin else { return nil }
+        return resolve(brand: (0x000000, 0x000000), catppuccin: (0x7287FD, 0xB4BEFE))
+    }
+
+    /// How much of `mapTint` to mix in. Enough to read as the palette, low
+    /// enough that labels keep their contrast against the tiles.
+    static let mapTintOpacity: Double = 0.22
+
     static func itemColor(_ item: ExploreItem) -> Color {
         switch item {
         case .venue: return emerald
@@ -112,5 +137,46 @@ struct VLGlassEffectContainer<Content: View>: View {
 extension View {
     func vlGlass(tint: Color? = nil, radius: CGFloat = 20) -> some View {
         modifier(VLGlassModifier(tint: tint, radius: radius))
+    }
+}
+
+/// UIKit draws the tab bar and the navigation bars, and neither reads a SwiftUI
+/// colour. Without this the Catppuccin palette stops at the edge of the content
+/// and the chrome stays system grey, which is exactly where the seam shows.
+/// Called on launch and whenever the palette changes.
+@MainActor
+enum VLBarAppearance {
+    static func apply() {
+        let background = UIColor(VLTheme.chrome)
+
+        let tab = UITabBarAppearance()
+        tab.configureWithDefaultBackground()
+        tab.backgroundColor = background
+        UITabBar.appearance().standardAppearance = tab
+        UITabBar.appearance().scrollEdgeAppearance = tab
+
+        let nav = UINavigationBarAppearance()
+        nav.configureWithDefaultBackground()
+        nav.backgroundColor = background
+        UINavigationBar.appearance().standardAppearance = nav
+        UINavigationBar.appearance().compactAppearance = nav
+        UINavigationBar.appearance().scrollEdgeAppearance = UINavigationBarAppearance().withTransparentPage()
+
+        // Existing windows keep the appearance they were built with.
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows {
+                window.rootViewController?.view.setNeedsLayout()
+            }
+        }
+    }
+}
+
+private extension UINavigationBarAppearance {
+    /// The large-title state keeps the progressive-blur header the app already
+    /// draws for itself; only the collapsed bar gets the palette background.
+    func withTransparentPage() -> UINavigationBarAppearance {
+        configureWithTransparentBackground()
+        return self
     }
 }

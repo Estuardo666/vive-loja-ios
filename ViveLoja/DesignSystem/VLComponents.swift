@@ -82,7 +82,7 @@ struct VLItemCard: View {
             .padding(12)
         }
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(.quaternary) }
+        .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(VLTheme.outline) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)\(openState.map { ", \($0.label)" } ?? "")")
         .accessibilityHint("Toca para ver el detalle")
@@ -121,5 +121,42 @@ struct VLItemCard: View {
         case .venue(let value): return value.location ?? "Loja"
         case .event(let value): return value.location ?? "Loja"
         }
+    }
+}
+
+
+/// Five stars with a half step, matching the rating row on the web detail page.
+/// Decorative: the caller states the number in its own accessibility label.
+struct VLStarRow: View {
+    let rating: Double
+    var size: CGFloat = 13
+
+    var body: some View {
+        HStack(spacing: 1) {
+            ForEach(1...5, id: \.self) { star in
+                Image(systemName: symbol(for: star))
+                    .font(.system(size: size))
+                    .foregroundStyle(VLTheme.indigo)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func symbol(for star: Int) -> String {
+        let value = rating - Double(star - 1)
+        if value >= 0.75 { return "star.fill" }
+        if value >= 0.25 { return "star.leadinghalf.filled" }
+        return "star"
+    }
+}
+
+extension View {
+    /// One line, its natural width, one fixed height. Without this a row of
+    /// bordered buttons that does not fit gets compressed into tall columns of
+    /// single letters instead of staying legible and scrolling.
+    func vlActionLabel() -> some View {
+        lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(height: 30)
     }
 }

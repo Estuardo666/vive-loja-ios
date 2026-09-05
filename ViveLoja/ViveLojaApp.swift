@@ -56,6 +56,10 @@ struct ViveLojaApp: App {
                 .environment(push)
                 .environment(theme)
                 .onOpenURL { deepLinkRouter.handle($0) }
+                // The tab and navigation bars are UIKit, so they need the
+                // palette pushed into UIAppearance rather than read from the
+                // environment. Runs on launch and on every palette change.
+                .task(id: theme.palette) { VLBarAppearance.apply() }
                 .task {
                     AppDelegate.pushService = push
                     push.attach(session: session, router: deepLinkRouter)

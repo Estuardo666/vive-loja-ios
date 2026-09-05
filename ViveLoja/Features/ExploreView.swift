@@ -104,6 +104,18 @@ struct ExploreView: View {
                 guard showMap || useNearMe, !isUITesting else { return }
                 Task { await runSearch() }
             }
+            // Most venues are illustrated by their Google photo, and the peek
+            // card is the first place that photo is asked for. Starting the
+            // fetch the moment the pin is selected means the card usually opens
+            // with the picture already decoded instead of on a placeholder.
+            .onChange(of: selectedMapItemID) { _, id in
+                guard let id,
+                      case .venue(let venue)? = model.items.first(where: { $0.id == id })
+                else { return }
+                Task.detached(priority: .userInitiated) {
+                    _ = try? await GoogleVenuePhotoClient.shared.load(slug: venue.slug, large: false)
+                }
+            }
             .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
                 if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
                     MapItemPeekView(item: item) {
@@ -299,6 +311,15 @@ struct ExploreView: View {
                     Task { await model.search(center: newRegion.center, radiusMeters: radiusMeters) }
                 }
             )
+            if let tint = VLTheme.mapTint {
+                // Hue only: see VLTheme.mapTint. Never hit-tested, so panning
+                // and pin taps go straight through to MKMapView.
+                tint
+                    .opacity(VLTheme.mapTintOpacity)
+                    .blendMode(.color)
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
+            }
             MapRadiusRing(projection: projection, isHidden: routeService.route != nil)
             if useNearMe, let message = location.errorMessage {
                 Text(message)
@@ -312,6 +333,9 @@ struct ExploreView: View {
                 ProgressView().controlSize(.small).padding(.top, headerHeight + 8).padding(.trailing, 20)
             }
         }
+        // Keeps the map tint's blend inside this stack instead of letting it
+        // colour whatever the explore screen is drawn on top of.
+        .compositingGroup()
     }
 
     // MARK: - Actions
