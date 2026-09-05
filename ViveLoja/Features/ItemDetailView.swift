@@ -71,6 +71,10 @@ struct ItemDetailView: View {
                 detailInfoSections
                 if let actionMessage { Text(actionMessage).font(.footnote).foregroundStyle(.secondary) }
             }
+            // Pins the column to the scroll view's own width. Without it the
+            // VStack sizes itself to its widest child, so a single subview
+            // that overflows drags the entire screen past the display edges.
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
         .navigationTitle("Detalle")
@@ -199,11 +203,12 @@ struct ItemDetailView: View {
             }
             .padding(.vertical, 2)
         }
-        // The row sits inside the screen's 20pt padding, so bleed it back out
-        // and pay the margin as a content inset: the chips then scroll edge to
-        // edge instead of stopping short of them.
-        .padding(.horizontal, -20)
-        .contentMargins(.horizontal, 20, for: .scrollContent)
+        // The row used to bleed out of the page margin with a negative
+        // horizontal padding, which proposes 40pt more than the screen to the
+        // scroll view and let the whole column size itself to that width: the
+        // detail screen ended up wider than the display and clipped on both
+        // edges. It now stays inside the margin.
+        //
         // A horizontal ScrollView is flexible in both axes; without this it
         // would claim vertical space the row does not need.
         .fixedSize(horizontal: false, vertical: true)
