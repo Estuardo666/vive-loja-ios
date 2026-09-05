@@ -57,8 +57,12 @@ struct VLGoogleVenuePhoto: View {
             image = nil
             photo = nil
             do {
-                guard let (metadata, data) = try await GoogleVenuePhotoClient.shared.load(slug: slug, large: large),
-                      let decoded = UIImage(data: data) else { return }
+                guard let (metadata, data) = try await GoogleVenuePhotoClient.shared.load(slug: slug, large: large) else { return }
+                guard let decoded = UIImage(data: data) else {
+                    // Undecodable bytes must not be served again from the cache.
+                    await GoogleVenuePhotoClient.shared.invalidate(slug: slug, large: large)
+                    return
+                }
                 try Task.checkCancellation()
                 photo = metadata
                 image = decoded
