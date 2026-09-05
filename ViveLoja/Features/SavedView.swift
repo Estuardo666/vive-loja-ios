@@ -51,6 +51,7 @@ struct SavedView: View {
                 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .vlScreen()
             .navigationTitle("Guardados")
             .toolbar {
                 if session.user != nil {

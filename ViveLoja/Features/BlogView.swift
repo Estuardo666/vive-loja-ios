@@ -175,6 +175,7 @@ struct ContentHubView: View {
             .padding(16)
         }
         .vlArticleSheet(post: $selectedPost)
+        .vlScreen()
         .navigationTitle("Descubre Loja")
         .refreshable { await model.load() }
         .task { if !isUITesting { await model.load() } }
@@ -239,6 +240,7 @@ struct BlogView: View {
             .padding(16)
         }
         .vlArticleSheet(post: $selectedPost)
+        .vlScreen()
         .navigationTitle("Historias de Loja")
         .refreshable { await model.load() }
         .task { await model.load() }

@@ -105,6 +105,7 @@ struct PublicCollectionView: View {
                 }
             }
         }
+        .vlScreen()
         .navigationTitle(model.collection?.name ?? "Colección")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -31,6 +31,7 @@ struct CheckInView: View {
                 }
                 .disabled(isSaving || session.accessToken == nil || location.coordinate == nil)
             }
+            .vlScreen()
             .navigationTitle("Check-in")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
             .task { location.requestCurrentLocation() }

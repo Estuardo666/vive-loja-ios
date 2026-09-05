@@ -116,7 +116,7 @@ struct RouteStepsSheet: View {
                                 }
                             }
                         }
-                        .listRowBackground(index == service.currentStepIndex ? VLTheme.indigo.opacity(0.1) : nil)
+                        .listRowBackground(index == service.currentStepIndex ? VLTheme.indigo.opacity(0.15) : VLTheme.surface)
                     }
                 } header: {
                     if let destination = service.destination {
@@ -124,6 +124,7 @@ struct RouteStepsSheet: View {
                     }
                 }
             }
+            .vlScreen()
             .navigationTitle("Indicaciones")
             .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {

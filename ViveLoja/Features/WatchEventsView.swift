@@ -21,6 +21,7 @@ struct WatchEventsView: View {
             }
             .padding(16)
         }
+        .vlScreen()
         .navigationTitle("Transmisiones")
         .refreshable { await load() }
         .task { if !isUITesting { await load() } }
@@ -108,6 +109,7 @@ struct WatchEventDetailView: View {
             }
             .padding(20)
         }
+        .vlScreen()
         .navigationTitle("Transmisión")
         .navigationBarTitleDisplayMode(.inline)
         .task { if !isUITesting { await load() } }

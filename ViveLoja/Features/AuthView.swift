@@ -53,6 +53,7 @@ struct AuthView: View {
                 }
                 .padding(20)
             }
+            .vlScreen()
             .navigationTitle("Cuenta")
         }
     }

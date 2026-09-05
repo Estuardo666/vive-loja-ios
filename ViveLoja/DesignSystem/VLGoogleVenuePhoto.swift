@@ -48,6 +48,7 @@ struct VLGoogleVenuePhoto: View {
                             } else { Text(author.displayName) }
                         }
                     }
+                    .vlScreen()
                     .navigationTitle("Foto de Google Maps")
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {

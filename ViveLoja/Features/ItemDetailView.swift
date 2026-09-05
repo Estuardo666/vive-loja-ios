@@ -77,6 +77,7 @@ struct ItemDetailView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
         }
+        .vlScreen()
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .task { if !isUITesting { await loadDetail() } }
@@ -517,6 +518,7 @@ struct OwnerReplyComposerView: View {
                     Section { Text(errorMessage).font(.subheadline).foregroundStyle(.red) }
                 }
             }
+            .vlScreen()
             .navigationTitle("Responder reseña")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -585,6 +587,7 @@ private struct ReviewComposerView: View {
                 Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }
                     .disabled(isSaving || isUploadingPhotos || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .vlScreen()
             .navigationTitle("Escribir reseña")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
         }
@@ -627,6 +630,7 @@ private struct QuestionComposerView: View {
                 Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar pregunta", systemImage: "paperplane.fill") } }
                     .disabled(isSaving || session.accessToken == nil || content.trimmingCharacters(in: .whitespacesAndNewlines).count < 5)
             }
+            .vlScreen()
             .navigationTitle("Hacer pregunta")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
         }

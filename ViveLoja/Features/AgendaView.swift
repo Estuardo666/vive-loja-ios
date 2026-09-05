@@ -55,6 +55,7 @@ struct AgendaView: View {
                 }
             }.padding(20)
         }
+        .vlScreen()
         .navigationTitle("Agenda de Loja")
         .task(id: period) { await load() }
         .refreshable { await load() }

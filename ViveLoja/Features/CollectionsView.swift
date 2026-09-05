@@ -137,6 +137,7 @@ struct CollectionsView: View {
                 }
             }
         }
+        .vlScreen()
         .navigationTitle("Mis colecciones")
         .toolbar { ToolbarItem(placement: .topBarTrailing) { if session.user != nil { Button("Nueva", systemImage: "plus") { showCreate = true } } } }
         .task { await model.load(accessToken: session.accessToken) }
@@ -152,6 +153,7 @@ struct CollectionsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+                    .vlScreen()
                     .navigationTitle("Nueva colección")
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Cancelar") { showCreate = false } }
@@ -177,6 +179,7 @@ private struct CollectionDetailView: View {
                 }
             }
         }
+        .vlScreen()
         .navigationTitle(collection.name)
     }
 }

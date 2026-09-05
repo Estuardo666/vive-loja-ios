@@ -68,6 +68,7 @@ struct ExploreFiltersView: View {
                         .keyboardType(.decimalPad)
                 }
             }
+            .vlScreen()
             .navigationTitle("Filtros")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

@@ -75,6 +75,7 @@ struct ReservationsView: View {
                 .listStyle(.insetGrouped)
             }
         }
+        .vlScreen()
         .navigationTitle("Mis reservas")
         .refreshable { await model.load(accessToken: session.accessToken) }
         .task(id: session.user?.id) { await model.load(accessToken: session.accessToken) }

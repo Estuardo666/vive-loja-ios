@@ -192,25 +192,23 @@ struct AccountView: View {
                         Text("Guarda lugares, recibe recomendaciones y publica en Loja.").font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
-                Section("Apariencia") {
-                    Picker("Paleta", selection: $theme.palette) {
-                        ForEach(VLPalette.allCases) { palette in
-                            Text(palette.label).tag(palette)
+                Section("Preferencias") {
+                    NavigationLink(destination: AppearanceView()) {
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Apariencia")
+                                Text("\(theme.palette.label) · \(theme.variation.label) · \(theme.appearance.label)")
+                                    .font(.caption)
+                                    .foregroundStyle(VLTheme.subtext)
+                            }
+                        } icon: {
+                            Image(systemName: "paintpalette")
                         }
                     }
-                    .pickerStyle(.inline)
-                    .labelsHidden()
-                    .accessibilityIdentifier("palette-picker")
-                    Text(theme.palette.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("appearance-link")
                 }
             }
-            // The palette picker sits on this list, so it is the one screen
-            // where the change has to be obvious the moment you make it.
-            .scrollContentBackground(.hidden)
-            .background(VLTheme.background)
-            .listRowBackground(VLTheme.surface)
+            .vlScreen()
             .navigationTitle("Cuenta")
             .toolbarTitleDisplayMode(.inlineLarge)
             .sheet(isPresented: $showAuth) { AuthView() }
@@ -270,6 +268,7 @@ private struct ChangePasswordView: View {
                 }
                 .disabled(!isValid || model.isSaving)
             }
+            .vlScreen()
             .navigationTitle("Seguridad")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() } } }
         }

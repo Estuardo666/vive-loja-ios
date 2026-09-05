@@ -47,9 +47,9 @@ struct ViveLojaApp: App {
         WindowGroup {
             RootView(selectedTab: $selectedTab)
                 // VLTheme resolves colours from UserDefaults, outside the
-                // SwiftUI graph, so rebuild RootView when the palette changes.
+                // SwiftUI graph, so rebuild RootView when the theme changes.
                 // Kept innermost so the .task below is not re-run by the swap.
-                .id(theme.palette)
+                .id(theme.identity)
                 .environment(session)
                 .environment(saved)
                 .environment(deepLinkRouter)
@@ -59,7 +59,7 @@ struct ViveLojaApp: App {
                 // The tab and navigation bars are UIKit, so they need the
                 // palette pushed into UIAppearance rather than read from the
                 // environment. Runs on launch and on every palette change.
-                .task(id: theme.palette) { VLBarAppearance.apply() }
+                .task(id: theme.identity) { VLBarAppearance.apply() }
                 .task {
                     AppDelegate.pushService = push
                     push.attach(session: session, router: deepLinkRouter)
@@ -76,7 +76,8 @@ struct ViveLojaApp: App {
                     guard phase == .active else { return }
                     Task { await session.refreshIfNeeded() }
                 }
-                .preferredColorScheme(uiTestingColorScheme)
+                .vlContentStyle()
+                .preferredColorScheme(uiTestingColorScheme ?? theme.appearance.colorScheme)
         }
     }
 }

@@ -64,6 +64,7 @@ struct RouteDetailView: View {
             }
             .padding(20)
         }
+        .vlScreen()
         .navigationTitle(model.route?.title ?? placeholderTitle ?? "Ruta")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -79,6 +79,7 @@ struct InterestsView: View {
                 .disabled(model.isSaving || model.selectedIDs.isEmpty)
             }
         }
+        .vlScreen()
         .navigationTitle("Mis intereses")
         .task { await model.load(accessToken: session.accessToken) }
     }

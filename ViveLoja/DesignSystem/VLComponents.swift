@@ -97,6 +97,7 @@ struct VLItemCard: View {
                         VLAsyncImage(url: event.image, height: 250)
                     }
                 }
+                .vlScreen()
                 .navigationTitle("Foto")
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {

@@ -87,6 +87,7 @@ struct MyPublicationsView: View {
         .overlay {
             if model.isLoading && !model.isEmpty { ProgressView().controlSize(.small) }
         }
+        .vlScreen()
         .navigationTitle("Mis publicaciones")
         .task(id: session.user?.id) {
             guard !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }

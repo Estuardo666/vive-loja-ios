@@ -95,6 +95,7 @@ struct CreateEventView: View {
                 Text("Tu evento quedará pendiente de revisión antes de publicarse.")
             }
         }
+        .vlScreen()
         .navigationTitle("Nuevo evento")
         .onChange(of: selectedPhoto) { _, item in
             guard let item else { return }

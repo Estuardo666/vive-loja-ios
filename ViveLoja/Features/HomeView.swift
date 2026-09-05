@@ -205,6 +205,7 @@ struct HomeView: View {
                 .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
             }
             .scrollDismissesKeyboard(.interactively)
+            .vlScreen()
             .navigationTitle("Vive Loja")
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)

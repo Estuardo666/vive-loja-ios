@@ -163,6 +163,7 @@ struct OwnerClaimView: View {
                     }
                 }
             }
+            .vlScreen()
             .navigationTitle("Reclamar negocio")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

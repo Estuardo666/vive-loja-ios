@@ -37,10 +37,20 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(account.waitForExistence(timeout: 8))
         account.tap()
 
-        let palette = app.buttons["palette-picker"].firstMatch
-        XCTAssertTrue(palette.waitForExistence(timeout: 5))
-        app.buttons["Catppuccin"].tap()
-        XCTAssertTrue(app.buttons["Catppuccin"].isSelected)
+        let appearance = app.buttons["appearance-link"].firstMatch
+        XCTAssertTrue(appearance.waitForExistence(timeout: 5))
+        appearance.tap()
+
+        let catppuccin = app.buttons["palette-catppuccin"].firstMatch
+        XCTAssertTrue(catppuccin.waitForExistence(timeout: 5))
+        catppuccin.tap()
+        XCTAssertTrue(catppuccin.isSelected)
+
+        let mocha = app.buttons["variation-mocha"].firstMatch
+        XCTAssertTrue(mocha.waitForExistence(timeout: 5))
+        mocha.tap()
+        XCTAssertTrue(mocha.isSelected)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
 
         let signIn = app.buttons["Inicia sesión o regístrate"]
         XCTAssertTrue(signIn.waitForExistence(timeout: 5))

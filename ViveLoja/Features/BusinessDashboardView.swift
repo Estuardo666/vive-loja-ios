@@ -76,6 +76,7 @@ struct BusinessDashboardView: View {
                 }
             }
         }
+        .vlScreen()
         .navigationTitle(model.insights?.venue.name ?? "Mi negocio")
         .navigationBarTitleDisplayMode(.inline)
         .overlay {

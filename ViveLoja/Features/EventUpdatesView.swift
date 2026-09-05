@@ -31,7 +31,7 @@ struct EventUpdatesView: View {
                     }
                 }
             }
-        }.navigationTitle("Cambios en eventos").task { await load() }.refreshable { await load() }
+        }.vlScreen().navigationTitle("Cambios en eventos").task { await load() }.refreshable { await load() }
     }
     @MainActor private func load() async {
         guard let token = session.accessToken else { loading = false; errorMessage = "Inicia sesión para ver tus avisos."; return }

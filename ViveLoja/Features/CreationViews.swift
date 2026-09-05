@@ -19,6 +19,7 @@ struct CreationHubView: View {
             }
             Section { Text("Todo lo que publiques queda pendiente de moderación antes de aparecer en la app.").font(.footnote).foregroundStyle(.secondary) }
         }
+        .vlScreen()
         .navigationTitle("Publicar contenido")
     }
 }
@@ -48,6 +49,7 @@ struct CreateVenueView: View {
             }
             submitSection
         }
+        .vlScreen()
         .navigationTitle("Nuevo local")
         .onChange(of: selectedPhoto) { _, item in guard let item else { return }; Task { if let data = try? await item.loadTransferable(type: Data.self) { await upload(data) } } }
     }
@@ -75,6 +77,7 @@ struct CreatePostView: View {
             Section("Artículo") { TextField("Título", text: $title); TextField("Contenido", text: $content, axis: .vertical).lineLimit(8...16); if categories.isEmpty { ProgressView("Cargando categorías…") } else { Picker("Categoría", selection: $categoryID) { Text("Selecciona una categoría").tag(""); ForEach(categories, id: \.id) { Text($0.name).tag($0.id) } } } }
             Section { if let errorMessage { Text(errorMessage).foregroundStyle(.red) }; Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }.disabled(!isValid || isSaving) }
         }
+        .vlScreen()
         .navigationTitle("Nuevo artículo")
         .task {
             if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
@@ -132,6 +135,7 @@ struct CreateRouteView: View {
             }
             Section { if let errorMessage { Text(errorMessage).foregroundStyle(.red) }; Button { Task { await save() } } label: { if isSaving { ProgressView() } else { Label("Enviar a moderación", systemImage: "paperplane.fill") } }.disabled(!isValid || isSaving) }
         }
+        .vlScreen()
         .navigationTitle("Nueva ruta")
         .toolbar { EditButton() }
     }

@@ -194,6 +194,7 @@ struct MessagesView: View {
                     .listStyle(.insetGrouped)
                 }
             }
+            .vlScreen()
             .navigationTitle("Mensajes")
             .toolbarTitleDisplayMode(.inlineLarge)
             .refreshable { await model.load(accessToken: session.accessToken) }
@@ -252,6 +253,7 @@ struct ConversationView: View {
             }
             composerBar
         }
+        .vlScreen()
         .navigationTitle(conversation.venue.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

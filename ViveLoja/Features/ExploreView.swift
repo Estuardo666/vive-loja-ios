@@ -45,6 +45,7 @@ struct ExploreView: View {
                     }
                 }
             }
+            .vlScreen()
             .navigationTitle("Explorar")
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inlineLarge)

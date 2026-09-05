@@ -98,6 +98,7 @@ struct NotificationSettingsView: View {
                 }
             }
         }
+        .vlScreen()
         .navigationTitle("Notificaciones")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
