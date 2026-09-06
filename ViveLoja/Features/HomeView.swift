@@ -61,8 +61,10 @@ struct HomeView: View {
         @Bindable var deepLinkRouter = deepLinkRouter
         return NavigationStack(path: $deepLinkRouter.homePath) {
             ScrollView {
+                // No horizontal padding here on purpose: each section applies
+                // its own, so a carousel can scroll to the edge of the screen
+                // instead of being clipped by the page margin.
                 VStack(alignment: .leading, spacing: 28) {
-                    searchEntry
                     if model.sections.isEmpty {
                         // No configured composition (older backend, or the very
                         // first run before seeding): keep the previous screen.
@@ -70,16 +72,20 @@ struct HomeView: View {
                     } else {
                         ForEach(model.sections) { section in
                             if section.type == .todayInLoja {
-                                if showsTodayInLoja { TodayInLojaView() }
+                                if showsTodayInLoja {
+                                    TodayInLojaView().padding(.horizontal, homeSectionInset)
+                                }
                             } else {
                                 HomeSectionView(section: section)
                             }
                         }
                     }
                 }
-                .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 30)
+                .padding(.top, 12).padding(.bottom, 30)
             }
             .scrollDismissesKeyboard(.interactively)
+            // Sticky: the field stays reachable however far down the page goes.
+            .safeAreaInset(edge: .top, spacing: 0) { searchBar }
             .overlay(alignment: .bottom) { mapButton }
             .vlScreen()
             .navigationTitle("Vive Loja")
@@ -123,7 +129,17 @@ struct HomeView: View {
         .accessibilityLabel("Abrir el mapa")
     }
 
+    private var searchBar: some View {
+        searchEntry
+            .padding(.horizontal, homeSectionInset)
+            .padding(.vertical, 10)
+            .background(.bar)
+    }
+
     @ViewBuilder private var legacyHome: some View {
+        // Keeps the page margin the fixed sections were written for; the
+        // configured ones apply their own.
+        VStack(alignment: .leading, spacing: 28) {
                     hero
                     if showsTodayInLoja { TodayInLojaView() }
                     VStack(alignment: .leading, spacing: 14) {
@@ -265,6 +281,8 @@ struct HomeView: View {
                     }
                     .buttonStyle(.bordered)
                     .tint(VLTheme.indigo)
+        }
+        .padding(.horizontal, homeSectionInset)
     }
 
     private var hero: some View {

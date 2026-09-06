@@ -52,12 +52,22 @@ struct HomeSectionEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var draft: Draft
     @State private var isSaving = false
+    private let categories: [Category]
     private let onSave: (HomeSectionAdminRequest) async -> Bool
 
-    init(draft: Draft, onSave: @escaping (HomeSectionAdminRequest) async -> Bool) {
+    init(
+        draft: Draft,
+        categories: [Category] = [],
+        onSave: @escaping (HomeSectionAdminRequest) async -> Bool
+    ) {
         _draft = State(initialValue: draft)
+        self.categories = categories
         self.onSave = onSave
     }
+
+    /// The shortlist is capped by the backend schema; the picker enforces the
+    /// same limit so the save cannot fail for a reason the form hid.
+    private static let maxCategorySlugs = 10
 
     var body: some View {
         Form {
@@ -124,6 +134,36 @@ struct HomeSectionEditorView: View {
                 Toggle("Con promoción activa", isOn: boolBinding(\.hasPromotion))
                 limitStepper
             }
+        case "openNow":
+            Section("Categorías") {
+                if categories.isEmpty {
+                    Text("No se pudieron cargar las categorías.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Elige hasta \(Self.maxCategorySlugs). Sin selección se muestran todas.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    ForEach(categories, id: \.id) { category in
+                        Button {
+                            toggleCategory(category.slug)
+                        } label: {
+                            HStack {
+                                Text(category.name).foregroundStyle(.primary)
+                                Spacer()
+                                if selectedCategorySlugs.contains(category.slug) {
+                                    Image(systemName: "checkmark").foregroundStyle(VLTheme.indigo)
+                                }
+                            }
+                        }
+                        .disabled(
+                            !selectedCategorySlugs.contains(category.slug)
+                                && selectedCategorySlugs.count >= Self.maxCategorySlugs
+                        )
+                    }
+                }
+                limitStepper
+            }
         case "eventList":
             Section("Filtros") {
                 TextField("Categoría (slug)", text: binding(\.categorySlug))
@@ -180,6 +220,18 @@ struct HomeSectionEditorView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    private var selectedCategorySlugs: [String] { draft.params.categorySlugs ?? [] }
+
+    private func toggleCategory(_ slug: String) {
+        var selected = selectedCategorySlugs
+        if let index = selected.firstIndex(of: slug) {
+            selected.remove(at: index)
+        } else if selected.count < Self.maxCategorySlugs {
+            selected.append(slug)
+        }
+        draft.params.categorySlugs = selected.isEmpty ? nil : selected
     }
 
     private var limitStepper: some View {

@@ -76,6 +76,13 @@ struct ItemDetailView: View {
             // that overflows drags the entire screen past the display edges.
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
+            // `frame(maxWidth:)` sets a width, it does not enforce one: a child
+            // with a larger minimum still pushes the column past the display,
+            // and the page ends up cropped on both edges. Tying the column to
+            // the scroll view's own width and clipping it keeps every overflow
+            // local to the subview that causes it.
+            .containerRelativeFrame(.horizontal)
+            .clipped()
         }
         .vlScreen()
         .navigationTitle("Detalle")

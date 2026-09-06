@@ -78,7 +78,7 @@ struct HomeSection: Codable, Identifiable, Hashable, Sendable {
 
     /// Same tolerance as `Layout`: unknown types are ignored rather than fatal.
     enum Kind: String, Codable, Sendable {
-        case hero, todayInLoja, categoryChips, venueList, eventList, ranked
+        case hero, todayInLoja, categoryChips, venueList, openNow, eventList, ranked
         case collection, promotions, posts, routes, manual
         case unknown
 

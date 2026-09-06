@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// Horizontal margin of the home column. Carousels scroll edge to edge and
+/// re-apply it as scroll content margins, so a card is never clipped by the
+/// page padding when it reaches the edge of the screen.
+let homeSectionInset: CGFloat = 20
+
 /// Renders one server-driven home section.
 ///
 /// The view knows layouts, not sections: the backend decides what a row is
@@ -50,11 +55,12 @@ struct HomeSectionView: View {
         }
         .padding(20)
         .vlGlass(tint: VLTheme.indigo.opacity(0.12), radius: 26)
+        .padding(.horizontal, homeSectionInset)
     }
 
     private var chipsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            header
+            header.padding(.horizontal, homeSectionInset)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(section.items) { item in
@@ -63,12 +69,13 @@ struct HomeSectionView: View {
                 }
                 .padding(.vertical, 2)
             }
+            .contentMargins(.horizontal, homeSectionInset, for: .scrollContent)
         }
     }
 
     private var carouselSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header
+            header.padding(.horizontal, homeSectionInset)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 14) {
                     ForEach(section.items) { item in
@@ -79,6 +86,7 @@ struct HomeSectionView: View {
                 }
                 .scrollTargetLayout()
             }
+            .contentMargins(.horizontal, homeSectionInset, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
         }
     }
@@ -86,7 +94,7 @@ struct HomeSectionView: View {
     /// "Top 10 en Loja": the same card with the position drawn over it.
     private var rankedSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header
+            header.padding(.horizontal, homeSectionInset)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
@@ -97,6 +105,7 @@ struct HomeSectionView: View {
                 }
                 .scrollTargetLayout()
             }
+            .contentMargins(.horizontal, homeSectionInset, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
         }
     }
@@ -110,6 +119,7 @@ struct HomeSectionView: View {
                 }
             }
         }
+        .padding(.horizontal, homeSectionInset)
     }
 
     private var listSection: some View {
@@ -121,6 +131,7 @@ struct HomeSectionView: View {
                 }
             }
         }
+        .padding(.horizontal, homeSectionInset)
     }
 
     // MARK: - Pieces
@@ -167,9 +178,9 @@ struct HomeItemCard: View {
                 VLAsyncImage(
                     url: item.imageUrl,
                     height: 200,
-                    googleVenueSlug: item.kind == .venue ? item.slug : nil
+                    googleVenueSlug: item.kind == .venue ? item.slug : nil,
+                    compactAttribution: true
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
                 if let badge = item.badge {
                     Text(badge)
@@ -191,6 +202,11 @@ struct HomeItemCard: View {
                         .accessibilityHidden(true)
                 }
             }
+            // The art is the widest thing on the card; clipping it here keeps
+            // the badge, the numeral and the photo credit inside the rounded
+            // rectangle instead of over the neighbouring card.
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             Text(item.title)
                 .font(.headline)

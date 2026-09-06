@@ -92,6 +92,7 @@ enum HomeSectionCatalog {
         ("todayInLoja", "Hoy en Loja"),
         ("categoryChips", "Chips de categoría"),
         ("venueList", "Locales"),
+        ("openNow", "Abiertos ahora"),
         ("eventList", "Eventos"),
         ("ranked", "Top / Ranking"),
         ("collection", "Colección"),

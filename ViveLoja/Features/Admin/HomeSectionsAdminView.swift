@@ -10,6 +10,9 @@ import SwiftUI
 @Observable
 final class HomeSectionsAdminViewModel {
     var sections: [HomeSectionAdmin] = []
+    /// Fed to the editor's category picker. They come from the public home
+    /// payload, which already returns them, rather than a new admin endpoint.
+    var categories: [Category] = []
     var isLoading = false
     var errorMessage: String?
 
@@ -27,6 +30,9 @@ final class HomeSectionsAdminViewModel {
                 "/admin/home-sections", bearer: accessToken
             )
             sections = response.sections
+            if categories.isEmpty, let payload: HomePayload = try? await APIClient.shared.get("/home") {
+                categories = payload.categories
+            }
             errorMessage = nil
         } catch {
             errorMessage = message(for: error)
@@ -178,7 +184,7 @@ struct HomeSectionsAdminView: View {
         }
         .sheet(item: $editing) { draft in
             NavigationStack {
-                HomeSectionEditorView(draft: draft) { request in
+                HomeSectionEditorView(draft: draft, categories: model.categories) { request in
                     await model.save(request, editing: draft.id)
                 }
             }
@@ -213,6 +219,9 @@ struct HomeSectionsAdminView: View {
     private func summary(for section: HomeSectionAdmin) -> String? {
         var parts: [String] = []
         if let categorySlug = section.params.categorySlug { parts.append(categorySlug) }
+        if let slugs = section.params.categorySlugs, !slugs.isEmpty {
+            parts.append("\(slugs.count) categorías")
+        }
         if let slug = section.params.slug { parts.append(slug) }
         if section.params.featured == true { parts.append("destacados") }
         if let sort = section.params.sort { parts.append(sort) }

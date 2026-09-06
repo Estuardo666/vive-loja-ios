@@ -9,9 +9,16 @@ struct VLGoogleVenuePhoto: View {
     /// The author capsule does not fit on a thumbnail. Callers that turn it off
     /// must credit Google Maps themselves somewhere on the same card.
     var showsAttribution = true
+    /// Small cards have no room for the author list, but Google still has to be
+    /// credited on the card, so the capsule shrinks to the source alone.
+    var compactAttribution = false
     @State private var image: UIImage?
     @State private var photo: GoogleVenuePhoto?
     @State private var showAttribution = false
+
+    private func attributionText(for photo: GoogleVenuePhoto) -> String {
+        compactAttribution ? "Google Maps" : (["Google Maps"] + photo.authors.map(\.displayName)).joined(separator: " · ")
+    }
 
     var body: some View {
         Group {
@@ -21,9 +28,10 @@ struct VLGoogleVenuePhoto: View {
                     .overlay(alignment: .bottomLeading) {
                         if showsAttribution {
                             Button { showAttribution = true } label: {
-                                Text((["Google Maps"] + photo.authors.map(\.displayName)).joined(separator: " · "))
+                                Text(attributionText(for: photo))
                                     .font(.caption.weight(.medium)).foregroundStyle(.white)
-                                    .fixedSize(horizontal: false, vertical: true)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                                     .padding(8).background(.black.opacity(0.8), in: Capsule())
                             }
                             .buttonStyle(.borderless)
@@ -32,6 +40,10 @@ struct VLGoogleVenuePhoto: View {
                         }
                     }
                     .accessibilityLabel("Foto de Google Maps, \(photo.authors.map(\.displayName).joined(separator: ", "))")
+                    // The capsule is an overlay, and an overlay is not clipped
+                    // by the view it decorates: on a card it used to spill over
+                    // the neighbouring one.
+                    .clipped()
             } else {
                 Rectangle().fill(.quaternary)
                     .overlay { Image(systemName: "photo").foregroundStyle(.secondary) }

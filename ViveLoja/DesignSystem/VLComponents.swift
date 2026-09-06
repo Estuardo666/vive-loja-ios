@@ -5,6 +5,9 @@ struct VLAsyncImage: View {
     let url: URL?
     let height: CGFloat
     var googleVenueSlug: String?
+    /// Card-sized images credit Google with the short capsule; full-width ones
+    /// have room for the authors.
+    var compactAttribution = false
 
     var body: some View {
         AsyncImage(url: url) { phase in
@@ -22,7 +25,12 @@ struct VLAsyncImage: View {
 
     @ViewBuilder private var fallback: some View {
         if let googleVenueSlug {
-            VLGoogleVenuePhoto(slug: googleVenueSlug, large: height >= 250, height: height)
+            VLGoogleVenuePhoto(
+                slug: googleVenueSlug,
+                large: height >= 250,
+                height: height,
+                compactAttribution: compactAttribution
+            )
         } else { placeholder }
     }
 
