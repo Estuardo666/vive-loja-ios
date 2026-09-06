@@ -5,12 +5,29 @@ struct RootView: View {
     @Binding var selectedTab: MainTabView.Tab
     @Environment(SessionStore.self) private var session
     @State private var showAuth = false
+    @State private var home = HomeViewModel()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var isStarting: Bool { session.isRestoring || !home.initialLoadFinished }
 
     var body: some View {
         @Bindable var session = session
         Group {
-            if session.isRestoring { ProgressView("Cargando Vive Loja…") }
-            else { MainTabView(selectedTab: $selectedTab) }
+            if isStarting { VLLaunchSplash().transition(.opacity) }
+            else { MainTabView(selectedTab: $selectedTab, home: home).transition(.opacity) }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: isStarting)
+        .task(id: session.isRestoring) {
+            guard !session.isRestoring, !home.initialLoadFinished else { return }
+            let model = home
+            let token = session.accessToken
+            // A disconnected request must not hold the launch screen indefinitely.
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { await model.load(accessToken: token) }
+                group.addTask { try? await Task.sleep(for: .seconds(12)) }
+                await group.next()
+                group.cancelAll()
+            }
         }
         .tint(VLTheme.indigo)
         .alert("Sesión vencida", isPresented: $session.isSessionExpired) {
@@ -29,13 +46,14 @@ struct MainTabView: View {
     @Environment(SessionStore.self) private var session
     /// Owned by the app so a palette change cannot reset it. See ViveLojaApp.
     @Binding var selectedTab: Tab
+    let home: HomeViewModel
     @State private var avatarIcon: UIImage?
 
     enum Tab: Hashable { case home, explore, saved, messages, account }
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView().tabItem { Label("Inicio", systemImage: "house.fill") }.tag(Tab.home)
+            HomeView(model: home).tabItem { Label("Inicio", systemImage: "house.fill") }.tag(Tab.home)
             ExploreView().tabItem { Label("Explorar", systemImage: "map.fill") }.tag(Tab.explore)
             SavedView().tabItem { Label("Guardados", systemImage: "heart.fill") }.tag(Tab.saved)
             MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)

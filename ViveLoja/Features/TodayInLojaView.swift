@@ -49,7 +49,7 @@ final class TodayViewModel {
 }
 
 struct TodayInLojaView: View {
-    @State private var model = TodayViewModel()
+    @State var model = TodayViewModel()
     @Environment(DeepLinkRouter.self) private var router
     @Environment(\.scenePhase) private var scenePhase
     @ScaledMetric(relativeTo: .body) private var eventPageHeight: CGFloat = 430
@@ -92,7 +92,7 @@ struct TodayInLojaView: View {
         }
         .accessibilityIdentifier("today-in-loja")
         .task {
-            await model.load()
+            if model.payload == nil && model.errorMessage == nil { await model.load() }
             while !Task.isCancelled {
                 do { try await Task.sleep(for: .seconds(60)) } catch { return }
                 if scenePhase == .active { await model.load() }

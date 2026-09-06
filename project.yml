@@ -47,7 +47,7 @@ targets:
         INFOPLIST_KEY_VL_API_BASE_URL: "$(VL_API_BASE_URL)"
         INFOPLIST_KEY_VL_APS_ENVIRONMENT: "$(VL_APS_ENVIRONMENT)"
         SWIFT_EMIT_LOC_STRINGS: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait

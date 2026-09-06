@@ -8,7 +8,7 @@ final class HomeViewModel {
     /// Server-driven composition. Empty means the backend did not send one, and
     /// the view falls back to the sections built from the legacy payload keys.
     var sections: [HomeSection] = []
-    var featured: [ExploreItem] = HomeViewModel.fixtures
+    var featured: [ExploreItem] = []
     var categories: [Category] = []
     var latestVenues: [ExploreVenue] = []
     var relatedEvents: [ExploreEvent] = []
@@ -18,16 +18,36 @@ final class HomeViewModel {
     var recommendations: MobileRecommendations?
     var isLoading = false
     var errorMessage: String?
+    var hasLoaded = false
+    var initialLoadFinished = false
+    let today = TodayViewModel()
+
+    init() {
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") {
+            featured = Self.fixtures
+            hasLoaded = true
+            initialLoadFinished = true
+        }
+    }
 
     // Fixtures must not move with the wall clock so UI screenshots remain comparable.
     private static let fixtureEventDate = Date(timeIntervalSince1970: 1_800_000_000)
 
     func load(accessToken: String? = nil) async {
+        guard !isLoading else { return }
         isLoading = true
-        defer { isLoading = false }
+        errorMessage = nil
+        defer { isLoading = false; initialLoadFinished = true }
         do {
+            async let personal = loadRecommendations(accessToken: accessToken)
             let payload: HomePayload = try await APIClient.shared.get("/home")
-            sections = (payload.sections ?? []).filter(\.isRenderable)
+            // Resolve variable-height modules before publishing the composition.
+            let composition = (payload.sections ?? []).filter(\.isRenderable)
+            if composition.isEmpty || composition.contains(where: { $0.type == .todayInLoja }) {
+                await today.load()
+            }
+            let nextRecommendations = await personal
+            sections = composition
             let featuredVenues = payload.featuredVenues ?? payload.venues
             let featuredEvents = payload.featuredEvents ?? payload.events
             featured = featuredVenues.map(ExploreItem.venue) + featuredEvents.map(ExploreItem.event)
@@ -37,12 +57,16 @@ final class HomeViewModel {
             popularNow = payload.popularNow ?? []
             posts = payload.posts ?? []
             promotions = payload.promotions ?? []
-            if let accessToken {
-                recommendations = try? await APIClient.shared.get("/me/recommendations", bearer: accessToken)
-            } else {
-                recommendations = nil
-            }
-        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+            recommendations = nextRecommendations
+            hasLoaded = true
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No pudimos cargar el inicio. Inténtalo de nuevo."
+        }
+    }
+
+    private func loadRecommendations(accessToken: String?) async -> MobileRecommendations? {
+        guard let accessToken else { return nil }
+        return try? await APIClient.shared.get("/me/recommendations", bearer: accessToken)
     }
 
     static let fixtures: [ExploreItem] = [
@@ -52,7 +76,7 @@ final class HomeViewModel {
 }
 
 struct HomeView: View {
-    @State private var model = HomeViewModel()
+    let model: HomeViewModel
     @Environment(SessionStore.self) private var session
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -65,7 +89,17 @@ struct HomeView: View {
                 // its own, so a carousel can scroll to the edge of the screen
                 // instead of being clipped by the page margin.
                 VStack(alignment: .leading, spacing: 28) {
-                    if model.sections.isEmpty {
+                    if !model.hasLoaded {
+                        ContentUnavailableView {
+                            Label("No pudimos cargar el inicio", systemImage: "wifi.exclamationmark")
+                        } description: {
+                            Text(model.errorMessage ?? "Comprueba tu conexión e inténtalo de nuevo.")
+                        } actions: {
+                            Button("Reintentar") { Task { await model.load(accessToken: session.accessToken) } }
+                                .disabled(model.isLoading)
+                            if model.isLoading { ProgressView() }
+                        }
+                    } else if model.sections.isEmpty {
                         // No configured composition (older backend, or the very
                         // first run before seeding): keep the previous screen.
                         legacyHome
@@ -73,7 +107,7 @@ struct HomeView: View {
                         ForEach(model.sections) { section in
                             if section.type == .todayInLoja {
                                 if showsTodayInLoja {
-                                    TodayInLojaView().padding(.horizontal, homeSectionInset)
+                                    TodayInLojaView(model: model.today).padding(.horizontal, homeSectionInset)
                                 }
                             } else {
                                 HomeSectionView(section: section)
@@ -88,11 +122,15 @@ struct HomeView: View {
             .safeAreaInset(edge: .top, spacing: 0) { searchBar }
             .overlay(alignment: .bottom) { mapButton }
             .vlScreen()
-            .navigationTitle("Vive Loja")
+            .navigationTitle("")
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VLBrandLogo(side: 42)
+                }
+            }
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
-            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbarTitleDisplayMode(.inline)
             .refreshable { await model.load(accessToken: session.accessToken) }
-            .task { if !isUITesting { await model.load(accessToken: session.accessToken) } }
         }
     }
 
@@ -141,7 +179,7 @@ struct HomeView: View {
         // configured ones apply their own.
         VStack(alignment: .leading, spacing: 28) {
                     hero
-                    if showsTodayInLoja { TodayInLojaView() }
+                    if showsTodayInLoja { TodayInLojaView(model: model.today) }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Destacados", action: nil)
                         ScrollView(.horizontal, showsIndicators: false) {
@@ -312,8 +350,6 @@ struct HomeView: View {
         !ProcessInfo.processInfo.arguments.contains("-uiTesting")
             || ProcessInfo.processInfo.arguments.contains("-uiTesting-today")
     }
-
-    private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
 
     private var categoryColumns: [GridItem] {
         Array(
