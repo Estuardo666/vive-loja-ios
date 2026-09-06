@@ -22,6 +22,9 @@ struct ExploreView: View {
     @State private var showRouteSteps = false
     @State private var projection = MapProjection()
     @State private var headerHeight: CGFloat = 0
+    /// Guards the "search this area" reaction while the map is being moved by
+    /// the preview rail rather than by the user's finger.
+    @State private var suppressAreaSearchUntil = Date.distantPast
 
     private static let radiusSteps: [CLLocationDistance] = [100, 500, 1_000, 2_000, 3_000, 5_000]
 
@@ -30,6 +33,23 @@ struct ExploreView: View {
         return NavigationStack(path: $deepLinkRouter.explorePath) {
             ZStack(alignment: .top) {
                 content
+                // The rail is part of the map rather than something presented
+                // over it: it stays up while the user pans, and it is what a
+                // tapped pin scrolls to. Its selection is the map's selection.
+                // It lives here, outside the map's `ignoresSafeArea`, so it
+                // clears the tab bar.
+                if showMap, !model.items.isEmpty, routeService.destination == nil {
+                    VStack {
+                        Spacer()
+                        MapCardCarouselView(
+                            items: model.items,
+                            selectedID: $selectedMapItemID,
+                            onDirections: { item in Task { await startRoute(to: item) } }
+                        )
+                        .padding(.bottom, 12)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
                 header
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
                 if routeService.destination != nil {
@@ -46,28 +66,10 @@ struct ExploreView: View {
                 }
             }
             .vlScreen()
-            .navigationTitle("Explorar")
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
-            .toolbarTitleDisplayMode(.inlineLarge)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showFilters = true } label: {
-                        Label(
-                            model.activeFilterCount > 0 ? "Filtros \(model.activeFilterCount)" : "Filtros",
-                            systemImage: model.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
-                        )
-                    }
-                    .accessibilityLabel("Filtros de exploración")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
-                    } label: {
-                        Image(systemName: showMap ? "list.bullet" : "map")
-                    }
-                    .accessibilityLabel(showMap ? "Ver lista" : "Ver mapa")
-                }
-            }
+            // The screen's own header carries the search field and its actions,
+            // so the navigation bar would only add a second, emptier one.
+            .toolbar(.hidden, for: .navigationBar)
             .task {
                 guard !isUITesting else { return }
                 // Explore opens on the map, so ask for the position up front
@@ -105,25 +107,27 @@ struct ExploreView: View {
                 guard showMap || useNearMe, !isUITesting else { return }
                 Task { await runSearch() }
             }
-            // Most venues are illustrated by their Google photo, and the peek
-            // card is the first place that photo is asked for. Starting the
-            // fetch the moment the pin is selected means the card usually opens
-            // with the picture already decoded instead of on a placeholder.
+            // Most venues are illustrated by their Google photo, and the rail
+            // is the first place that photo is asked for. Starting the fetch as
+            // the pin is selected means the card usually scrolls in with the
+            // picture already decoded instead of on a placeholder.
             .onChange(of: selectedMapItemID) { _, id in
-                guard let id,
-                      case .venue(let venue)? = model.items.first(where: { $0.id == id })
-                else { return }
+                guard let id, let item = model.items.first(where: { $0.id == id }) else { return }
+                // Swiping the rail is also a way of moving around the map, so
+                // the camera follows the card that is in view. The radius is
+                // kept, so only the centre moves.
+                if let coordinate = item.coordinate {
+                    let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
+                    // Re-searching the area the card just centred would swap the
+                    // results out from under the rail the user is swiping.
+                    suppressAreaSearchUntil = .now.addingTimeInterval(1.5)
+                    withAnimation(reduceMotion ? nil : Animation.snappy) {
+                        mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters)
+                    }
+                }
+                guard case .venue(let venue) = item else { return }
                 Task.detached(priority: .userInitiated) {
                     _ = try? await GoogleVenuePhotoClient.shared.load(slug: venue.slug, large: false)
-                }
-            }
-            .sheet(isPresented: Binding(get: { selectedMapItemID != nil }, set: { if !$0 { selectedMapItemID = nil } })) {
-                if let selectedMapItemID, let item = model.items.first(where: { $0.id == selectedMapItemID }) {
-                    MapItemPeekView(item: item) {
-                        self.selectedMapItemID = nil
-                        Task { await startRoute(to: item) }
-                    }
-                    .presentationDragIndicator(.visible)
                 }
             }
             .sheet(isPresented: $showRouteSteps) {
@@ -151,7 +155,7 @@ struct ExploreView: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            searchBar
+            topRow
             Picker("Tipo", selection: $model.type) {
                 Text("Todo").tag("all"); Text("Locales").tag("venues"); Text("Eventos").tag("events")
             }
@@ -164,14 +168,9 @@ struct ExploreView: View {
         .vlProgressiveHeaderBackground()
     }
 
-    /// Quick category chips on the left, map controls on the right.
-    ///
-    /// The chips used to be `.scrollClipDisabled()`, which let them keep
-    /// drawing past their own bounds — so scrolling slid them underneath the
-    /// glass map controls instead of stopping beside them. They clip now, and
-    /// the controls hold their width: `mapControls` is built from fixed 34pt
-    /// frames, so the priority keeps the scroll view from squeezing it out of
-    /// the row when there are a lot of categories.
+    /// Quick category chips. The map controls used to share this row and had to
+    /// be defended from it; they float over the map now, so the chips get the
+    /// full width and only need to clip at the trailing fade.
     private var controlRow: some View {
         HStack(spacing: 8) {
             ScrollView(.horizontal, showsIndicators: false) {
@@ -192,15 +191,13 @@ struct ExploreView: View {
             // stop hard against them.
             .contentMargins(.trailing, 10, for: .scrollContent)
             .mask(chipFade)
-            mapControls
-                .padding(.trailing, 16)
-                .layoutPriority(1)
         }
     }
 
-    /// Near-me, radius and basemap style, all the same size and side by side.
+    /// Near-me, radius and basemap style. Stacked on the right edge of the map
+    /// so the header only carries search, filters and the list switch.
     private var mapControls: some View {
-        HStack(spacing: 6) {
+        VStack(spacing: 8) {
             Button {
                 useNearMe.toggle()
                 if useNearMe {
@@ -244,31 +241,6 @@ struct ExploreView: View {
         }
     }
 
-    /// One size for every map control, so the row reads as a single unit.
-    private func controlLabel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        content()
-            .font(.subheadline.weight(.semibold))
-            .frame(width: 34, height: 30)
-    }
-
-    private var searchBar: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-            TextField("Lugares, eventos, direcciones…", text: $model.query)
-                .submitLabel(.search).onSubmit { Task { await runSearch() } }
-            if !model.query.isEmpty {
-                Button {
-                    model.query = ""
-                    Task { await runSearch() }
-                } label: {
-                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(12).vlGlass(radius: 16).padding(.horizontal, 16)
-        .accessibilityIdentifier("explore-search")
-    }
-
     private var list: some View {
         ScrollView {
             LazyVStack(spacing: 14) {
@@ -308,6 +280,9 @@ struct ExploreView: View {
                 isGuiding: routeService.isGuiding,
                 onRegionChange: { newRegion in
                     guard showMap, !useNearMe, !isUITesting else { return }
+                    // The rail moves the camera too; that is following a result,
+                    // not asking for new ones.
+                    guard Date.now >= suppressAreaSearchUntil else { return }
                     searchCenter = newRegion.center
                     Task { await model.search(center: newRegion.center, radiusMeters: radiusMeters) }
                 }
@@ -331,8 +306,12 @@ struct ExploreView: View {
                     .padding(.top, headerHeight + 8)
             }
             if location.isRequesting {
-                ProgressView().controlSize(.small).padding(.top, headerHeight + 8).padding(.trailing, 20)
+                // Left of the control stack, which now owns the trailing edge.
+                ProgressView().controlSize(.small).padding(.top, headerHeight + 22).padding(.trailing, 66)
             }
+            mapControls
+                .padding(.trailing, 14)
+                .padding(.top, headerHeight + 12)
         }
         // Keeps the map tint's blend inside this stack instead of letting it
         // colour whatever the explore screen is drawn on top of.
@@ -392,6 +371,95 @@ struct ExploreView: View {
 // Chip builders for the control row. Kept in an extension so ExploreView's
 // own body stays within the linter's type body limit.
 private extension ExploreView {
+    /// Touch-target sized twin of `controlLabel` for the buttons that sit
+    /// beside the search field, so the whole row is one 44pt band.
+    private func headerLabel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .font(.subheadline.weight(.semibold))
+            .frame(width: 44, height: 44)
+    }
+
+    /// One size for every map control, so the stack reads as a single unit.
+    private func controlLabel<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        content()
+            .font(.subheadline.weight(.semibold))
+            .frame(width: 40, height: 40)
+    }
+
+    /// Back (only when there is something to go back from), search, filters and
+    /// the map/list switch — the whole top of the screen in one row.
+    private var topRow: some View {
+        HStack(spacing: 10) {
+            if showsBackButton {
+                Button { resetExplore() } label: {
+                    headerLabel { Image(systemName: "chevron.left") }
+                }
+                .vlGlass(radius: 16)
+                .accessibilityIdentifier("explore-back")
+                .accessibilityLabel("Limpiar búsqueda")
+                .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+            searchBar
+            Button { showFilters = true } label: {
+                headerLabel {
+                    Image(systemName: model.activeFilterCount > 0 ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+            .vlGlass(tint: model.activeFilterCount > 0 ? VLTheme.indigo : nil, radius: 16)
+            .foregroundStyle(model.activeFilterCount > 0 ? Color.white : Color.primary)
+            .accessibilityIdentifier("explore-filters")
+            .accessibilityLabel(model.activeFilterCount > 0 ? "Filtros, \(model.activeFilterCount) activos" : "Filtros de exploración")
+
+            Button {
+                if reduceMotion { showMap.toggle() } else { withAnimation(.snappy) { showMap.toggle() } }
+            } label: {
+                headerLabel { Image(systemName: showMap ? "list.bullet" : "map") }
+            }
+            .vlGlass(radius: 16)
+            .accessibilityLabel(showMap ? "Ver lista" : "Ver mapa")
+        }
+        .padding(.horizontal, 16)
+        .animation(reduceMotion ? nil : .snappy, value: showsBackButton)
+    }
+
+    /// Nothing is pushed on top of Explore at the root, so the arrow stands for
+    /// the state the user built up: a query, active filters or a selected pin.
+    private var showsBackButton: Bool {
+        !model.query.isEmpty || model.activeFilterCount > 0 || selectedMapItemID != nil
+    }
+
+    private func resetExplore() {
+        selectedMapItemID = nil
+        model.query = ""
+        model.type = "all"
+        model.resetFilters()
+        Task { await runSearch() }
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+            ZStack(alignment: .leading) {
+                if model.query.isEmpty { RotatingSearchPlaceholder() }
+                TextField("", text: $model.query)
+                    .submitLabel(.search).onSubmit { Task { await runSearch() } }
+                    .accessibilityIdentifier("explore-search")
+                    .accessibilityLabel("Buscar lugares, eventos y direcciones")
+            }
+            if !model.query.isEmpty {
+                Button {
+                    model.query = ""
+                    Task { await runSearch() }
+                } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 44)
+        .vlGlass(radius: 16)
+    }
+
 /// Softens the edge the chips now clip against. A fixed-width ramp rather
     /// than a percentage, so the fade looks the same whatever the row's width
     /// works out to once the map controls have taken theirs.

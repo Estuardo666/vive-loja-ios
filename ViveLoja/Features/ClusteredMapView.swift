@@ -112,7 +112,16 @@ struct ClusteredMapView: UIViewRepresentable {
         context.coordinator.applyGuidance(isGuiding, to: mapView)
         context.coordinator.refreshUserAvatar(on: mapView, url: userPhotoURL)
 
-        if selectedItemID == nil, !mapView.selectedAnnotations.isEmpty {
+        // Selection travels both ways: the preview rail can pick an item that
+        // was never tapped on the map, so the pin has to be brought up to match.
+        if let selectedItemID {
+            let isCurrent = mapView.selectedAnnotations.contains { ($0 as? MapItemAnnotation)?.id == selectedItemID }
+            if !isCurrent, let annotation = mapView.annotations
+                .compactMap({ $0 as? MapItemAnnotation })
+                .first(where: { $0.id == selectedItemID }) {
+                mapView.selectAnnotation(annotation, animated: true)
+            }
+        } else if !mapView.selectedAnnotations.isEmpty {
             mapView.selectedAnnotations.forEach { mapView.deselectAnnotation($0, animated: false) }
         }
 
@@ -241,6 +250,10 @@ struct ClusteredMapView: UIViewRepresentable {
                 return
             }
             guard let item = view.annotation as? MapItemAnnotation else { return }
+            // Also reached when `updateUIView` selects the pin the rail just
+            // scrolled to; writing the value back then would be a state change
+            // in the middle of a view update.
+            guard parent.selectedItemID != item.id else { return }
             parent.selectedItemID = item.id
         }
 
