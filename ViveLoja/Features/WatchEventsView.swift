@@ -40,7 +40,7 @@ private struct WatchEventCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VLAsyncImage(url: event.image, height: 86).frame(width: 112)
+            VLAsyncImage(url: event.image, height: 86, width: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             VStack(alignment: .leading, spacing: 5) {
                 Text(event.name).font(.headline).lineLimit(2)

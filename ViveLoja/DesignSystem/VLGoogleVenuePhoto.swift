@@ -6,6 +6,9 @@ struct VLGoogleVenuePhoto: View {
     let slug: String
     let large: Bool
     let height: CGFloat
+    /// Set inside carousels, where an unconstrained image draws over the card
+    /// next to it. See `VLAsyncImage`.
+    var width: CGFloat?
     /// The author capsule does not fit on a thumbnail. Callers that turn it off
     /// must credit Google Maps themselves somewhere on the same card.
     var showsAttribution = true
@@ -24,7 +27,9 @@ struct VLGoogleVenuePhoto: View {
         Group {
             if let image, let photo {
                 Image(uiImage: image).resizable().scaledToFill()
-                    .frame(maxWidth: .infinity).frame(height: height).clipped()
+                    .frame(maxWidth: width ?? .infinity)
+                    .frame(width: width, height: height)
+                    .clipped()
                     .overlay(alignment: .bottomLeading) {
                         if showsAttribution {
                             Button { showAttribution = true } label: {

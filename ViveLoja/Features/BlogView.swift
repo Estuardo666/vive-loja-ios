@@ -148,7 +148,7 @@ struct ContentHubView: View {
                     ForEach(model.watchEvents) { event in
                         NavigationLink(destination: WatchEventDetailView(event: event)) {
                             HStack(spacing: 12) {
-                                VLAsyncImage(url: event.image, height: 64).frame(width: 92)
+                                VLAsyncImage(url: event.image, height: 64, width: 92)
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(event.name).font(.headline).lineLimit(2)

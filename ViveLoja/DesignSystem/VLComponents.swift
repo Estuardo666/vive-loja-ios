@@ -1,9 +1,17 @@
 import SwiftUI
 import UIKit
 
+/// Image box of a fixed size.
+///
+/// `width` matters inside horizontal scroll views: there SwiftUI proposes no
+/// width, `maxWidth: .infinity` resolves to the picture's own ideal size, and an
+/// outer `.frame(width:)` only reports a narrower box while the picture keeps
+/// drawing past it — over the neighbouring card. Passing the width in means the
+/// clip happens around the real bounds.
 struct VLAsyncImage: View {
     let url: URL?
     let height: CGFloat
+    var width: CGFloat?
     var googleVenueSlug: String?
     /// Card-sized images credit Google with the short capsule; full-width ones
     /// have room for the authors.
@@ -20,7 +28,9 @@ struct VLAsyncImage: View {
             default: Rectangle().fill(.quaternary).overlay { Image(systemName: "photo").foregroundStyle(.secondary) }
             }
         }
-        .frame(maxWidth: .infinity).frame(height: height).clipped()
+        .frame(maxWidth: width ?? .infinity)
+        .frame(width: width, height: height)
+        .clipped()
     }
 
     @ViewBuilder private var fallback: some View {
@@ -29,6 +39,7 @@ struct VLAsyncImage: View {
                 slug: googleVenueSlug,
                 large: height >= 250,
                 height: height,
+                width: width,
                 compactAttribution: compactAttribution
             )
         } else { placeholder }

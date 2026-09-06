@@ -225,8 +225,7 @@ struct VenueProductsSection: View {
                 Text("Productos").font(.title2.weight(.semibold))
                 ForEach(available) { product in
                     HStack(spacing: 10) {
-                        VLAsyncImage(url: product.image, height: 56)
-                            .frame(width: 72)
+                        VLAsyncImage(url: product.image, height: 56, width: 72)
                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         VStack(alignment: .leading, spacing: 3) {
                             Text(product.name).font(.subheadline.weight(.semibold))

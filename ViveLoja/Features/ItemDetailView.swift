@@ -120,8 +120,7 @@ struct ItemDetailView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(detailMedia) { media in
-                            VLAsyncImage(url: media.url, height: 250)
-                                .frame(width: 330)
+                            VLAsyncImage(url: media.url, height: 250, width: 330)
                                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                                 .accessibilityLabel(media.alt ?? "Fotografía de \(displayedItem.title)")
                         }
@@ -468,7 +467,7 @@ private struct ReviewRow: View {
             if let content = review.content { Text(content).font(.subheadline).foregroundStyle(.secondary) }
             if !review.photos.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72).frame(width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
+                    HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72, width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
                 }
             }
 

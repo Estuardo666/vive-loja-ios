@@ -80,7 +80,7 @@ struct HomeSectionView: View {
                 LazyHStack(spacing: 14) {
                     ForEach(section.items) { item in
                         HomeItemLink(item: item) {
-                            HomeItemCard(item: item).frame(width: cardWidth)
+                            HomeItemCard(item: item, width: cardWidth)
                         }
                     }
                 }
@@ -99,7 +99,7 @@ struct HomeSectionView: View {
                 LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                         HomeItemLink(item: item) {
-                            HomeItemCard(item: item, rank: index + 1).frame(width: cardWidth)
+                            HomeItemCard(item: item, rank: index + 1, width: cardWidth)
                         }
                     }
                 }
@@ -168,63 +168,88 @@ private struct HomeItemLink<Content: View>: View {
 }
 
 /// Fever-style card: square art, badge over the image, then title, meta, price.
+///
+/// The card takes its width as a value rather than inheriting one. Inside a
+/// horizontal scroll view SwiftUI proposes no width at all, and a subview that
+/// asks for `.infinity` — the artwork, the rank numeral — answers with its own
+/// ideal size instead. An outer `.frame(width:)` only *reports* the card as
+/// narrow; the oversized child keeps drawing at full size and spills over the
+/// next card. Sizing the art here, and hanging the badge and the numeral off it
+/// as overlays so they take part in no layout at all, is what keeps a card
+/// inside its own bounds.
 struct HomeItemCard: View {
     let item: HomeItem
     var rank: Int?
+    /// `nil` in a grid, where the column already constrains the card.
+    var width: CGFloat?
+
+    private var artHeight: CGFloat { 200 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ZStack(alignment: .topLeading) {
-                VLAsyncImage(
-                    url: item.imageUrl,
-                    height: 200,
-                    googleVenueSlug: item.kind == .venue ? item.slug : nil,
-                    compactAttribution: true
-                )
-
-                if let badge = item.badge {
-                    Text(badge)
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(badgeColor, in: Capsule())
-                        .foregroundStyle(.white)
-                        .padding(10)
-                }
-
-                if let rank {
-                    Text("\(rank)")
-                        .font(.system(size: 78, weight: .heavy, design: .rounded))
-                        .foregroundStyle(.white)
-                        .shadow(radius: 6)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                        .padding(.leading, 4)
-                        .accessibilityHidden(true)
-                }
-            }
-            // The art is the widest thing on the card; clipping it here keeps
-            // the badge, the numeral and the photo credit inside the rounded
-            // rectangle instead of over the neighbouring card.
-            .frame(height: 200)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-
+            artwork
             Text(item.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             if let meta {
-                Text(meta).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(meta)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if let priceLabel = item.priceLabel {
-                Text(priceLabel).font(.subheadline.weight(.semibold))
+                Text(priceLabel)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .frame(width: width, alignment: .leading)
+        // Last line of defence: whatever a subview decides to draw, it stops at
+        // the edge of the card.
+        .clipped()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint(item.destination == nil ? "" : "Toca para ver el detalle")
+    }
+
+    private var artwork: some View {
+        VLAsyncImage(
+            url: item.imageUrl,
+            height: artHeight,
+            width: width,
+            googleVenueSlug: item.kind == .venue ? item.slug : nil,
+            compactAttribution: true
+        )
+        .overlay(alignment: .topLeading) {
+            if let badge = item.badge {
+                Text(badge)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(badgeColor, in: Capsule())
+                    .foregroundStyle(.white)
+                    .padding(10)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if let rank {
+                Text("\(rank)")
+                    .font(.system(size: 78, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .shadow(radius: 6)
+                    .padding(.leading, 6)
+                    .accessibilityHidden(true)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     /// "★ 4,6 · Sant Jordi Club · sáb 12 sep" — only the parts that exist.
@@ -260,8 +285,7 @@ struct HomeItemRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            VLAsyncImage(url: item.imageUrl, height: 64)
-                .frame(width: 64)
+            VLAsyncImage(url: item.imageUrl, height: 64, width: 64)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             VStack(alignment: .leading, spacing: 3) {
                 Text(item.title).font(.headline).lineLimit(2)
