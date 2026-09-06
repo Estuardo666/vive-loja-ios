@@ -76,13 +76,6 @@ struct ItemDetailView: View {
             // that overflows drags the entire screen past the display edges.
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
-            // `frame(maxWidth:)` sets a width, it does not enforce one: a child
-            // with a larger minimum still pushes the column past the display,
-            // and the page ends up cropped on both edges. Tying the column to
-            // the scroll view's own width and clipping it keeps every overflow
-            // local to the subview that causes it.
-            .containerRelativeFrame(.horizontal)
-            .clipped()
         }
         .vlScreen()
         .navigationTitle("Detalle")
@@ -126,6 +119,10 @@ struct ItemDetailView: View {
                         }
                     }
                 }
+                // An explicit height, rather than `fixedSize`: asking a scroll
+                // view for its ideal size makes it report the width of its whole
+                // content, and the page then lays itself out around that.
+                .frame(height: 250)
             } else {
                 VLAsyncImage(url: imageURL, height: 250, googleVenueSlug: googleVenueSlug)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
@@ -216,9 +213,11 @@ struct ItemDetailView: View {
         // detail screen ended up wider than the display and clipped on both
         // edges. It now stays inside the margin.
         //
-        // A horizontal ScrollView is flexible in both axes; without this it
-        // would claim vertical space the row does not need.
-        .fixedSize(horizontal: false, vertical: true)
+        // The height is stated outright. `fixedSize(vertical:)` asks the scroll
+        // view for an ideal size, and a scroll view's ideal size is its whole
+        // content — including a width far past the display, which the column
+        // then adopted. Every button in the row is 30pt tall by `vlActionLabel`.
+        .frame(height: 38)
     }
 
     @ViewBuilder
@@ -469,6 +468,7 @@ private struct ReviewRow: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) { ForEach(review.photos) { photo in VLAsyncImage(url: photo.url, height: 72, width: 96).clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous)) } }
                 }
+                .frame(height: 72)
             }
 
             // Owner replies were stored by the web dashboard but never shown
