@@ -176,6 +176,13 @@ struct MapPreviewCard: View {
 
     private var isVenue: Bool { if case .venue = item { return true }; return false }
 
+    private var categoryIcon: String {
+        switch item {
+        case .venue(let value): return value.categories.first?.icon ?? "📍"
+        case .event(let value): return value.categories.first?.icon ?? "🎉"
+        }
+    }
+
     private var imageURL: URL? {
         switch item {
         case .venue(let value): return value.image
