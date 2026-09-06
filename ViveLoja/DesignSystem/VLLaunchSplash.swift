@@ -33,10 +33,10 @@ struct VLLaunchSplash: View {
                 var seed: UInt64 = 42
                 for _ in 0..<8_000 {
                     seed = seed &* 6364136223846793005 &+ 1
-                    let x = CGFloat(seed % 10_000) / 10_000 * size.width
+                    let positionX = CGFloat(seed % 10_000) / 10_000 * size.width
                     seed = seed &* 6364136223846793005 &+ 1
-                    let y = CGFloat(seed % 10_000) / 10_000 * size.height
-                    context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1, height: 1)),
+                    let positionY = CGFloat(seed % 10_000) / 10_000 * size.height
+                    context.fill(Path(ellipseIn: CGRect(x: positionX, y: positionY, width: 1, height: 1)),
                                  with: .color(.white.opacity(0.09)))
                 }
             }
