@@ -13,18 +13,23 @@ let homeSectionInset: CGFloat = 20
 /// `HomeSection.isRenderable`, so new backend types are safe for old builds.
 struct HomeSectionView: View {
     let section: HomeSection
+    @State private var selectedOpenCategory: String?
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         if section.isRenderable {
-            switch section.layout {
-            case .hero: heroSection
-            case .chips: chipsSection
-            case .ranked: rankedSection
-            case .grid: gridSection
-            case .list: listSection
-            case .carousel: carouselSection
-            case .unknown: EmptyView()
+            if section.type == .openNow {
+                carouselSection
+            } else {
+                switch section.layout {
+                case .hero: heroSection
+                case .chips: chipsSection
+                case .ranked: rankedSection
+                case .grid: gridSection
+                case .list: listSection
+                case .carousel: carouselSection
+                case .unknown: EmptyView()
+                }
             }
         }
     }
@@ -76,9 +81,15 @@ struct HomeSectionView: View {
     private var carouselSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             header.padding(.horizontal, homeSectionInset)
+            if section.type == .openNow { openCategoryChips }
+            if visibleItems.isEmpty {
+                Text("No hay locales disponibles en esta categoría ahora.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .padding(.horizontal, homeSectionInset)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 14) {
-                    ForEach(section.items) { item in
+                    ForEach(visibleItems) { item in
                         HomeItemLink(item: item) {
                             HomeItemCard(item: item, width: cardWidth)
                         }
@@ -132,6 +143,46 @@ struct HomeSectionView: View {
             }
         }
         .padding(.horizontal, homeSectionInset)
+    }
+
+    private var visibleItems: [HomeItem] {
+        guard section.type == .openNow else { return section.items }
+        return section.items.filter { item in
+            if let selectedOpenCategory {
+                return item.categories?.contains { $0.slug == selectedOpenCategory } == true
+            }
+            return item.excludedFromOpenNowDefault != true
+        }
+    }
+
+    private var openCategories: [HomeItemCategory] {
+        var seen = Set<String>()
+        return section.items.flatMap { $0.categories ?? [] }
+            .filter { seen.insert($0.slug).inserted }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+
+    private var openCategoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                openCategoryChip("Todos", slug: nil)
+                ForEach(openCategories) { category in
+                    openCategoryChip(category.name, slug: category.slug)
+                }
+            }
+        }
+        .contentMargins(.horizontal, homeSectionInset, for: .scrollContent)
+    }
+
+    private func openCategoryChip(_ title: String, slug: String?) -> some View {
+        Button { selectedOpenCategory = slug } label: {
+            Text(title).font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(selectedOpenCategory == slug ? VLTheme.indigo : VLTheme.surface, in: Capsule())
+                .foregroundStyle(selectedOpenCategory == slug ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selectedOpenCategory == slug ? .isSelected : [])
     }
 
     // MARK: - Pieces

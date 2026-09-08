@@ -123,11 +123,7 @@ struct HomeView: View {
             .overlay(alignment: .bottom) { mapButton }
             .vlScreen()
             .navigationTitle("")
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    VLBrandLogo(side: 42)
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inline)
             .refreshable { await model.load(accessToken: session.accessToken) }
@@ -168,7 +164,10 @@ struct HomeView: View {
     }
 
     private var searchBar: some View {
-        searchEntry
+        HStack(spacing: 12) {
+            VLBrandLogo(side: 42)
+            searchEntry
+        }
             .padding(.horizontal, homeSectionInset)
             .padding(.vertical, 10)
             .background(.bar)

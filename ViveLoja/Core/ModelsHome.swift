@@ -36,6 +36,8 @@ struct HomeItem: Codable, Identifiable, Hashable, Sendable {
     let lng: Double?
     let color: String?
     let icon: String?
+    var categories: [HomeItemCategory]? = nil
+    var excludedFromOpenNowDefault: Bool? = nil
     let deeplink: String?
 
     /// Ids repeat across kinds, and a section may mix them.
@@ -47,6 +49,7 @@ struct HomeItem: Codable, Identifiable, Hashable, Sendable {
         case rawId = "id"
         case slug, title, subtitle, imageUrl, badge, priceLabel, rating, reviewCount
         case venueName, dateLabel, lat, lng, color, icon, deeplink
+        case categories, excludedFromOpenNowDefault
     }
 
     /// Where a tap leads, when the app knows how to show it.
@@ -105,4 +108,10 @@ struct HomeSection: Codable, Identifiable, Hashable, Sendable {
         if type == .hero || type == .todayInLoja { return true }
         return !items.isEmpty
     }
+}
+
+struct HomeItemCategory: Codable, Hashable, Identifiable, Sendable {
+    let slug: String
+    let name: String
+    var id: String { slug }
 }

@@ -23,61 +23,64 @@ struct ItemDetailView: View {
     @State private var actionMessage: String?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                if eventDetail?.status == "CANCELLED" {
-                    Label("Evento cancelado. Consulta al organizador si compraste entradas.", systemImage: "calendar.badge.exclamationmark")
-                        .font(.headline).foregroundStyle(.red).padding()
-                }
-                gallery
-                ItemDetailHeader(item: displayedItem, venueDetail: venueDetail)
-                actionBar
-                if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED" {
-                    Button {
-                        Task {
-                            if reminderScheduled {
-                                LocalReminderScheduler.shared.cancel(eventID: event.id)
-                                reminderScheduled = false
-                            } else {
-                                // Asking here is the whole point of asking in
-                                // context: the user has just said they want to
-                                // be reminded. The same grant covers the server
-                                // reminder, so both paths are unlocked at once.
-                                if push.authorization == .notDetermined {
-                                    await push.requestAuthorization()
-                                }
-                                if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
-                                    reminderScheduled = true
-                                    VLFeedback.success()
+        GeometryReader { geometry in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    if eventDetail?.status == "CANCELLED" {
+                        Label("Evento cancelado. Consulta al organizador si compraste entradas.", systemImage: "calendar.badge.exclamationmark")
+                            .font(.headline).foregroundStyle(.red).padding()
+                    }
+                    gallery(width: max(0, geometry.size.width - 40))
+                    ItemDetailHeader(item: displayedItem, venueDetail: venueDetail)
+                    actionBar
+                    if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED" {
+                        Button {
+                            Task {
+                                if reminderScheduled {
+                                    LocalReminderScheduler.shared.cancel(eventID: event.id)
+                                    reminderScheduled = false
+                                } else {
+                                    // Asking here is the whole point of asking in
+                                    // context: the user has just said they want to
+                                    // be reminded. The same grant covers the server
+                                    // reminder, so both paths are unlocked at once.
+                                    if push.authorization == .notDetermined {
+                                        await push.requestAuthorization()
+                                    }
+                                    if (try? await LocalReminderScheduler.shared.schedule(for: event)) != nil {
+                                        reminderScheduled = true
+                                        VLFeedback.success()
+                                    }
                                 }
                             }
+                        } label: {
+                            Label(reminderScheduled ? "Recordatorio activo" : "Recordarme", systemImage: reminderScheduled ? "bell.fill" : "bell")
                         }
-                    } label: {
-                        Label(reminderScheduled ? "Recordatorio activo" : "Recordarme", systemImage: reminderScheduled ? "bell.fill" : "bell")
+                        .buttonStyle(.bordered)
+                        .tint(VLTheme.coral)
                     }
-                    .buttonStyle(.bordered)
-                    .tint(VLTheme.coral)
+                    ownerSection
+                    servicesSection
+                    hoursSection
+                    menuSection
+                    productsSection
+                    promotionsSection
+                    venueEventsSection
+                    reviewsSection
+                    questionsSection
+                    mapSection
+                    detailInfoSections
+                    if let actionMessage { Text(actionMessage).font(.footnote).foregroundStyle(.secondary) }
                 }
-                ownerSection
-                servicesSection
-                hoursSection
-                menuSection
-                productsSection
-                promotionsSection
-                venueEventsSection
-                reviewsSection
-                questionsSection
-                mapSection
-                detailInfoSections
-                if let actionMessage { Text(actionMessage).font(.footnote).foregroundStyle(.secondary) }
+                // A concrete viewport width prevents intrinsic image/action widths
+                // from changing the size and horizontal origin of the whole page.
+                .frame(width: max(0, geometry.size.width - 40), alignment: .leading)
+                .padding(20)
             }
-            // Pins the column to the scroll view's own width. Without it the
-            // VStack sizes itself to its widest child, so a single subview
-            // that overflows drags the entire screen past the display edges.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
+            .frame(width: geometry.size.width)
         }
         .vlScreen()
+        .toolbar(.visible, for: .navigationBar)
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
         .task { if !isUITesting { await loadDetail() } }
@@ -107,13 +110,13 @@ struct ItemDetailView: View {
 
     private var displayedItem: ExploreItem { resolvedItem ?? item }
 
-    private var gallery: some View {
+    private func gallery(width: CGFloat) -> some View {
         Group {
             if !detailMedia.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(detailMedia) { media in
-                            VLAsyncImage(url: media.url, height: 250, width: 330)
+                            VLAsyncImage(url: media.url, height: 250, width: min(330, width))
                                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                                 .accessibilityLabel(media.alt ?? "Fotografía de \(displayedItem.title)")
                         }
@@ -124,7 +127,7 @@ struct ItemDetailView: View {
                 // content, and the page then lays itself out around that.
                 .frame(height: 250)
             } else {
-                VLAsyncImage(url: imageURL, height: 250, googleVenueSlug: googleVenueSlug)
+                VLAsyncImage(url: imageURL, height: 250, width: width, googleVenueSlug: googleVenueSlug)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
         }
