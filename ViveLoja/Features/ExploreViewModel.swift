@@ -35,6 +35,12 @@ final class ExploreViewModel {
 
     private static let pageSize = 60
 
+    init(categorySlug: String? = nil) {
+        if let categorySlug, !categorySlug.isEmpty {
+            categorySlugs = [categorySlug]
+        }
+    }
+
     var canLoadMore: Bool {
         guard let pageInfo else { return false }
         return pageInfo.hasMoreVenues || pageInfo.hasMoreEvents

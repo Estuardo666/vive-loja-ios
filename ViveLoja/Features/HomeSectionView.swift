@@ -364,18 +364,22 @@ struct HomeCategoryChip: View {
     let item: HomeItem
 
     var body: some View {
-        HStack(spacing: 6) {
-            if let icon = item.icon, !icon.isEmpty {
-                Text(icon).accessibilityHidden(true)
+        NavigationLink(destination: ExploreView(initialCategorySlug: item.slug)) {
+            HStack(spacing: 6) {
+                if let icon = item.icon, !icon.isEmpty {
+                    Text(icon).accessibilityHidden(true)
+                }
+                Text(item.title).font(.subheadline.weight(.semibold))
             }
-            Text(item.title).font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(VLTheme.surface, in: Capsule())
+            .overlay { Capsule().stroke(tint, lineWidth: 1.5) }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(VLTheme.surface, in: Capsule())
-        .overlay { Capsule().stroke(tint, lineWidth: 1.5) }
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Filtrar por categoría")
+        .accessibilityLabel("Explorar categoría: \(item.title)")
+        .accessibilityHint("Abre Explorar filtrado por esta categoría")
     }
 
     private var tint: Color {

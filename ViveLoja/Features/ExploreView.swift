@@ -19,6 +19,10 @@ struct ExploreView: View {
     @State private var useNearMe = false
     @State private var routeService = RouteService()
     @State private var mapStyle: MapStyleOption = .standard
+
+    init(initialCategorySlug: String? = nil) {
+        _model = State(initialValue: ExploreViewModel(categorySlug: initialCategorySlug))
+    }
     @State private var showRouteSteps = false
     @State private var projection = MapProjection()
     @State private var headerHeight: CGFloat = 0
