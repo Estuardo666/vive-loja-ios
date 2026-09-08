@@ -68,20 +68,38 @@ workflows:
           swiftlint lint --quiet
       - name: Build unsigned device archive
         script: |
-          xcodebuild archive \
-            -project ViveLoja.xcodeproj \
-            -scheme ViveLoja \
-            -configuration Production \
-            -destination 'generic/platform=iOS' \
-            -archivePath "$CM_BUILD_DIR/build/ViveLoja.xcarchive" \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            DEVELOPMENT_TEAM=""
+          set -euo pipefail
+          mkdir -p "$CM_BUILD_DIR/build"
+          for attempt in 1 2; do
+            log_path="$CM_BUILD_DIR/build/archive-$attempt.log"
+            set +e
+            xcodebuild archive \
+              -project ViveLoja.xcodeproj \
+              -scheme ViveLoja \
+              -configuration Production \
+              -destination 'generic/platform=iOS' \
+              -derivedDataPath "$CM_BUILD_DIR/build/DerivedData-$attempt" \
+              -archivePath "$CM_BUILD_DIR/build/ViveLoja-$attempt.xcarchive" \
+              CODE_SIGN_IDENTITY="" \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGNING_ALLOWED=NO \
+              DEVELOPMENT_TEAM="" 2>&1 | tee "$log_path"
+            build_status=${PIPESTATUS[0]}
+            set -e
+            if [ "$build_status" -eq 0 ]; then
+              printf '%s' "$attempt" > "$CM_BUILD_DIR/build/archive-attempt.txt"
+              break
+            fi
+            if [ "$attempt" -eq 2 ] || ! grep -Fq 'The Xcode build system has crashed' "$log_path"; then
+              exit "$build_status"
+            fi
+            echo "Xcode build service crashed; retrying once with fresh build outputs."
+          done
       - name: Package unsigned IPA
         script: |
           set -euo pipefail
-          app_path="$CM_BUILD_DIR/build/ViveLoja.xcarchive/Products/Applications/Vive Loja.app"
+          attempt=$(cat "$CM_BUILD_DIR/build/archive-attempt.txt")
+          app_path="$CM_BUILD_DIR/build/ViveLoja-$attempt.xcarchive/Products/Applications/Vive Loja.app"
           ipa_root="$CM_BUILD_DIR/build/unsigned-ipa"
           ipa_path="$CM_BUILD_DIR/build/ViveLoja-unsigned.ipa"
 
