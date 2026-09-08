@@ -59,6 +59,13 @@ jobs:
       - name: Lint Swift
         run: swiftlint lint --quiet
 
+      - name: Check Swift syntax before invoking the build service
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' source; do
+            xcrun swiftc -frontend -parse "$source"
+          done < <(find ViveLoja ViveLojaTests ViveLojaUITests -name '*.swift' -print0)
+
       - name: Build
         run: >-
           xcodebuild build-for-testing
