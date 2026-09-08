@@ -83,7 +83,7 @@ struct HomeSectionView: View {
             header.padding(.horizontal, homeSectionInset)
             if section.type == .openNow { openCategoryChips }
             if visibleItems.isEmpty {
-                Text("No hay locales disponibles en esta categoría ahora.")
+                Text("No hay locales disponibles en esta categorÃ­a ahora.")
                     .font(.subheadline).foregroundStyle(.secondary)
                     .padding(.horizontal, homeSectionInset)
             }
