@@ -53,10 +53,10 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(model: home).tabItem { Label("Inicio", systemImage: "house.fill") }.tag(Tab.home)
-            ExploreView().tabItem { Label("Explorar", systemImage: "map.fill") }.tag(Tab.explore)
-            SavedView().tabItem { Label("Guardados", systemImage: "heart.fill") }.tag(Tab.saved)
-            MessagesView().tabItem { Label("Mensajes", systemImage: "message.fill") }.tag(Tab.messages)
+            HomeView(model: home).tabItem { tabLabel("Inicio", symbol: "house.fill", tab: .home) }.tag(Tab.home)
+            ExploreView(initialShowMap: false).tabItem { tabLabel("Explorar", symbol: "map.fill", tab: .explore) }.tag(Tab.explore)
+            SavedView().tabItem { tabLabel("Guardados", symbol: "heart.fill", tab: .saved) }.tag(Tab.saved)
+            MessagesView().tabItem { tabLabel("Mensajes", symbol: "message.fill", tab: .messages) }.tag(Tab.messages)
             AccountView().tabItem { accountTabLabel }.tag(Tab.account)
         }
         // Environment-backed, so it reaches every List and ScrollView below.
@@ -74,6 +74,16 @@ struct MainTabView: View {
 
 @MainActor
 extension MainTabView {
+    @ViewBuilder
+    func tabLabel(_ title: String, symbol: String, tab: Tab) -> some View {
+        if selectedTab == tab,
+           let icon = UIImage(systemName: symbol)?.withTintColor(VLTheme.uiColor(\.blue), renderingMode: .alwaysOriginal) {
+            Label { Text(title) } icon: { Image(uiImage: icon) }
+        } else {
+            Label(title, systemImage: symbol)
+        }
+    }
+
     @ViewBuilder
     var accountTabLabel: some View {
         if let avatarIcon {

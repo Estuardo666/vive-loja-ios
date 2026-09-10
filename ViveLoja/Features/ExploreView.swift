@@ -13,15 +13,16 @@ struct ExploreView: View {
     @State private var searchCenter = CLLocationCoordinate2D(latitude: -3.99313, longitude: -79.20422)
     @State private var selectedMapItemID: String?
     @State private var radiusMeters: CLLocationDistance = 1_000
-    @State private var showMap = true
+    @State private var showMap: Bool
     @State private var showFilters = false
     @State private var location = LocationService()
     @State private var useNearMe = false
     @State private var routeService = RouteService()
     @State private var mapStyle: MapStyleOption = .standard
 
-    init(initialCategorySlug: String? = nil) {
+    init(initialCategorySlug: String? = nil, initialShowMap: Bool = false) {
         _model = State(initialValue: ExploreViewModel(categorySlug: initialCategorySlug))
+        _showMap = State(initialValue: initialShowMap)
     }
     @State private var showRouteSteps = false
     @State private var projection = MapProjection()

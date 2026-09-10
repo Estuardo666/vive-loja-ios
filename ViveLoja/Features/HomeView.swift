@@ -133,7 +133,7 @@ struct HomeView: View {
     /// Entry point to search: the home only shows the field, the typing happens
     /// on Explorar, which already owns the query, the filters and the map.
     private var searchEntry: some View {
-        NavigationLink(destination: ExploreView()) {
+        NavigationLink(destination: ExploreView(initialShowMap: false)) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
                 Text("Descubre Loja").foregroundStyle(.secondary)
@@ -151,7 +151,7 @@ struct HomeView: View {
     }
 
     private var mapButton: some View {
-        NavigationLink(destination: ExploreView()) {
+        NavigationLink(destination: ExploreView(initialShowMap: true)) {
             Label("Mapa", systemImage: "map")
                 .font(.headline)
                 .padding(.horizontal, 20)
@@ -189,6 +189,7 @@ struct HomeView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                    .clipped()
                                 }
                             }
                         }
@@ -204,6 +205,7 @@ struct HomeView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                        .clipped()
                                     }
                                 }
                             }
@@ -220,6 +222,7 @@ struct HomeView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                        .clipped()
                                     }
                                 }
                             }
@@ -236,6 +239,7 @@ struct HomeView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                        .clipped()
                                     }
                                 }
                             }
@@ -252,6 +256,7 @@ struct HomeView: View {
                                         }
                                         .buttonStyle(.plain)
                                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                        .clipped()
                                     }
                                 }
                             }
@@ -336,7 +341,7 @@ struct HomeView: View {
                 .tracking(-1.2)
                 .minimumScaleFactor(0.75)
             Text("Descubre eventos, locales y planes cerca de ti.").font(.title3).foregroundStyle(.secondary)
-            NavigationLink(destination: ExploreView()) {
+            NavigationLink(destination: ExploreView(initialShowMap: true)) {
                 Label("Explorar el mapa", systemImage: "map.fill")
                     .font(.headline)
                     .frame(maxWidth: .infinity)

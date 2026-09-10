@@ -47,7 +47,7 @@ struct HomeSectionView: View {
                 Text(body).font(.title3).foregroundStyle(.secondary)
             }
             if let label = section.actionLabel {
-                NavigationLink(destination: ExploreView()) {
+                NavigationLink(destination: ExploreView(initialShowMap: true)) {
                     Label(label, systemImage: "map.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -94,6 +94,7 @@ struct HomeSectionView: View {
                             HomeItemCard(item: item)
                         }
                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                        .clipped()
                     }
                 }
                 .scrollTargetLayout()
@@ -114,6 +115,7 @@ struct HomeSectionView: View {
                             HomeItemCard(item: item, rank: index + 1)
                         }
                         .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                        .clipped()
                     }
                 }
                 .scrollTargetLayout()
@@ -262,6 +264,7 @@ struct HomeItemCard: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .frame(width: width, alignment: .leading)
         // Last line of defence: whatever a subview decides to draw, it stops at
         // the edge of the card.
