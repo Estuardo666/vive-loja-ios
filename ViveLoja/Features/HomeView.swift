@@ -185,8 +185,10 @@ struct HomeView: View {
                             LazyHStack(spacing: 14) {
                                 ForEach(model.featured) { item in
                                     NavigationLink(destination: ItemDetailView(item: item)) {
-                                        VLItemCard(item: item).frame(width: 265)
-                                    }.buttonStyle(.plain)
+                                        VLItemCard(item: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                 }
                             }
                         }
@@ -198,9 +200,10 @@ struct HomeView: View {
                                 LazyHStack(spacing: 14) {
                                     ForEach(model.popularNow) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
-                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                            VLItemCard(item: .venue(venue))
                                         }
                                         .buttonStyle(.plain)
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                     }
                                 }
                             }
@@ -213,9 +216,10 @@ struct HomeView: View {
                                 LazyHStack(spacing: 14) {
                                     ForEach(model.latestVenues) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
-                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                            VLItemCard(item: .venue(venue))
                                         }
                                         .buttonStyle(.plain)
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                     }
                                 }
                             }
@@ -228,9 +232,10 @@ struct HomeView: View {
                                 LazyHStack(spacing: 14) {
                                     ForEach(recommendations.relatedVenues) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
-                                            VLItemCard(item: .venue(venue)).frame(width: 265)
+                                            VLItemCard(item: .venue(venue))
                                         }
                                         .buttonStyle(.plain)
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                     }
                                 }
                             }
@@ -243,9 +248,10 @@ struct HomeView: View {
                                 LazyHStack(spacing: 14) {
                                     ForEach(model.relatedEvents) { event in
                                         NavigationLink(destination: ItemDetailView(item: .event(event))) {
-                                            VLItemCard(item: .event(event)).frame(width: 265)
+                                            VLItemCard(item: .event(event))
                                         }
                                         .buttonStyle(.plain)
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                     }
                                 }
                             }

@@ -68,6 +68,7 @@ struct VLSectionHeader: View {
 struct VLItemCard: View {
     let item: ExploreItem
     @State private var showPhoto = false
+    @State private var eventImageFailed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -75,7 +76,18 @@ struct VLItemCard: View {
             case .venue(let venue):
                 VLAsyncImage(url: venue.image, height: 150, googleVenueSlug: venue.slug)
             case .event(let event):
-                if let image = event.image { VLAsyncImage(url: image, height: 150) }
+                if let imageURL = event.image, !eventImageFailed {
+                    AsyncImage(url: imageURL) { phase in
+                        switch phase {
+                        case .success(let image): image.resizable().scaledToFill()
+                        case .failure: Color.clear.onAppear { eventImageFailed = true }
+                        default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    .clipped()
+                }
             }
             VStack(alignment: .leading, spacing: 6) {
                 HStack {

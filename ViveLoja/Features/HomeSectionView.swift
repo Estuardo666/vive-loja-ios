@@ -91,8 +91,9 @@ struct HomeSectionView: View {
                 LazyHStack(spacing: 14) {
                     ForEach(visibleItems) { item in
                         HomeItemLink(item: item) {
-                            HomeItemCard(item: item, width: cardWidth)
+                            HomeItemCard(item: item)
                         }
+                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                     }
                 }
                 .scrollTargetLayout()
@@ -110,8 +111,9 @@ struct HomeSectionView: View {
                 LazyHStack(alignment: .top, spacing: 14) {
                     ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                         HomeItemLink(item: item) {
-                            HomeItemCard(item: item, rank: index + 1, width: cardWidth)
+                            HomeItemCard(item: item, rank: index + 1)
                         }
+                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                     }
                 }
                 .scrollTargetLayout()
@@ -196,8 +198,6 @@ struct HomeSectionView: View {
         }
     }
 
-    private var cardWidth: CGFloat { dynamicTypeSize.isAccessibilitySize ? 300 : 265 }
-
     private var gridColumns: [GridItem] {
         Array(repeating: GridItem(.flexible()), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2)
     }
@@ -233,12 +233,13 @@ struct HomeItemCard: View {
     var rank: Int?
     /// `nil` in a grid, where the column already constrains the card.
     var width: CGFloat?
+    @State private var eventImageFailed = false
 
     private var artHeight: CGFloat { 200 }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            artwork
+            if showsArtwork { artwork }
             Text(item.title)
                 .font(.headline)
                 .foregroundStyle(.primary)
@@ -271,13 +272,28 @@ struct HomeItemCard: View {
     }
 
     private var artwork: some View {
-        VLAsyncImage(
-            url: item.imageUrl,
-            height: artHeight,
-            width: width,
-            googleVenueSlug: item.kind == .venue ? item.slug : nil,
-            compactAttribution: true
-        )
+        Group {
+            if item.kind == .event, let imageURL = item.imageUrl {
+                AsyncImage(url: imageURL) { phase in
+                    switch phase {
+                    case .success(let image): image.resizable().scaledToFill()
+                    case .failure: Color.clear.onAppear { eventImageFailed = true }
+                    default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                }
+                .frame(maxWidth: width ?? .infinity)
+                .frame(width: width, height: artHeight)
+                .clipped()
+            } else {
+                VLAsyncImage(
+                    url: item.imageUrl,
+                    height: artHeight,
+                    width: width,
+                    googleVenueSlug: item.kind == .venue ? item.slug : nil,
+                    compactAttribution: true
+                )
+            }
+        }
         .overlay(alignment: .topLeading) {
             if let badge = item.badge {
                 Text(badge)
@@ -301,6 +317,10 @@ struct HomeItemCard: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var showsArtwork: Bool {
+        item.kind != .event || (item.imageUrl != nil && !eventImageFailed)
     }
 
     /// "★ 4,6 · Sant Jordi Club · sáb 12 sep" — only the parts that exist.
