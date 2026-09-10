@@ -92,9 +92,8 @@ struct HomeSectionView: View {
                     ForEach(visibleItems) { item in
                         HomeItemLink(item: item) {
                             HomeItemCard(item: item)
+                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                         }
-                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                        .clipped()
                     }
                 }
                 .scrollTargetLayout()
@@ -113,9 +112,8 @@ struct HomeSectionView: View {
                     ForEach(Array(section.items.enumerated()), id: \.element.id) { index, item in
                         HomeItemLink(item: item) {
                             HomeItemCard(item: item, rank: index + 1)
+                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                         }
-                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                        .clipped()
                     }
                 }
                 .scrollTargetLayout()
@@ -237,8 +235,6 @@ struct HomeItemCard: View {
     var width: CGFloat?
     @State private var eventImageFailed = false
 
-    private var artHeight: CGFloat { 200 }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             if showsArtwork { artwork }
@@ -275,50 +271,54 @@ struct HomeItemCard: View {
     }
 
     private var artwork: some View {
-        Group {
-            if item.kind == .event, let imageURL = item.imageUrl {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    case .failure: Color.clear.onAppear { eventImageFailed = true }
-                    default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        GeometryReader { geometry in
+            Group {
+                if item.kind == .event, let imageURL = item.imageUrl {
+                    AsyncImage(url: imageURL) { phase in
+                        switch phase {
+                        case .success(let image): image.resizable().scaledToFill()
+                        case .failure: Color.clear.onAppear { eventImageFailed = true }
+                        default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     }
+                    .frame(width: geometry.size.width, height: geometry.size.width)
+                    .clipped()
+                } else {
+                    VLAsyncImage(
+                        url: item.imageUrl,
+                        height: geometry.size.width,
+                        width: geometry.size.width,
+                        googleVenueSlug: item.kind == .venue ? item.slug : nil,
+                        cornerRadius: 16,
+                        compactAttribution: true
+                    )
                 }
-                .frame(maxWidth: width ?? .infinity)
-                .frame(width: width, height: artHeight)
-                .clipped()
-            } else {
-                VLAsyncImage(
-                    url: item.imageUrl,
-                    height: artHeight,
-                    width: width,
-                    googleVenueSlug: item.kind == .venue ? item.slug : nil,
-                    compactAttribution: true
-                )
+            }
+            .overlay(alignment: .topLeading) {
+                if let badge = item.badge {
+                    Text(badge)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(badgeColor, in: Capsule())
+                        .foregroundStyle(.white)
+                        .padding(10)
+                }
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let rank {
+                    Text("\(rank)")
+                        .font(.system(size: min(78, geometry.size.width * 0.48), weight: .heavy, design: .rounded))
+                        .foregroundStyle(.white)
+                        .shadow(radius: 6)
+                        .padding(.leading, 6)
+                        .accessibilityHidden(true)
+                }
             }
         }
-        .overlay(alignment: .topLeading) {
-            if let badge = item.badge {
-                Text(badge)
-                    .font(.caption.weight(.bold))
-                    .lineLimit(1)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(badgeColor, in: Capsule())
-                    .foregroundStyle(.white)
-                    .padding(10)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let rank {
-                Text("\(rank)")
-                    .font(.system(size: 78, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .shadow(radius: 6)
-                    .padding(.leading, 6)
-                    .accessibilityHidden(true)
-            }
-        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .aspectRatio(1, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 

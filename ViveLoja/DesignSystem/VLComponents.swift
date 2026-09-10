@@ -13,6 +13,9 @@ struct VLAsyncImage: View {
     let height: CGFloat
     var width: CGFloat?
     var googleVenueSlug: String?
+    /// Rounded at the image boundary when the image is part of a card. A zero
+    /// radius keeps the component rectangular for full-width/detail images.
+    var cornerRadius: CGFloat = 0
     /// Card-sized images credit Google with the short capsule; full-width ones
     /// have room for the authors.
     var compactAttribution = false
@@ -30,7 +33,7 @@ struct VLAsyncImage: View {
         }
         .frame(maxWidth: width ?? .infinity)
         .frame(width: width, height: height)
-        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 
     @ViewBuilder private var fallback: some View {
@@ -74,19 +77,32 @@ struct VLItemCard: View {
         VStack(alignment: .leading, spacing: 0) {
             switch item {
             case .venue(let venue):
-                VLAsyncImage(url: venue.image, height: 150, googleVenueSlug: venue.slug)
+                GeometryReader { geometry in
+                    VLAsyncImage(
+                        url: venue.image,
+                        height: 150,
+                        width: geometry.size.width,
+                        googleVenueSlug: venue.slug,
+                        cornerRadius: 18,
+                        compactAttribution: true
+                    )
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 150)
             case .event(let event):
                 if let imageURL = event.image, !eventImageFailed {
-                    AsyncImage(url: imageURL) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        case .failure: Color.clear.onAppear { eventImageFailed = true }
-                        default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    GeometryReader { geometry in
+                        AsyncImage(url: imageURL) { phase in
+                            switch phase {
+                            case .success(let image): image.resizable().scaledToFill()
+                            case .failure: Color.clear.onAppear { eventImageFailed = true }
+                            default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                         }
+                        .frame(width: geometry.size.width, height: 150)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
-                    .frame(maxWidth: .infinity)
                     .frame(height: 150)
-                    .clipped()
                 }
             }
             VStack(alignment: .leading, spacing: 6) {
@@ -114,7 +130,9 @@ struct VLItemCard: View {
             }
             .padding(12)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(VLTheme.outline) }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(item.title), \(isVenue ? "local" : "evento"), \(itemSubtitle)\(openState.map { ", \($0.label)" } ?? "")")

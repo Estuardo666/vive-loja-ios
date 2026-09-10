@@ -186,10 +186,9 @@ struct HomeView: View {
                                 ForEach(model.featured) { item in
                                     NavigationLink(destination: ItemDetailView(item: item)) {
                                         VLItemCard(item: item)
+                                            .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                     }
                                     .buttonStyle(.plain)
-                                    .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                    .clipped()
                                 }
                             }
                         }
@@ -202,10 +201,9 @@ struct HomeView: View {
                                     ForEach(model.popularNow) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
                                             VLItemCard(item: .venue(venue))
+                                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                         }
                                         .buttonStyle(.plain)
-                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                        .clipped()
                                     }
                                 }
                             }
@@ -219,10 +217,9 @@ struct HomeView: View {
                                     ForEach(model.latestVenues) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
                                             VLItemCard(item: .venue(venue))
+                                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                         }
                                         .buttonStyle(.plain)
-                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                        .clipped()
                                     }
                                 }
                             }
@@ -236,10 +233,9 @@ struct HomeView: View {
                                     ForEach(recommendations.relatedVenues) { venue in
                                         NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
                                             VLItemCard(item: .venue(venue))
+                                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                         }
                                         .buttonStyle(.plain)
-                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                        .clipped()
                                     }
                                 }
                             }
@@ -253,10 +249,9 @@ struct HomeView: View {
                                     ForEach(model.relatedEvents) { event in
                                         NavigationLink(destination: ItemDetailView(item: .event(event))) {
                                             VLItemCard(item: .event(event))
+                                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
                                         }
                                         .buttonStyle(.plain)
-                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                        .clipped()
                                     }
                                 }
                             }
