@@ -10,6 +10,7 @@ import SwiftUI
 /// it actually settles on a different card — otherwise the map's own selection
 /// would be overwritten mid-animation by the rail catching up.
 struct MapCardCarouselView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let items: [ExploreItem]
     @Binding var selectedID: String?
     /// Starts in-map guidance for the card in view; the route belongs to the
@@ -22,26 +23,32 @@ struct MapCardCarouselView: View {
     @State private var isSyncing = false
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 12) {
-                ForEach(items) { item in
-                    NavigationLink(destination: ItemDetailView(item: item)) {
-                        MapPreviewCard(item: item) { onDirections(item) }
+        GeometryReader { geometry in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 12) {
+                    ForEach(items) { item in
+                        NavigationLink(destination: ItemDetailView(item: item)) {
+                            MapPreviewCard(item: item, isSelected: selectedID == item.id) { onDirections(item) }
+                        }
+                        .buttonStyle(.plain)
+                        .frame(width: max(0, geometry.size.width - 32))
+                        .id(item.id)
                     }
-                    .buttonStyle(.plain)
-                    .containerRelativeFrame(.horizontal, count: 1, span: 1, spacing: 12)
-                    .id(item.id)
                 }
+                .scrollTargetLayout()
+                .padding(.horizontal, 16)
             }
-            .scrollTargetLayout()
-            .padding(.horizontal, 16)
+            .contentMargins(.horizontal, 0, for: .scrollContent)
+            .scrollTargetBehavior(.viewAligned)
+            .scrollPosition(id: $scrollID, anchor: .center)
+            .scrollClipDisabled()
         }
-        .contentMargins(.horizontal, 0, for: .scrollContent)
-        .scrollTargetBehavior(.viewAligned)
-        .scrollPosition(id: $scrollID, anchor: .center)
-        .scrollClipDisabled()
         .frame(height: MapPreviewCard.height)
-        .onAppear { park(on: selectedID ?? items.first?.id) }
+        .onAppear {
+            let initialID = selectedID ?? items.first?.id
+            selectedID = initialID
+            park(on: initialID)
+        }
         // A new set of results: park on whatever is still selected, or back at
         // the start, without treating either as a fresh choice.
         .onChange(of: items.map(\.id)) { _, ids in
@@ -52,7 +59,7 @@ struct MapCardCarouselView: View {
         .onChange(of: selectedID) { _, id in
             guard let id, id != scrollID else { return }
             isSyncing = true
-            withAnimation(.snappy) { scrollID = id }
+            withAnimation(reduceMotion ? nil : .snappy) { scrollID = id }
         }
         // Card swiped: select its pin. Guarded so the rail settling on the card
         // the map just chose does not re-write the same value.
@@ -75,14 +82,16 @@ struct MapCardCarouselView: View {
 /// One card in the rail: photo, type badge, title and the line that answers
 /// "when" for events and "where" for venues, plus a direct route button.
 struct MapPreviewCard: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: ExploreItem
+    let isSelected: Bool
     let onDirections: () -> Void
 
-    static let height: CGFloat = 108
+    static let height: CGFloat = 112
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            thumbnail
+            if isVenue || imageURL != nil { thumbnail }
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text("\(categoryIcon)  \(isVenue ? "Local" : "Evento")")
@@ -132,10 +141,17 @@ struct MapPreviewCard: View {
         .padding(10)
         .frame(height: MapPreviewCard.height)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay { RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(VLTheme.outline) }
+        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .stroke(isSelected ? VLTheme.itemColor(item) : VLTheme.outline, lineWidth: isSelected ? 2.5 : 1)
+        }
         .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+        .scaleEffect(isSelected ? 1 : 0.965)
+        .opacity(isSelected ? 1 : 0.9)
+        .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: isSelected)
         .accessibilityElement(children: .contain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     /// Same fallback chain the peek card used: venues without an image of their

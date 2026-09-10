@@ -72,8 +72,10 @@ struct VLItemCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             switch item {
-            case .venue(let venue): VLAsyncImage(url: venue.image, height: 150, googleVenueSlug: venue.slug)
-            case .event(let event): VLAsyncImage(url: event.image, height: 150)
+            case .venue(let venue):
+                VLAsyncImage(url: venue.image, height: 150, googleVenueSlug: venue.slug)
+            case .event(let event):
+                if let image = event.image { VLAsyncImage(url: image, height: 150) }
             }
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
@@ -113,7 +115,7 @@ struct VLItemCard: View {
                     case .venue(let venue):
                         VLAsyncImage(url: venue.image, height: 250, googleVenueSlug: venue.slug)
                     case .event(let event):
-                        VLAsyncImage(url: event.image, height: 250)
+                        if let image = event.image { VLAsyncImage(url: image, height: 250) }
                     }
                 }
                 .vlScreen()

@@ -126,7 +126,7 @@ struct ItemDetailView: View {
                 // view for its ideal size makes it report the width of its whole
                 // content, and the page then lays itself out around that.
                 .frame(height: 250)
-            } else {
+            } else if isVenue || imageURL != nil {
                 VLAsyncImage(url: imageURL, height: 250, width: width, googleVenueSlug: googleVenueSlug)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
@@ -281,16 +281,23 @@ struct ItemDetailView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Próximos eventos").font(.title2.weight(.semibold))
                 ForEach(detailEvents) { event in
-                    HStack(spacing: 10) {
-                        Image(systemName: "calendar").foregroundStyle(VLTheme.coral)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(event.title).font(.subheadline.weight(.semibold))
-                            Text(event.startDate.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                    NavigationLink(destination: ItemDetailView(item: event.exploreItem)) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "calendar").foregroundStyle(VLTheme.coral)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(event.title).font(.subheadline.weight(.semibold))
+                                Text(event.startDate.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
                         }
-                        Spacer()
+                        .padding(12)
+                        .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
-                    .padding(12)
-                    .background(VLTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Abre la ficha del evento")
                 }
             }
         }

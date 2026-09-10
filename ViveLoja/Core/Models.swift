@@ -386,6 +386,27 @@ struct MobileVenueEvent: Codable, Identifiable, Sendable {
     let startDate: Date
     let location: String
     let address: String?
+
+    var exploreItem: ExploreItem {
+        .event(ExploreEvent(
+            id: id,
+            title: title,
+            slug: slug,
+            description: "",
+            image: nil,
+            startDate: startDate,
+            endDate: nil,
+            location: location,
+            address: address,
+            lat: nil,
+            lng: nil,
+            featured: false,
+            price: nil,
+            avgRating: nil,
+            reviewCount: 0,
+            categories: []
+        ))
+    }
 }
 
 struct MobileReviewUser: Codable, Hashable, Sendable {

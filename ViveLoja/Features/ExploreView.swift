@@ -118,15 +118,15 @@ struct ExploreView: View {
             .onChange(of: selectedMapItemID) { _, id in
                 guard let id, let item = model.items.first(where: { $0.id == id }) else { return }
                 // Swiping the rail is also a way of moving around the map, so
-                // the camera follows the card that is in view. The radius is
-                // kept, so only the centre moves.
+                // the camera follows the card that is in view. Preserve the
+                // visible span: the search radius is a filter, not the zoom.
                 if let coordinate = item.coordinate {
                     let center = CLLocationCoordinate2D(latitude: coordinate.lat, longitude: coordinate.lng)
                     // Re-searching the area the card just centred would swap the
                     // results out from under the rail the user is swiping.
                     suppressAreaSearchUntil = .now.addingTimeInterval(1.5)
                     withAnimation(reduceMotion ? nil : Animation.snappy) {
-                        mapRegion = ExploreView.region(around: center, radiusMeters: radiusMeters)
+                        mapRegion = MKCoordinateRegion(center: center, span: mapRegion.span)
                     }
                 }
                 guard case .venue(let venue) = item else { return }

@@ -81,12 +81,17 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
 
     override func setSelected(_ selected: Bool, animated: Bool) {
         super.setSelected(selected, animated: animated)
+        let itemTint = (annotation as? MapItemAnnotation)
+            .map { UIColor(VLTheme.itemColor($0.item)) }
+            ?? UIColor(VLTheme.indigo)
         let apply = {
-            self.transform = selected ? CGAffineTransform(scaleX: 1.45, y: 1.45) : .identity
-            self.layer.borderWidth = selected ? 3.5 : 2.5
-            self.layer.shadowOpacity = selected ? 0.6 : 0.35
+            self.transform = selected ? CGAffineTransform(scaleX: 1.6, y: 1.6) : .identity
+            self.layer.borderWidth = selected ? 4 : 2.5
+            self.layer.borderColor = selected ? UIColor.white.cgColor : itemTint.cgColor
+            self.layer.shadowOpacity = selected ? 0.75 : 0.35
+            self.layer.shadowRadius = selected ? 8 : 4
         }
-        if animated {
+        if animated && !UIAccessibility.isReduceMotionEnabled {
             UIView.animate(withDuration: 0.22, delay: 0, usingSpringWithDamping: 0.7, initialSpringVelocity: 0.4, options: [.beginFromCurrentState], animations: apply)
         } else {
             apply()
@@ -102,6 +107,7 @@ final class ItemPhotoAnnotationView: MKAnnotationView {
         transform = .identity
         layer.borderWidth = 2.5
         layer.shadowOpacity = 0.35
+        layer.shadowRadius = 4
     }
 
     private func show(_ image: UIImage) {
