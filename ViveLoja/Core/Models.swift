@@ -490,6 +490,7 @@ struct VenueDetail: Decodable, Sendable {
     let lat: Double?
     let lng: Double?
     let featured: Bool
+    let sponsoredUntil: Date?
     let phone: String?
     let website: URL?
     let priceRange: String?
@@ -520,6 +521,9 @@ struct VenueDetail: Decodable, Sendable {
     let promotions: [MobileVenuePromotion]?
     let reviews: [MobileReview]
     let questions: [MobileQuestion]?
+    let effectivePlan: MobileEffectivePlan?
+    let capabilities: MobilePlanCapabilities?
+    let entitlementsVersion: String?
 }
 
 struct EventDetail: Decodable, Sendable {
@@ -536,6 +540,7 @@ struct EventDetail: Decodable, Sendable {
     let lat: Double?
     let lng: Double?
     let featured: Bool
+    let sponsoredUntil: Date?
     let price: Double?
     let avgRating: Double?
     let reviewCount: Int

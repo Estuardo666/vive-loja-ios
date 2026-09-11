@@ -179,9 +179,11 @@ struct ItemDetailView: View {
                     .accessibilityLabel(isFollowingVenue ? "Dejar de seguir local" : "Seguir local")
                 }
                 if case .venue(let venue) = displayedItem, let phone = venue.phone, !phone.isEmpty {
-                    Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill").vlActionLabel() }
-                        .buttonStyle(.bordered)
-                        .accessibilityLabel("Contactar por WhatsApp")
+                    if venueDetail?.capabilities?.whatsappEnabled == true {
+                        Button { openWhatsApp(phone: phone) } label: { Label("WhatsApp", systemImage: "message.fill").vlActionLabel() }
+                            .buttonStyle(.bordered)
+                            .accessibilityLabel("Contactar por WhatsApp")
+                    }
                     // Not everyone uses WhatsApp, and a listing without a plain
                     // phone call is a directory that cannot be called.
                     if let callURL = URL(string: "tel://\(phone.filter { $0.isNumber || $0 == "+" })") {

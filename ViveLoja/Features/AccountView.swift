@@ -127,6 +127,10 @@ struct AccountView: View {
                         Section { Text(error).foregroundStyle(.red) }
                     }
                     Section("Tu actividad") {
+                        NavigationLink(destination: BusinessPlanView()) {
+                            Label("Mi plan", systemImage: "creditcard")
+                        }
+                        .accessibilityIdentifier("business-plan-link")
                         NavigationLink(destination: SavedView()) {
                             Label("Mis favoritos", systemImage: "heart")
                         }

@@ -1,4 +1,5 @@
 import PhotosUI
+import Observation
 import SwiftUI
 
 @MainActor
@@ -8,6 +9,7 @@ final class OwnerClaimViewModel {
         case details
         case code
         case evidence
+        case plan
         case done
     }
 
@@ -27,6 +29,10 @@ final class OwnerClaimViewModel {
     // Step 3
     private(set) var confidenceScore = 0
     private(set) var claimId: String?
+    private(set) var catalog: MobileBillingCatalog?
+    private(set) var account: MobileBusinessAccountSnapshot?
+    var selectedPlanSlug = "free"
+    var annualPlan = false
 
     var isSubmitting = false
     var errorMessage: String?
@@ -118,7 +124,7 @@ final class OwnerClaimViewModel {
             )
             confidenceScore = scored.confidenceScore
             errorMessage = nil
-            step = .done
+            step = .plan
             VLFeedback.success()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo adjuntar la evidencia."
@@ -127,7 +133,38 @@ final class OwnerClaimViewModel {
     }
 
     func skipEvidence() {
-        step = .done
+        step = .plan
+    }
+
+    func loadPlans(token: String?) async {
+        do {
+            catalog = try await api.get("/billing/catalog")
+            if let token {
+                account = try? await api.get("/me/business-account", bearer: token)
+                if let account { selectedPlanSlug = account.plan.slug }
+            }
+        }
+        catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar los planes." }
+    }
+
+    func selectPlan(token: String?) async {
+        guard let token, let claimId else { return }
+        guard selectedPlanSlug != "red" else { errorMessage = "El plan Red se configura con Vive Loja."; return }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        do {
+            let _: MobileBillingOrder = try await api.post(
+                "/me/claims/\(claimId)/plan-selection",
+                body: MobileCheckoutRequest(planSlug: selectedPlanSlug, cycle: annualPlan ? "ANNUAL" : "MONTHLY", idempotencyKey: UUID().uuidString, device: "ios"),
+                bearer: token
+            )
+            errorMessage = nil
+            step = .done
+            VLFeedback.success()
+        } catch {
+            errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo guardar el plan seleccionado."
+            VLFeedback.error()
+        }
     }
 }
 
@@ -154,6 +191,7 @@ struct OwnerClaimView: View {
                 case .details: detailsStep(model: model)
                 case .code: codeStep(model: model)
                 case .evidence: evidenceStep
+                case .plan: planStep
                 case .done: doneStep
                 }
 
@@ -171,6 +209,7 @@ struct OwnerClaimView: View {
                     Button("Cerrar") { dismiss() }
                 }
             }
+            .task { await model.loadPlans(token: session.accessToken) }
             .disabled(model.isSubmitting)
         }
     }
@@ -272,6 +311,47 @@ private extension OwnerClaimView {
         }
         Section {
             Button("Listo") { dismiss() }
+        }
+    }
+}
+
+private extension OwnerClaimView {
+    @ViewBuilder
+    var planStep: some View {
+        Section {
+            Text("El plan quedará pendiente hasta que Vive Loja apruebe tu reclamo. No hay cobro ni renovación automática.")
+                .font(.subheadline).foregroundStyle(.secondary)
+        }
+        if let plans = model.catalog?.plans {
+            Section("Elige una opción") {
+                if let account = model.account,
+                   account.usage.locations.limit == nil || account.usage.locations.used < (account.usage.locations.limit ?? 0) {
+                    Label("Este local heredará tu plan \(account.plan.name); todavía tienes capacidad disponible.", systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(VLTheme.emerald)
+                } else {
+                    Picker("Plan", selection: $model.selectedPlanSlug) {
+                        ForEach(plans.filter { $0.slug != "red" }) { plan in
+                            Text(plan.name).tag(plan.slug)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Toggle("Ciclo anual · ahorra 17%", isOn: $model.annualPlan)
+                }
+                if let selected = plans.first(where: { $0.slug == model.selectedPlanSlug }) {
+                    Text(selected.description ?? "Presencia para tu negocio.").font(.subheadline).foregroundStyle(.secondary)
+                    let reference = model.annualPlan ? (selected.annualPrice ?? 0) : (selected.monthlyPrice ?? 0)
+                    LabeledContent("Precio de referencia", value: String(format: "$%.2f", reference))
+                    LabeledContent("Cobro durante beta", value: "$0.00")
+                }
+            }
+            Section {
+                Button("Guardar plan y enviar reclamo") {
+                    Task { await model.selectPlan(token: session.accessToken) }
+                }
+                .disabled(model.isSubmitting)
+            }
+        } else {
+            Section { ProgressView("Cargando planes…") }
         }
     }
 }
