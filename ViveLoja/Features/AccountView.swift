@@ -195,6 +195,13 @@ struct AccountView: View {
                         Button("Inicia sesión o regístrate") { showAuth = true }
                         Text("Guarda lugares, recibe recomendaciones y publica en Loja.").font(.subheadline).foregroundStyle(.secondary)
                     }
+                    Section("Para negocios") {
+                        NavigationLink(destination: BusinessPlanView()) {
+                            Label("Ver planes para mi negocio", systemImage: "creditcard")
+                        }
+                        Text("Compara primero. Crea tu cuenta solo cuando elijas un plan.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
                 }
                 Section("Preferencias") {
                     NavigationLink(destination: AppearanceView()) {

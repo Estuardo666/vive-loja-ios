@@ -14,22 +14,23 @@ final class BusinessPlanViewModel {
     var collaboratorRole = "EDITOR"
 
     func load(token: String?) async {
-        guard let token else { return }
         isLoading = true
         defer { isLoading = false }
         do {
-            async let catalogRequest: MobileBillingCatalog = APIClient.shared.get("/billing/catalog")
-            async let accountRequest: MobileBusinessAccountSnapshot = APIClient.shared.get("/me/business-account", bearer: token)
-            catalog = try await catalogRequest
-            account = try await accountRequest
+            catalog = try await APIClient.shared.get("/billing/catalog")
+            if let token {
+                account = try await APIClient.shared.get("/me/business-account", bearer: token)
+            } else {
+                account = nil
+            }
             errorMessage = nil
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo cargar tu plan."
         }
     }
 
-    func activate(plan: MobilePlan, annual: Bool, token: String?) async {
-        guard let token else { errorMessage = "Inicia sesión para activar un plan."; return }
+    func activate(plan: MobilePlan, annual: Bool, token: String?) async -> Bool {
+        guard let token else { errorMessage = "Completa tus datos para activar este plan."; return false }
         isSubmitting = true
         defer { isSubmitting = false }
         do {
@@ -47,9 +48,11 @@ final class BusinessPlanViewModel {
             errorMessage = "Plan activado. Vigente hasta \(order.endsAt?.formatted(date: .abbreviated, time: .omitted) ?? "la fecha indicada")."
             VLFeedback.success()
             await load(token: token)
+            return true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo activar el plan."
             VLFeedback.error()
+            return false
         }
     }
 
@@ -70,6 +73,7 @@ struct BusinessPlanView: View {
     @Environment(SessionStore.self) private var session
     @State private var model = BusinessPlanViewModel()
     @State private var annual = false
+    @State private var checkoutPlan: MobilePlan?
 
     var body: some View {
         List {
@@ -143,7 +147,12 @@ struct BusinessPlanView: View {
         .navigationTitle("Mi plan")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.load(token: session.accessToken) }
-        .task { await model.load(token: session.accessToken) }
+        .task(id: session.user?.id) { await model.load(token: session.accessToken) }
+        .sheet(item: $checkoutPlan) { plan in
+            PlanCheckoutAuthView(plan: plan, annual: annual) {
+                await model.activate(plan: plan, annual: annual, token: session.accessToken)
+            }
+        }
     }
 
     private func limit(_ value: Int?) -> String { value.map(String.init) ?? "∞" }
@@ -166,9 +175,13 @@ struct BusinessPlanView: View {
                         Text("Habla con Vive Loja para configurarlo.").font(.subheadline).foregroundStyle(.secondary)
                     } else {
                         Button {
-                            Task { await model.activate(plan: plan, annual: annual, token: session.accessToken) }
+                            if session.accessToken == nil {
+                                checkoutPlan = plan
+                            } else {
+                                Task { _ = await model.activate(plan: plan, annual: annual, token: session.accessToken) }
+                            }
                         } label: {
-                            if model.isSubmitting { ProgressView() } else { Text("Activar beta sin costo") }
+                            if model.isSubmitting { ProgressView() } else { Text(session.accessToken == nil ? "Continuar con este plan" : "Activar beta sin costo") }
                         }
                         .buttonStyle(.borderedProminent)
                         .frame(minHeight: 44)
@@ -183,5 +196,113 @@ struct BusinessPlanView: View {
         if plan.slug == "red" { return "Desde $99" }
         let value = annual ? (plan.annualPrice ?? 0) : (plan.monthlyPrice ?? 0)
         return String(format: "$%.2f", value)
+    }
+}
+
+private struct PlanCheckoutAuthView: View {
+    enum Mode: String, CaseIterable, Identifiable {
+        case register = "Soy nuevo"
+        case login = "Ya tengo cuenta"
+        var id: Self { self }
+    }
+
+    let plan: MobilePlan
+    let annual: Bool
+    let onAuthenticated: () async -> Bool
+
+    @Environment(SessionStore.self) private var session
+    @Environment(\.dismiss) private var dismiss
+    @State private var mode: Mode = .register
+    @State private var name = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var acceptedLegal = false
+    @State private var isSubmitting = false
+
+    private var canSubmit: Bool {
+        email.contains("@") && password.count >= 8 && acceptedLegal
+            && (mode == .login || name.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2)
+            && !isSubmitting
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("Último paso").font(.caption.weight(.semibold)).foregroundStyle(VLTheme.indigo)
+                    LabeledContent(plan.name, value: price)
+                    Text("El plan que elegiste se conservará mientras creas tu acceso.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+                Section {
+                    Picker("Acceso", selection: $mode) {
+                        ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    if mode == .register {
+                        TextField("Nombre completo", text: $name).textContentType(.name)
+                    }
+                    TextField("Correo electrónico", text: $email)
+                        .textContentType(.emailAddress)
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.emailAddress)
+                    SecureField("Contraseña · mínimo 8 caracteres", text: $password)
+                        .textContentType(mode == .login ? .password : .newPassword)
+                }
+                Section {
+                    Toggle(isOn: $acceptedLegal) {
+                        Text("Acepto los términos, la política de privacidad y la política de reembolsos.")
+                            .font(.subheadline)
+                    }
+                    Link("Leer términos", destination: legalURL("terminos"))
+                    Link("Privacidad", destination: legalURL("privacy"))
+                    Link("Reembolsos", destination: legalURL("reembolsos"))
+                }
+                if let error = session.errorMessage {
+                    Section { Text(error).font(.subheadline).foregroundStyle(.red) }
+                }
+                Section {
+                    Button {
+                        Task { await submit() }
+                    } label: {
+                        if isSubmitting { ProgressView() }
+                        else { Text(mode == .register ? "Crear cuenta y activar" : "Entrar y activar") }
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(!canSubmit)
+                } footer: {
+                    Text("Beta sin costo: no se solicitará tarjeta ni habrá renovación automática.")
+                }
+            }
+            .vlScreen()
+            .navigationTitle("Confirmar plan")
+            .navigationBarTitleDisplayMode(.inline)
+            .interactiveDismissDisabled(isSubmitting)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cerrar") { dismiss() }.disabled(isSubmitting) } }
+        }
+    }
+
+    private var price: String {
+        let value = annual ? (plan.annualPrice ?? 0) : (plan.monthlyPrice ?? 0)
+        return String(format: "$%.2f · %@", value, annual ? "anual" : "mensual")
+    }
+
+    private func legalURL(_ path: String) -> URL {
+        AppEnvironment.current.webBaseURL.appending(path: path)
+    }
+
+    @MainActor
+    private func submit() async {
+        guard canSubmit else { return }
+        isSubmitting = true
+        defer { isSubmitting = false }
+        let authenticated: Bool
+        if mode == .register {
+            authenticated = await session.register(name: name.trimmingCharacters(in: .whitespacesAndNewlines), email: email, password: password)
+        } else {
+            authenticated = await session.login(email: email, password: password)
+        }
+        guard authenticated else { return }
+        if await onAuthenticated() { dismiss() }
     }
 }
