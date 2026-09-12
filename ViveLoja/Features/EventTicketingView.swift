@@ -6,6 +6,7 @@ import SwiftUI
 @Observable
 final class EventTicketingViewModel {
     private let api: APIClient
+    private let accessStore: TicketAccessStore
     var ticketing: MobileTicketing?
     var quantities: [String: Int] = [:]
     var selectedSeats: [String: Set<String>] = [:]
@@ -16,7 +17,10 @@ final class EventTicketingViewModel {
     var errorMessage: String?
     let sessionKey = UUID().uuidString
 
-    init(api: APIClient = .shared) { self.api = api }
+    init(api: APIClient = .shared, accessStore: TicketAccessStore = TicketAccessStore()) {
+        self.api = api
+        self.accessStore = accessStore
+    }
 
     func load(slug: String) async {
         guard ticketing == nil else { return }
@@ -99,6 +103,11 @@ final class EventTicketingViewModel {
         defer { isSubmitting = false }
         do {
             checkout = try await api.post("/ticketing/checkouts", body: MobileTicketCheckoutRequest(holdToken: hold.token ?? "", buyerName: buyer.name, buyerEmail: buyer.email, buyerPhone: buyer.phone, billingDocumentId: buyer.billingDocumentId), bearer: accessToken, headers: ["Idempotency-Key": UUID().uuidString])
+            if let token = checkout?.token {
+                // Keep the bearer reference locally before opening PayPhone so
+                // the purchase remains recoverable even without an account.
+                _ = accessStore.add(TicketAccessReference(kind: .order, token: token))
+            }
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo iniciar el pago."
         }

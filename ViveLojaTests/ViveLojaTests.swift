@@ -482,6 +482,30 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertEqual(session.errorMessage, "Sesión vencida")
     }
 
+    func testTicketAccessReferenceOnlyAcceptsViveLojaPrivateLinks() {
+        let token = String(repeating: "A", count: 43)
+        let qrLink = "https://viveloja.com/tickets/scan?token=\(token)"
+        let orderLink = "https://viveloja.com/checkout/result?token=\(token)&clientTransactionId=vl_test"
+
+        XCTAssertEqual(TicketAccessReference.parse(qrLink)?.kind, .ticket)
+        XCTAssertEqual(TicketAccessReference.parse(orderLink)?.kind, .order)
+        XCTAssertNil(TicketAccessReference.parse("https://example.com/tickets/scan?token=\(token)"))
+        XCTAssertNil(TicketAccessReference.parse("not-a-token"))
+    }
+
+    func testTicketAccessStorePersistsAndDeduplicatesReferences() {
+        let keychain = MemoryKeychainStore()
+        let store = TicketAccessStore(keychain: keychain)
+        let reference = TicketAccessReference(kind: .order, token: String(repeating: "B", count: 43))
+
+        XCTAssertTrue(store.add(reference))
+        XCTAssertTrue(store.add(reference))
+        XCTAssertEqual(store.references(), [reference])
+
+        store.remove(reference)
+        XCTAssertTrue(store.references().isEmpty)
+    }
+
     func testConversationStreamRetriesAfterDisconnectAndCanStop() async throws {
         SSEStubURLProtocol.reset()
         let configuration = URLSessionConfiguration.ephemeral

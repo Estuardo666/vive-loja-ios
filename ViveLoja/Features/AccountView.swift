@@ -201,6 +201,13 @@ struct AccountView: View {
                         Button("Inicia sesión o regístrate") { showAuth = true }
                         Text("Guarda lugares, recibe recomendaciones y publica en Loja.").font(.subheadline).foregroundStyle(.secondary)
                     }
+                    Section("Entradas") {
+                        NavigationLink(destination: TicketsView()) {
+                            Label("Mis entradas", systemImage: "ticket.fill")
+                        }
+                        Text("Puedes consultar una compra sin crear una cuenta usando el enlace privado de tu correo.")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
                     Section("Para negocios") {
                         NavigationLink(destination: BusinessPlanView()) {
                             Label("Ver planes para mi negocio", systemImage: "creditcard")
