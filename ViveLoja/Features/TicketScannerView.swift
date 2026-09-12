@@ -93,13 +93,15 @@ struct TicketScannerView: View {
     let eventId: String
     let eventTitle: String
     @Environment(SessionStore.self) private var session
+    @Environment(\.dismiss) private var dismiss
     @State private var model = TicketScannerModel()
     @State private var lastCode: String?
     @State private var scannerLocked = false
+    @State private var scannerResetID = UUID()
 
     var body: some View {
         ZStack {
-            QRCodeScannerView { code in
+            QRCodeScannerView(isActive: !scannerLocked, resetID: scannerResetID) { code in
                 guard !scannerLocked, lastCode != code else { return }
                 scannerLocked = true
                 lastCode = code
@@ -108,11 +110,22 @@ struct TicketScannerView: View {
             .ignoresSafeArea()
             Color.black.opacity(model.result == nil ? 0.22 : 0.48).ignoresSafeArea()
             VStack(spacing: 0) {
-                Label("Escaneando: \(eventTitle)", systemImage: "qrcode.viewfinder")
-                    .font(.headline).foregroundStyle(.white)
-                    .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(.black.opacity(0.68), in: Capsule())
-                    .padding(.top, 8)
+                HStack(spacing: 10) {
+                    Button { dismiss() } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.headline.weight(.bold))
+                            .frame(width: 44, height: 44)
+                            .background(.black.opacity(0.72), in: Circle())
+                    }
+                    .accessibilityLabel("Volver")
+                    Label("Escaneando: \(eventTitle)", systemImage: "qrcode.viewfinder")
+                        .font(.headline).lineLimit(1).minimumScaleFactor(0.75)
+                        .padding(.horizontal, 16).frame(height: 44)
+                        .background(.black.opacity(0.72), in: Capsule())
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
                 Spacer()
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
                     .stroke(scannerLocked ? Color.white.opacity(0.35) : Color.white, lineWidth: 3)
@@ -182,7 +195,8 @@ struct TicketScannerView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
-            .background(Color.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Color.black.opacity(0.28), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.white.opacity(0.45), lineWidth: 1))
 
             HStack {
                 if let sequence = result.ticketSequence, let total = result.orderTicketCount {
@@ -215,9 +229,10 @@ struct TicketScannerView: View {
         .foregroundStyle(.white)
         .padding(20)
         .background(
-            LinearGradient(colors: [VLTheme.success, VLTheme.emerald], startPoint: .topLeading, endPoint: .bottomTrailing),
+            LinearGradient(colors: [Color(red: 0.02, green: 0.37, blue: 0.27), Color(red: 0.01, green: 0.24, blue: 0.18)], startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 28, style: .continuous)
         )
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.5), lineWidth: 1.5))
         .shadow(color: Color.black.opacity(0.3), radius: 24, y: 10)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Acceso autorizado para \(result.buyerName ?? "comprador verificado")")
@@ -269,15 +284,18 @@ struct TicketScannerView: View {
     private func resetScanner() {
         lastCode = nil
         scannerLocked = false
+        scannerResetID = UUID()
         model.result = nil
         model.errorMessage = nil
     }
 }
 
 struct QRCodeScannerView: UIViewControllerRepresentable {
+    let isActive: Bool
+    let resetID: UUID
     let onCode: (String) -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator(onCode: onCode) }
+    func makeCoordinator() -> Coordinator { Coordinator(isActive: isActive, resetID: resetID, onCode: onCode) }
 
     func makeUIViewController(context: Context) -> UIViewController {
         let controller = UIViewController()
@@ -304,6 +322,7 @@ struct QRCodeScannerView: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ controller: UIViewController, context: Context) {
+        context.coordinator.update(isActive: isActive, resetID: resetID, onCode: onCode)
         context.coordinator.preview?.frame = controller.view.bounds
     }
 
@@ -312,15 +331,33 @@ struct QRCodeScannerView: UIViewControllerRepresentable {
     }
 
     final class Coordinator: NSObject, AVCaptureMetadataOutputObjectsDelegate {
-        let onCode: (String) -> Void
+        private var onCode: (String) -> Void
+        private var isActive: Bool
+        private var resetID: UUID
         var capture: AVCaptureSession?
         var preview: AVCaptureVideoPreviewLayer?
         private var lastCode: String?
 
-        init(onCode: @escaping (String) -> Void) { self.onCode = onCode }
+        init(isActive: Bool, resetID: UUID, onCode: @escaping (String) -> Void) {
+            self.isActive = isActive
+            self.resetID = resetID
+            self.onCode = onCode
+        }
+
+        func update(isActive: Bool, resetID: UUID, onCode: @escaping (String) -> Void) {
+            self.isActive = isActive
+            self.onCode = onCode
+            if self.resetID != resetID {
+                self.resetID = resetID
+                lastCode = nil
+            }
+        }
 
         func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
-            guard let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject, let value = object.stringValue, value != lastCode else { return }
+            guard isActive,
+                  let object = metadataObjects.first as? AVMetadataMachineReadableCodeObject,
+                  let value = object.stringValue,
+                  value != lastCode else { return }
             lastCode = value
             onCode(value)
         }
