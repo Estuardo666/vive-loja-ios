@@ -18,6 +18,7 @@ struct ItemDetailView: View {
     @State private var showReviewComposer = false
     @State private var showQuestionComposer = false
     @State private var showCheckIn = false
+    @State private var showTicketing = false
     @State private var isFollowingVenue = false
     @State private var isUpdatingFollowing = false
     @State private var actionMessage: String?
@@ -33,7 +34,14 @@ struct ItemDetailView: View {
                     gallery(width: max(0, geometry.size.width - 40))
                     ItemDetailHeader(item: displayedItem, venueDetail: venueDetail)
                     actionBar
-                    if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED" {
+                    if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED", eventDetail?.ticketing?.mode != "NONE" {
+                        Button {
+                            showTicketing = true
+                        } label: {
+                            Label("Comprar entradas", systemImage: "ticket.fill")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(VLTheme.indigo)
                         Button {
                             Task {
                                 if reminderScheduled {
@@ -104,6 +112,11 @@ struct ItemDetailView: View {
             if case .venue(let venue) = displayedItem {
                 CheckInView(venueID: venue.id) { actionMessage = "Check-in registrado. ¡Gracias por compartir tu visita!" }
                     .presentationDetents([.medium, .large])
+            }
+        }
+        .sheet(isPresented: $showTicketing) {
+            if case .event(let event) = displayedItem {
+                EventTicketingView(slug: event.slug)
             }
         }
     }

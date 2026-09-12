@@ -61,6 +61,16 @@ enum AppEnvironment: Sendable {
     func shareURL(for kind: ShareableKind, slug: String) -> URL {
         webBaseURL.appending(path: kind.pathSegment).appending(path: slug)
     }
+
+    func checkoutResultURL(token: String, clientTransactionId: String, status: String = "paid") -> URL {
+        var components = URLComponents(url: webBaseURL.appending(path: "checkout/result"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "token", value: token),
+            URLQueryItem(name: "clientTransactionId", value: clientTransactionId),
+            URLQueryItem(name: "status", value: status),
+        ]
+        return components.url!
+    }
 }
 
 /// Content that has a public web page and can be opened by a Universal Link.

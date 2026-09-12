@@ -143,6 +143,12 @@ struct AccountView: View {
                         NavigationLink(destination: ReservationsView()) {
                             Label("Mis reservas", systemImage: "calendar.badge.clock")
                         }
+                        NavigationLink(destination: TicketsView()) {
+                            Label("Mis entradas", systemImage: "ticket.fill")
+                        }
+                        NavigationLink(destination: TicketScannerPickerView()) {
+                            Label("Validar entradas", systemImage: "qrcode.viewfinder")
+                        }
                         NavigationLink(destination: MyPublicationsView()) {
                             Label("Mis publicaciones", systemImage: "doc.text.magnifyingglass")
                         }

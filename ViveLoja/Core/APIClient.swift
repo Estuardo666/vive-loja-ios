@@ -67,12 +67,12 @@ actor APIClient {
         try await request(path, method: "GET", query: query, body: Optional<String>.none, bearer: bearer)
     }
 
-    func post<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
-        try await request(path, method: "POST", query: [], body: body, bearer: bearer)
+    func post<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil, headers: [String: String] = [:]) async throws -> Value {
+        try await request(path, method: "POST", query: [], body: body, bearer: bearer, headers: headers)
     }
 
-    func post<Value: Decodable & Sendable>(_ path: String, bearer: String? = nil) async throws -> Value {
-        try await request(path, method: "POST", query: [], body: Optional<String>.none, bearer: bearer)
+    func post<Value: Decodable & Sendable>(_ path: String, bearer: String? = nil, headers: [String: String] = [:]) async throws -> Value {
+        try await request(path, method: "POST", query: [], body: Optional<String>.none, bearer: bearer, headers: headers)
     }
 
     func patch<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, body: Body, bearer: String? = nil) async throws -> Value {
@@ -119,7 +119,7 @@ actor APIClient {
         try await request(path, method: "DELETE", query: [], body: body, bearer: bearer)
     }
 
-    private func request<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, method: String, query: [URLQueryItem], body: Body?, bearer: String?) async throws -> Value {
+    private func request<Body: Encodable & Sendable, Value: Decodable & Sendable>(_ path: String, method: String, query: [URLQueryItem], body: Body?, bearer: String?, headers: [String: String] = [:]) async throws -> Value {
         guard var components = URLComponents(url: environment.baseURL.appending(path: path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))), resolvingAgainstBaseURL: false) else { throw APIError.invalidURL }
         components.queryItems = query.isEmpty ? nil : query
         guard let url = components.url else { throw APIError.invalidURL }
@@ -130,6 +130,7 @@ actor APIClient {
         if bearer != nil { request.setValue("no-store", forHTTPHeaderField: "Cache-Control") }
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
+        for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         if let body { request.httpBody = try JSONEncoder().encode(body) }
 
         let data: Data

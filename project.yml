@@ -39,7 +39,7 @@ targets:
         PRODUCT_MODULE_NAME: ViveLoja
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Vive Loja
-        INFOPLIST_KEY_NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos.
+        INFOPLIST_KEY_NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos y validar entradas.
         INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Vive Loja usa tu ubicación para mostrar lugares cercanos.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Vive Loja usa tus fotos para publicar contenido.
         INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
