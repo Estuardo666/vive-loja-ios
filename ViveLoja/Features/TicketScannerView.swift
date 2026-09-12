@@ -76,8 +76,10 @@ final class TicketScannerModel {
         defer { isSubmitting = false }
         do {
             result = try await api.post("/ticketing/check-ins", body: MobileTicketCheckInRequest(eventId: eventId, token: token, deviceId: UIDevice.current.identifierForVendor?.uuidString), bearer: accessToken, headers: ["Idempotency-Key": UUID().uuidString])
+            VLFeedback.success()
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo validar la entrada. Verifica tu conexión."
+            VLFeedback.error()
         }
     }
 
@@ -93,51 +95,182 @@ struct TicketScannerView: View {
     @Environment(SessionStore.self) private var session
     @State private var model = TicketScannerModel()
     @State private var lastCode: String?
+    @State private var scannerLocked = false
 
     var body: some View {
         ZStack {
             QRCodeScannerView { code in
-                guard lastCode != code else { return }
+                guard !scannerLocked, lastCode != code else { return }
+                scannerLocked = true
                 lastCode = code
                 Task { await model.checkIn(eventId: eventId, rawCode: code, accessToken: session.accessToken) }
             }
             .ignoresSafeArea()
-            Color.black.opacity(0.2).ignoresSafeArea()
-            VStack {
+            Color.black.opacity(model.result == nil ? 0.22 : 0.48).ignoresSafeArea()
+            VStack(spacing: 0) {
                 Label("Escaneando: \(eventTitle)", systemImage: "qrcode.viewfinder")
                     .font(.headline).foregroundStyle(.white)
                     .padding(.horizontal, 16).padding(.vertical, 10)
-                    .background(.black.opacity(0.6), in: Capsule())
+                    .background(.black.opacity(0.68), in: Capsule())
+                    .padding(.top, 8)
                 Spacer()
                 RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .stroke(.white, lineWidth: 3)
+                    .stroke(scannerLocked ? Color.white.opacity(0.35) : Color.white, lineWidth: 3)
                     .frame(width: 260, height: 260)
                 Spacer()
-                VStack(spacing: 10) {
-                    Text("Validación en línea")
-                        .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                    if model.isSubmitting { ProgressView().tint(.white) }
-                    if let result = model.result {
-                        Label(result.result == "ACCEPTED" ? "Entrada válida" : result.result, systemImage: result.result == "ACCEPTED" ? "checkmark.circle.fill" : "xmark.circle.fill")
-                            .font(.headline).foregroundStyle(result.result == "ACCEPTED" ? .green : .red)
-                        if let code = result.code { Text(code).font(.caption.monospaced()).foregroundStyle(.white) }
-                        if let seat = result.seatLabel { Text(seat).font(.caption).foregroundStyle(.white) }
-                        Button("Escanear siguiente") { lastCode = nil; model.result = nil; model.errorMessage = nil }
-                            .buttonStyle(.borderedProminent)
-                    } else if let errorMessage = model.errorMessage {
-                        Text(errorMessage).font(.subheadline).multilineTextAlignment(.center).foregroundStyle(.white)
-                        Button("Intentar de nuevo") { lastCode = nil; model.errorMessage = nil }
-                            .buttonStyle(.bordered)
-                            .tint(.white)
-                    }
-                }
-                .padding(16)
-                .frame(maxWidth: .infinity)
-                .background(.black.opacity(0.65))
+                validationPanel
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 14)
             }
             .padding(.top, 20)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: model.result?.ticketId)
+        .animation(.easeOut(duration: 0.2), value: model.errorMessage)
+    }
+
+    @ViewBuilder
+    private var validationPanel: some View {
+        if let result = model.result {
+            acceptedCard(result)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        } else if let errorMessage = model.errorMessage {
+            rejectedCard(errorMessage)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        } else {
+            HStack(spacing: 10) {
+                if model.isSubmitting { ProgressView().tint(.white) }
+                Image(systemName: model.isSubmitting ? "shield.lefthalf.filled" : "viewfinder")
+                Text(model.isSubmitting ? "Verificando con Vive Loja…" : "Coloca el QR dentro del recuadro")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18).padding(.vertical, 14)
+            .frame(maxWidth: .infinity)
+            .background(.black.opacity(0.72), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+    }
+
+    private func acceptedCard(_ result: MobileTicketCheckIn) -> some View {
+        VStack(spacing: 14) {
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 58, weight: .bold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, Color.white.opacity(0.25))
+                .symbolEffect(.bounce, value: result.ticketId)
+
+            VStack(spacing: 4) {
+                Text("ACCESO AUTORIZADO")
+                    .font(.caption.weight(.black))
+                    .tracking(1.2)
+                Text(result.buyerName ?? "Comprador verificado")
+                    .font(.title2.weight(.bold))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+            }
+
+            HStack(spacing: 0) {
+                scannerMetric(value: result.ticketType ?? "Entrada", label: "Tipo", icon: "ticket.fill")
+                Divider().overlay(Color.white.opacity(0.32)).padding(.vertical, 4)
+                scannerMetric(
+                    value: "\(result.orderTicketCount ?? 1)",
+                    label: (result.orderTicketCount ?? 1) == 1 ? "Entrada comprada" : "Entradas compradas",
+                    icon: "person.2.fill"
+                )
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.black.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            HStack {
+                if let sequence = result.ticketSequence, let total = result.orderTicketCount {
+                    Label("Entrada \(sequence) de \(total)", systemImage: "number.circle.fill")
+                }
+                Spacer()
+                if let seat = result.seatLabel { Label(seat, systemImage: "chair.lounge.fill") }
+            }
+            .font(.caption.weight(.semibold))
+
+            if let code = result.code {
+                Text(code)
+                    .font(.caption.monospaced().weight(.semibold))
+                    .textSelection(.enabled)
+                    .opacity(0.82)
+            }
+
+            Button {
+                resetScanner()
+            } label: {
+                Label("Escanear siguiente", systemImage: "qrcode.viewfinder")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.white)
+            .foregroundStyle(VLTheme.success)
+            .controlSize(.large)
+        }
+        .foregroundStyle(.white)
+        .padding(20)
+        .background(
+            LinearGradient(colors: [VLTheme.success, VLTheme.emerald], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+        )
+        .shadow(color: Color.black.opacity(0.3), radius: 24, y: 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Acceso autorizado para \(result.buyerName ?? "comprador verificado")")
+    }
+
+    private func rejectedCard(_ message: String) -> some View {
+        VStack(spacing: 12) {
+            Image(systemName: "xmark.octagon.fill")
+                .font(.system(size: 48, weight: .bold))
+                .foregroundStyle(.white)
+            Text("NO PERMITIR EL INGRESO")
+                .font(.headline.weight(.black))
+            Text(message)
+                .font(.subheadline.weight(.medium))
+                .multilineTextAlignment(.center)
+            Button {
+                resetScanner()
+            } label: {
+                Label("Escanear otro código", systemImage: "arrow.clockwise")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.white)
+            .foregroundStyle(Color.red)
+            .controlSize(.large)
+        }
+        .foregroundStyle(.white)
+        .padding(20)
+        .background(Color.red.gradient, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .shadow(color: Color.black.opacity(0.3), radius: 24, y: 10)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Ingreso rechazado. \(message)")
+    }
+
+    private func scannerMetric(value: String, label: String, icon: String) -> some View {
+        VStack(spacing: 4) {
+            Label(value, systemImage: icon)
+                .font(.subheadline.weight(.bold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+            Text(label)
+                .font(.caption2.weight(.medium))
+                .opacity(0.82)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func resetScanner() {
+        lastCode = nil
+        scannerLocked = false
+        model.result = nil
+        model.errorMessage = nil
     }
 }
 

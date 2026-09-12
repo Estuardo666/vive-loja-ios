@@ -122,6 +122,19 @@ private final class SSEStubURLProtocol: URLProtocol, @unchecked Sendable {
 
 @MainActor
 final class ViveLojaTests: XCTestCase {
+    func testTicketCheckInDecodesAuthorizedDoorDetails() throws {
+        let payload = Data("""
+        {"result":"ACCEPTED","ticketId":"ticket-1","code":"VL-ABC123","seatLabel":null,"ticketType":"General","buyerName":"María Pérez","orderTicketCount":3,"ticketSequence":2,"acceptedAt":"2026-09-12T08:45:12.250Z"}
+        """.utf8)
+
+        let checkIn = try JSONDecoder.viveLoja.decode(MobileTicketCheckIn.self, from: payload)
+
+        XCTAssertEqual(checkIn.buyerName, "María Pérez")
+        XCTAssertEqual(checkIn.orderTicketCount, 3)
+        XCTAssertEqual(checkIn.ticketSequence, 2)
+        XCTAssertNotNil(checkIn.acceptedAt)
+    }
+
     func testExploreVenueAndEventHaveStableIdentifiers() {
         let category = Category(id: "c", name: "Cafés", slug: "cafes", icon: "☕", color: nil)
         let venue = ExploreVenue(id: "v", name: "Café", slug: "cafe", description: "", image: nil, location: "Centro", address: nil, lat: -4, lng: -79, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [category], openState: nil)

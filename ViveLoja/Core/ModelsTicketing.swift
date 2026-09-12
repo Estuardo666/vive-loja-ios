@@ -142,4 +142,8 @@ struct MobileTicketCheckIn: Codable, Sendable {
     let code: String?
     let seatLabel: String?
     let ticketType: String?
+    let buyerName: String?
+    let orderTicketCount: Int?
+    let ticketSequence: Int?
+    let acceptedAt: Date?
 }
