@@ -24,7 +24,8 @@ final class TicketsViewModel {
 
         if let accessToken {
             do {
-                loadedOrders.append(contentsOf: try await api.get("/me/tickets", bearer: accessToken))
+                let accountOrders: [MobileTicketOrder] = try await api.get("/me/tickets", bearer: accessToken)
+                loadedOrders.append(contentsOf: accountOrders)
             } catch {
                 firstError = (error as? LocalizedError)?.errorDescription ?? "No se pudieron cargar tus entradas."
             }
