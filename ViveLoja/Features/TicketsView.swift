@@ -82,7 +82,11 @@ struct TicketsView: View {
                     Section { Text(errorMessage).foregroundStyle(.red) }
                 }
                 if model.orders.isEmpty && !model.isLoading && model.errorMessage == nil {
-                    ContentUnavailableView("Aún no tienes entradas", systemImage: "ticket", description: Text("Tus compras confirmadas o importadas aparecerán aquí."))
+                    ContentUnavailableView(
+                        "Aún no tienes entradas",
+                        systemImage: "ticket",
+                        description: Text(session.accessToken == nil ? "Inicia sesión en la app con el mismo correo de la compra, o agrega el enlace privado recibido por correo." : "Tus compras confirmadas o importadas aparecerán aquí.")
+                    )
                 }
                 ForEach(model.orders) { order in
                     Section {
@@ -115,7 +119,7 @@ struct TicketsView: View {
             }
             .overlay { if model.isLoading && model.orders.isEmpty { ProgressView() } }
             .refreshable { await model.load(accessToken: session.accessToken) }
-            .task { await model.load(accessToken: session.accessToken) }
+            .task(id: session.user?.id) { await model.load(accessToken: session.accessToken) }
             .sheet(isPresented: $showImportSheet) {
                 NavigationStack {
                     Form {
