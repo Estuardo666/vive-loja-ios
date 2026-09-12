@@ -87,7 +87,7 @@ private struct TicketRow: View {
                 Text(ticket.code).font(.caption.monospaced()).foregroundStyle(.secondary)
                 if let seatLabel = ticket.seatLabel { Text(seatLabel).font(.caption).foregroundStyle(.secondary) }
                 Label(ticket.status == "CHECKED_IN" ? "Usada" : "Válida", systemImage: ticket.status == "CHECKED_IN" ? "checkmark.seal.fill" : "checkmark.seal")
-                    .font(.caption.weight(.semibold)).foregroundStyle(ticket.status == "CHECKED_IN" ? .secondary : .green)
+                    .font(.caption.weight(.semibold)).foregroundStyle(ticket.status == "CHECKED_IN" ? Color.secondary : Color.green)
             }
             Spacer(minLength: 0)
         }

@@ -98,7 +98,7 @@ final class EventTicketingViewModel {
         errorMessage = nil
         defer { isSubmitting = false }
         do {
-            checkout = try await api.post("/ticketing/checkouts", body: MobileTicketCheckoutRequest(holdToken: hold.token ?? "", buyerName: buyer.name, buyerEmail: buyer.email, buyerPhone: buyer.phone, billingDocumentId: buyer.document.nilIfBlank), bearer: accessToken, headers: ["Idempotency-Key": UUID().uuidString])
+            checkout = try await api.post("/ticketing/checkouts", body: MobileTicketCheckoutRequest(holdToken: hold.token ?? "", buyerName: buyer.name, buyerEmail: buyer.email, buyerPhone: buyer.phone, billingDocumentId: buyer.billingDocumentId), bearer: accessToken, headers: ["Idempotency-Key": UUID().uuidString])
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo iniciar el pago."
         }
@@ -110,6 +110,11 @@ struct MobileTicketBuyer: Sendable {
     var email = ""
     var phone = ""
     var document = ""
+
+    var billingDocumentId: String? {
+        let normalized = document.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+    }
 }
 
 struct EventTicketingView: View {
@@ -171,40 +176,46 @@ struct EventTicketingView: View {
 
     @ViewBuilder
     private func selectionSection(_ ticketing: MobileTicketing) -> some View {
+        let ticketTypes = ticketing.ticketTypes ?? []
         Section("Tipos de entrada") {
-            ForEach(ticketing.ticketTypes ?? []) { type in
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(type.name).font(.headline)
-                            if let description = type.description { Text(description).font(.caption).foregroundStyle(.secondary) }
-                            Text(formatMoney(type.priceCents, currency: ticketing.currency)).font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.indigo)
-                        }
-                        Spacer()
-                        if type.kind == "ASSIGNED_SEAT" {
-                            Text("\(model.quantity(for: type)) seleccionados").font(.caption).foregroundStyle(.secondary)
-                        } else {
-                            Stepper(value: Binding(get: { model.quantity(for: type) }, set: { model.quantities[type.id] = $0 }), in: 0...min(type.maxPerOrder, type.available ?? type.maxPerOrder)) { Text("\(model.quantity(for: type))") }
-                                .labelsHidden()
-                        }
-                    }
-                    if type.kind == "ASSIGNED_SEAT", let seatMap = ticketing.seatMap {
-                        Text(seatMap.name ?? "Selecciona tus asientos").font(.caption.weight(.semibold))
-                        let seats = seatMap.seats.filter { ($0.ticketTypeId == nil || $0.ticketTypeId == type.id) && $0.status == "AVAILABLE" }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 48), spacing: 8)], spacing: 8) {
-                            ForEach(seats) { seat in
-                                Button { model.toggleSeat(seat, for: type) } label: { Text(seat.seatNumber).frame(maxWidth: .infinity).padding(.vertical, 8) }
-                                    .buttonStyle(.bordered)
-                                    .tint(model.selectedSeats[type.id]?.contains(seat.id) == true ? VLTheme.indigo : .secondary)
-                                    .accessibilityLabel("Asiento \(seat.seatNumber)")
-                            }
-                        }
-                    }
-                    if let available = type.available { Text(available > 0 ? "\(available) disponibles" : "Agotado").font(.caption2).foregroundStyle(available > 0 ? .secondary : .red) }
-                }
-                .disabled(type.available == 0)
+            ForEach(ticketTypes) { type in
+                ticketTypeRow(type, ticketing: ticketing)
             }
         }
+    }
+
+    @ViewBuilder
+    private func ticketTypeRow(_ type: MobileTicketType, ticketing: MobileTicketing) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(type.name).font(.headline)
+                    if let description = type.description { Text(description).font(.caption).foregroundStyle(.secondary) }
+                    Text(formatMoney(type.priceCents, currency: ticketing.currency)).font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.indigo)
+                }
+                Spacer()
+                if type.kind == "ASSIGNED_SEAT" {
+                    Text("\(model.quantity(for: type)) seleccionados").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    Stepper(value: Binding(get: { model.quantity(for: type) }, set: { model.quantities[type.id] = $0 }), in: 0...min(type.maxPerOrder, type.available ?? type.maxPerOrder)) { Text("\(model.quantity(for: type))") }
+                        .labelsHidden()
+                }
+            }
+            if type.kind == "ASSIGNED_SEAT", let seatMap = ticketing.seatMap {
+                Text(seatMap.name ?? "Selecciona tus asientos").font(.caption.weight(.semibold))
+                let seats = seatMap.seats.filter { ($0.ticketTypeId == nil || $0.ticketTypeId == type.id) && $0.status == "AVAILABLE" }
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 48), spacing: 8)], spacing: 8) {
+                    ForEach(seats) { seat in
+                        Button { model.toggleSeat(seat, for: type) } label: { Text(seat.seatNumber).frame(maxWidth: .infinity).padding(.vertical, 8) }
+                            .buttonStyle(.bordered)
+                            .tint(model.selectedSeats[type.id]?.contains(seat.id) == true ? VLTheme.indigo : .secondary)
+                            .accessibilityLabel("Asiento \(seat.seatNumber)")
+                    }
+                }
+            }
+            if let available = type.available { Text(available > 0 ? "\(available) disponibles" : "Agotado").font(.caption2).foregroundStyle(available > 0 ? Color.secondary : Color.red) }
+        }
+        .disabled(type.available == 0)
     }
 
     @ViewBuilder
