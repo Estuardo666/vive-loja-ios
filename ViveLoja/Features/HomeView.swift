@@ -57,7 +57,14 @@ final class HomeViewModel {
             popularNow = payload.popularNow ?? []
             posts = payload.posts ?? []
             promotions = payload.promotions ?? []
-            recommendations = nextRecommendations
+            // The session can finish restoring while the public home request
+            // is still in flight. Do not erase recommendations loaded by that
+            // concurrent session task with this anonymous request's nil value.
+            if let nextRecommendations {
+                recommendations = nextRecommendations
+            } else if accessToken != nil {
+                recommendations = nil
+            }
             hasLoaded = true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No pudimos cargar el inicio. Inténtalo de nuevo."
@@ -93,7 +100,11 @@ struct HomeView: View {
                 // its own, so a carousel can scroll to the edge of the screen
                 // instead of being clipped by the page margin.
                 VStack(alignment: .leading, spacing: 28) {
-                    if !model.hasLoaded {
+                    if model.isLoading && !model.initialLoadFinished {
+                        ProgressView("Cargando Loja…")
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 64)
+                    } else if !model.hasLoaded {
                         ContentUnavailableView {
                             Label("No pudimos cargar el inicio", systemImage: "wifi.exclamationmark")
                         } description: {

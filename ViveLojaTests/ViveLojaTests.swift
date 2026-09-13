@@ -445,6 +445,15 @@ final class ViveLojaTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(started), 0.1)
     }
 
+    func testLaunchGateDismissesWithoutWaitingForNetwork() async {
+        let gate = LaunchGate(delay: .milliseconds(1))
+        XCTAssertTrue(gate.isPresented)
+
+        await gate.dismissAfterDelay()
+
+        XCTAssertFalse(gate.isPresented)
+    }
+
     func testSessionStoreRefreshRotatesTokens() async throws {
         RefreshStubURLProtocol.setStatusCode(200)
         let configuration = URLSessionConfiguration.ephemeral

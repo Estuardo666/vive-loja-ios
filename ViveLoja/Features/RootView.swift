@@ -1,5 +1,22 @@
+import Observation
 import SwiftUI
 import UIKit
+
+@MainActor
+@Observable
+final class LaunchGate {
+    private(set) var isPresented = true
+    private let delay: Duration
+
+    init(delay: Duration = .milliseconds(700)) {
+        self.delay = delay
+    }
+
+    func dismissAfterDelay() async {
+        do { try await Task.sleep(for: delay) } catch { return }
+        isPresented = false
+    }
+}
 
 struct RootView: View {
     @Binding var selectedTab: MainTabView.Tab
@@ -7,28 +24,29 @@ struct RootView: View {
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @State private var showAuth = false
     @State private var home = HomeViewModel()
+    @State private var launchGate = LaunchGate()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var isStarting: Bool { session.isRestoring || !home.initialLoadFinished }
 
     var body: some View {
         @Bindable var session = session
         Group {
-            if isStarting { VLLaunchSplash().transition(.opacity) }
+            if launchGate.isPresented { VLLaunchSplash().transition(.opacity) }
             else { MainTabView(selectedTab: $selectedTab, home: home).transition(.opacity) }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: isStarting)
-        .task(id: session.isRestoring) {
-            guard !session.isRestoring, !home.initialLoadFinished else { return }
-            let model = home
-            let token = session.accessToken
-            // A disconnected request must not hold the launch screen indefinitely.
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await model.load(accessToken: token) }
-                group.addTask { try? await Task.sleep(for: .seconds(12)) }
-                await group.next()
-                group.cancelAll()
-            }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: launchGate.isPresented)
+        .task {
+            // Launch presentation is local and deterministic. Network and
+            // session restoration must never be able to pin this screen.
+            await launchGate.dismissAfterDelay()
+        }
+        .task {
+            // Public home data can load immediately while the saved session is
+            // refreshed independently by ViveLojaApp.
+            await home.load()
+        }
+        .task(id: "\(session.isRestoring):\(session.user?.id ?? "anonymous")") {
+            guard !session.isRestoring else { return }
+            await home.reloadRecommendations(accessToken: session.accessToken)
         }
         .tint(VLTheme.indigo)
         .alert("Sesión vencida", isPresented: $session.isSessionExpired) {
