@@ -42,6 +42,7 @@ struct RootView: View {
         .task {
             // Public home data can load immediately while the saved session is
             // refreshed independently by ViveLojaApp.
+            guard !home.initialLoadFinished else { return }
             await home.load()
         }
         .task(id: "\(session.isRestoring):\(session.user?.id ?? "anonymous")") {
