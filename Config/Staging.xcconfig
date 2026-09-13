@@ -1,5 +1,6 @@
 // Override VL_API_BASE_URL in CI/Codemagic when a staging deployment is available.
-VL_API_BASE_URL = https://viveloja.com/api/mobile/v1
+// Keep the URL's double slash from being parsed as an xcconfig comment.
+VL_API_BASE_URL = https:/$()/viveloja.com/api/mobile/v1
 
 // APNs environment this configuration is signed for. It feeds both the
 // aps-environment entitlement and the token the app registers, so the two
