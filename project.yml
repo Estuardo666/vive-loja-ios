@@ -28,6 +28,27 @@ targets:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
+    info:
+      path: ViveLoja/Info.plist
+      properties:
+        CFBundleDisplayName: Vive Loja
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: com.viveloja.app
+            CFBundleURLSchemes:
+              - viveloja
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        LSApplicationCategoryType: public.app-category.travel
+        NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos y validar entradas.
+        NSLocationWhenInUseUsageDescription: Vive Loja usa tu ubicación para mostrar lugares cercanos.
+        NSPhotoLibraryUsageDescription: Vive Loja usa tus fotos para publicar contenido.
+        NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
+        UILaunchStoryboardName: LaunchScreen
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        VL_API_BASE_URL: "$(VL_API_BASE_URL)"
+        VL_APS_ENVIRONMENT: "$(VL_APS_ENVIRONMENT)"
     sources:
       - path: ViveLoja
     resources:
@@ -37,20 +58,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.viveloja.app
         PRODUCT_NAME: Vive Loja
         PRODUCT_MODULE_NAME: ViveLoja
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_CFBundleDisplayName: Vive Loja
-        INFOPLIST_KEY_NSCameraUsageDescription: Vive Loja usa la cámara para publicar fotos y validar entradas.
-        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: Vive Loja usa tu ubicación para mostrar lugares cercanos.
-        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Vive Loja usa tus fotos para publicar contenido.
-        INFOPLIST_KEY_NSUserNotificationsUsageDescription: Vive Loja puede recordarte eventos guardados.
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.travel
-        INFOPLIST_KEY_VL_API_BASE_URL: "$(VL_API_BASE_URL)"
-        INFOPLIST_KEY_VL_APS_ENVIRONMENT: "$(VL_APS_ENVIRONMENT)"
         SWIFT_EMIT_LOC_STRINGS: YES
-        INFOPLIST_KEY_UILaunchStoryboardName: LaunchScreen
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         CODE_SIGN_ENTITLEMENTS: ViveLoja/ViveLoja.entitlements

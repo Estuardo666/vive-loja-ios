@@ -69,6 +69,8 @@ struct MobilePlanCapabilities: Codable, Sendable, Hashable {
     let reservationsEnabled: Bool
     let priorityModeration: Bool
     let includedBoostCredits: Int
+    let eventTicketingEnabled: Bool?
+    let seatMapsEnabled: Bool?
 }
 
 struct MobilePlan: Codable, Identifiable, Sendable, Hashable {

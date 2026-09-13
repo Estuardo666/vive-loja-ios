@@ -4,6 +4,14 @@ import Observation
 @MainActor
 @Observable
 final class DeepLinkRouter {
+    struct CheckoutResult: Hashable, Identifiable {
+        let token: String
+        let clientTransactionId: String
+        let status: String
+
+        var id: String { "\(token):\(clientTransactionId):\(status)" }
+    }
+
     enum Destination: Hashable, Identifiable {
         case venue(slug: String)
         case event(slug: String)
@@ -46,14 +54,33 @@ final class DeepLinkRouter {
     /// Set by `handle` and consumed by `MainTabView`, which selects the tab and
     /// appends to the matching path.
     var pendingDestination: Destination?
+    var pendingCheckoutResult: CheckoutResult?
 
     func handle(_ url: URL) {
+        let scheme = url.scheme?.lowercased()
         let host = (url.host ?? "").lowercased()
         let segments = url.pathComponents.filter { $0 != "/" && !$0.isEmpty }
+
+        let isWebCheckoutResult = (host == "viveloja.com" || host == "www.viveloja.com") && segments == ["checkout", "result"]
+        let isAppCheckoutResult = scheme == "viveloja" && host == "checkout" && segments == ["result"]
+        if (isWebCheckoutResult || isAppCheckoutResult),
+           let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            func value(_ name: String) -> String { components.queryItems?.first(where: { $0.name == name })?.value ?? "" }
+            let token = value("token").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard token.count >= 20, token.count <= 160 else { return }
+            let status = value("status").lowercased()
+            pendingCheckoutResult = CheckoutResult(
+                token: token,
+                clientTransactionId: value("clientTransactionId"),
+                status: status.isEmpty ? "pending" : status
+            )
+            return
+        }
+
         let kind: String?
         let slug: String?
 
-        if url.scheme?.lowercased() == "viveloja" {
+        if scheme == "viveloja" {
             kind = host.isEmpty ? segments.first?.lowercased() : host
             slug = host.isEmpty ? segments.dropFirst().first : segments.first
         } else if host == "viveloja.com" || host == "www.viveloja.com" {

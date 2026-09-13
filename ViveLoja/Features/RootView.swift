@@ -4,6 +4,7 @@ import UIKit
 struct RootView: View {
     @Binding var selectedTab: MainTabView.Tab
     @Environment(SessionStore.self) private var session
+    @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @State private var showAuth = false
     @State private var home = HomeViewModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -37,6 +38,21 @@ struct RootView: View {
             Text("Vuelve a iniciar sesión para continuar usando tus funciones personales.")
         }
         .sheet(isPresented: $showAuth) { AuthView() }
+        .fullScreenCover(
+            item: Binding(
+                get: { deepLinkRouter.pendingCheckoutResult },
+                set: { deepLinkRouter.pendingCheckoutResult = $0 }
+            )
+        ) { result in
+            TicketPaymentResultView(result: result)
+        }
+        .fullScreenCover(isPresented: $session.shouldShowDiscoveryOnboarding) {
+            DiscoveryOnboardingView {
+                session.finishDiscoveryOnboarding()
+                Task { await home.load(accessToken: session.accessToken) }
+            }
+            .interactiveDismissDisabled()
+        }
         .task(id: session.user?.id) { await session.loadAvatar() }
     }
 }

@@ -74,6 +74,7 @@ struct TicketsView: View {
     @State private var model = TicketsViewModel()
     @State private var showImportSheet = false
     @State private var importText = ""
+    @State private var enlargedTicket: MobileTicket?
 
     var body: some View {
         NavigationStack {
@@ -100,7 +101,7 @@ struct TicketsView: View {
                             Text(formatMoney(order.totalCents, currency: order.currency)).font(.subheadline.weight(.semibold)).foregroundStyle(VLTheme.indigo)
                         }
                         ForEach(order.tickets) { ticket in
-                            TicketRow(ticket: ticket)
+                            TicketRow(ticket: ticket) { enlargedTicket = ticket }
                         }
                     } header: {
                         Text(statusLabel(order.status))
@@ -158,6 +159,9 @@ struct TicketsView: View {
                 }
                 .presentationDetents([.medium, .large])
             }
+            .fullScreenCover(item: $enlargedTicket) { ticket in
+                TicketQRCodeView(ticket: ticket)
+            }
         }
     }
 
@@ -180,17 +184,23 @@ struct TicketsView: View {
 
 private struct TicketRow: View {
     let ticket: MobileTicket
+    let enlarge: () -> Void
 
     var body: some View {
         HStack(spacing: 14) {
-            AsyncImage(url: ticket.qrImageUrl) { phase in
-                if let image = phase.image { image.resizable().interpolation(.none).scaledToFit() }
-                else if phase.error != nil { Image(systemName: "qrcode").font(.largeTitle).foregroundStyle(.secondary) }
-                else { ProgressView() }
+            Button(action: enlarge) {
+                AsyncImage(url: ticket.qrImageUrl) { phase in
+                    if let image = phase.image { image.resizable().interpolation(.none).scaledToFit() }
+                    else if phase.error != nil { Image(systemName: "qrcode").font(.largeTitle).foregroundStyle(.secondary) }
+                    else { ProgressView() }
+                }
+                .frame(width: 92, height: 92)
+                .background(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
-            .frame(width: 92, height: 92)
-            .background(.white)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .buttonStyle(.plain)
+            .accessibilityLabel("Ampliar código QR de la entrada \(ticket.code)")
+            .accessibilityIdentifier("ticket-qr-\(ticket.id)")
             VStack(alignment: .leading, spacing: 4) {
                 Text(ticket.ticketType.name).font(.subheadline.weight(.semibold))
                 Text(ticket.code).font(.caption.monospaced()).foregroundStyle(.secondary)
@@ -201,6 +211,51 @@ private struct TicketRow: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
+    }
+}
+
+struct TicketQRCodeView: View {
+    let ticket: MobileTicket
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 24) {
+                Spacer()
+                AsyncImage(url: ticket.qrImageUrl) { phase in
+                    if let image = phase.image {
+                        image.resizable().interpolation(.none).scaledToFit()
+                    } else if phase.error != nil {
+                        ContentUnavailableView("No se pudo cargar el QR", systemImage: "qrcode", description: Text("Comprueba tu conexión e inténtalo de nuevo."))
+                    } else {
+                        ProgressView("Cargando código…")
+                    }
+                }
+                .frame(maxWidth: 420, maxHeight: 420)
+                .padding(20)
+                .background(.white)
+                .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
+                .padding(.horizontal, 24)
+                .accessibilityIdentifier("enlarged-ticket-qr")
+
+                VStack(spacing: 6) {
+                    Text(ticket.ticketType.name).font(.headline)
+                    Text(ticket.code).font(.subheadline.monospaced()).foregroundStyle(.secondary)
+                    if let seatLabel = ticket.seatLabel { Text(seatLabel).font(.subheadline).foregroundStyle(.secondary) }
+                    Text("Presenta este código al ingresar.").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle("Código QR")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Cerrar") { dismiss() }
+                }
+            }
+        }
     }
 }

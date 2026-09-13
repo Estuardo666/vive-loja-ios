@@ -160,7 +160,7 @@ struct BusinessPlanView: View {
     @ViewBuilder
     private func planCard(_ plan: MobilePlan) -> some View {
         let isCurrent = model.account?.plan.slug == plan.slug
-        let isRed = plan.slug == "red"
+        let isEnterprise = plan.slug == "enterprise"
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
@@ -170,18 +170,34 @@ struct BusinessPlanView: View {
                 }
                 if let description = plan.description { Text(description).font(.subheadline).foregroundStyle(.secondary) }
                 Text(price(plan)).font(.title2.weight(.semibold).monospacedDigit())
+                if let capabilities = plan.capabilities {
+                    VStack(alignment: .leading, spacing: 7) {
+                        planCapability("Locales", value: limit(capabilities.maxLocations))
+                        planCapability("Personas del equipo", value: limit(capabilities.maxMembers))
+                        planCapability("Fotos por local", value: limit(capabilities.maxMediaPerVenue))
+                        if capabilities.analyticsRetentionDays != 0 {
+                            planCapability("Historial de estadísticas", value: capabilities.analyticsRetentionDays.map { "\($0) días" } ?? "Sin límite")
+                        }
+                        if capabilities.menuEnabled { planCapability("Menú y productos", value: "Incluido") }
+                        if capabilities.whatsappEnabled { planCapability("Contacto por WhatsApp", value: "Incluido") }
+                        if capabilities.reservationsEnabled { planCapability("Reservas", value: "Incluidas") }
+                        if capabilities.eventTicketingEnabled == true { planCapability("Entradas para eventos", value: "Incluidas") }
+                        if capabilities.seatMapsEnabled == true { planCapability("Mapas de asientos", value: "Incluidos") }
+                    }
+                    .font(.caption)
+                }
                 if !isCurrent {
-                    if isRed {
-                        Text("Habla con Vive Loja para configurarlo.").font(.subheadline).foregroundStyle(.secondary)
+                    if isEnterprise {
+                        Link(destination: enterpriseContactURL) {
+                            Label("Hablar con Vive Loja", systemImage: "arrow.up.right")
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
                     } else {
                         Button {
-                            if session.accessToken == nil {
-                                checkoutPlan = plan
-                            } else {
-                                Task { _ = await model.activate(plan: plan, annual: annual, token: session.accessToken) }
-                            }
+                            checkoutPlan = plan
                         } label: {
-                            if model.isSubmitting { ProgressView() } else { Text(session.accessToken == nil ? "Continuar con este plan" : "Activar beta sin costo") }
+                            Text(session.accessToken == nil ? "Continuar con este plan" : "Revisar y activar")
                         }
                         .buttonStyle(.borderedProminent)
                         .frame(minHeight: 44)
@@ -193,9 +209,24 @@ struct BusinessPlanView: View {
     }
 
     private func price(_ plan: MobilePlan) -> String {
-        if plan.slug == "red" { return "Desde $99" }
+        if plan.slug == "enterprise" { return "A medida" }
         let value = annual ? (plan.annualPrice ?? 0) : (plan.monthlyPrice ?? 0)
         return String(format: "$%.2f", value)
+    }
+
+    private func planCapability(_ label: String, value: String) -> some View {
+        HStack {
+            Label(label, systemImage: "checkmark")
+            Spacer()
+            Text(value).foregroundStyle(.secondary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var enterpriseContactURL: URL {
+        var components = URLComponents(url: AppEnvironment.current.webBaseURL.appending(path: "contact"), resolvingAgainstBaseURL: false)
+        components?.queryItems = [URLQueryItem(name: "plan", value: "enterprise")]
+        return components?.url ?? AppEnvironment.current.webBaseURL
     }
 }
 
@@ -220,7 +251,8 @@ private struct PlanCheckoutAuthView: View {
     @State private var isSubmitting = false
 
     private var canSubmit: Bool {
-        email.contains("@") && password.count >= 8 && acceptedLegal
+        if session.accessToken != nil { return !isSubmitting }
+        return email.contains("@") && password.count >= 8 && acceptedLegal
             && (mode == .login || name.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2)
             && !isSubmitting
     }
@@ -234,29 +266,31 @@ private struct PlanCheckoutAuthView: View {
                     Text("El plan que elegiste se conservará mientras creas tu acceso.")
                         .font(.subheadline).foregroundStyle(.secondary)
                 }
-                Section {
-                    Picker("Acceso", selection: $mode) {
-                        ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                if session.accessToken == nil {
+                    Section {
+                        Picker("Acceso", selection: $mode) {
+                            ForEach(Mode.allCases) { Text($0.rawValue).tag($0) }
+                        }
+                        .pickerStyle(.segmented)
+                        if mode == .register {
+                            TextField("Nombre completo", text: $name).textContentType(.name)
+                        }
+                        TextField("Correo electrónico", text: $email)
+                            .textContentType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .keyboardType(.emailAddress)
+                        SecureField("Contraseña · mínimo 8 caracteres", text: $password)
+                            .textContentType(mode == .login ? .password : .newPassword)
                     }
-                    .pickerStyle(.segmented)
-                    if mode == .register {
-                        TextField("Nombre completo", text: $name).textContentType(.name)
+                    Section {
+                        Toggle(isOn: $acceptedLegal) {
+                            Text("Acepto los términos, la política de privacidad y la política de reembolsos.")
+                                .font(.subheadline)
+                        }
+                        Link("Leer términos", destination: legalURL("terminos"))
+                        Link("Privacidad", destination: legalURL("privacy"))
+                        Link("Reembolsos", destination: legalURL("reembolsos"))
                     }
-                    TextField("Correo electrónico", text: $email)
-                        .textContentType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.emailAddress)
-                    SecureField("Contraseña · mínimo 8 caracteres", text: $password)
-                        .textContentType(mode == .login ? .password : .newPassword)
-                }
-                Section {
-                    Toggle(isOn: $acceptedLegal) {
-                        Text("Acepto los términos, la política de privacidad y la política de reembolsos.")
-                            .font(.subheadline)
-                    }
-                    Link("Leer términos", destination: legalURL("terminos"))
-                    Link("Privacidad", destination: legalURL("privacy"))
-                    Link("Reembolsos", destination: legalURL("reembolsos"))
                 }
                 if let error = session.errorMessage {
                     Section { Text(error).font(.subheadline).foregroundStyle(.red) }
@@ -266,6 +300,7 @@ private struct PlanCheckoutAuthView: View {
                         Task { await submit() }
                     } label: {
                         if isSubmitting { ProgressView() }
+                        else if session.accessToken != nil { Text("Activar beta sin costo") }
                         else { Text(mode == .register ? "Crear cuenta y activar" : "Entrar y activar") }
                     }
                     .frame(minHeight: 44)
@@ -296,11 +331,15 @@ private struct PlanCheckoutAuthView: View {
         guard canSubmit else { return }
         isSubmitting = true
         defer { isSubmitting = false }
+        if session.accessToken != nil {
+            if await onAuthenticated() { dismiss() }
+            return
+        }
         let authenticated: Bool
         if mode == .register {
-            authenticated = await session.register(name: name.trimmingCharacters(in: .whitespacesAndNewlines), email: email, password: password)
+            authenticated = await session.register(name: name.trimmingCharacters(in: .whitespacesAndNewlines), email: email, password: password, purpose: .business)
         } else {
-            authenticated = await session.login(email: email, password: password)
+            authenticated = await session.login(email: email, password: password, purpose: .business)
         }
         guard authenticated else { return }
         if await onAuthenticated() { dismiss() }

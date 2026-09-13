@@ -132,7 +132,6 @@ struct EventTicketingView: View {
     @Environment(\.openURL) private var openURL
     @State private var model = EventTicketingViewModel()
     @State private var buyer = MobileTicketBuyer()
-    @State private var showCheckout = false
 
     var body: some View {
         NavigationStack {
@@ -149,9 +148,6 @@ struct EventTicketingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .vlScreen()
             .task { await model.load(slug: slug) }
-            .sheet(isPresented: $showCheckout, onDismiss: { model.checkout = nil }) {
-                if let url = model.checkout?.checkoutUrl { VLSafariView(url: url).ignoresSafeArea() }
-            }
         }
     }
 
@@ -249,7 +245,7 @@ struct EventTicketingView: View {
             TextField("Correo electrónico", text: Binding(get: { buyer.email }, set: { buyer.email = $0 })).textContentType(.emailAddress).keyboardType(.emailAddress).textInputAutocapitalization(.never)
             TextField("Teléfono", text: Binding(get: { buyer.phone }, set: { buyer.phone = $0 })).textContentType(.telephoneNumber).keyboardType(.phonePad)
             TextField("Cédula / RUC (opcional)", text: Binding(get: { buyer.document }, set: { buyer.document = $0 })).keyboardType(.numberPad)
-            Button { Task { await model.startCheckout(accessToken: session.accessToken, buyer: buyer); if model.checkout?.checkoutUrl != nil { showCheckout = true } else if let checkout = model.checkout, let token = model.hold?.token { openURL(AppEnvironment.current.checkoutResultURL(token: token, clientTransactionId: checkout.clientTransactionId)) } } } label: { if model.isSubmitting { ProgressView() } else { Label("Pagar \(formatMoney(model.totalCents, currency: model.ticketing?.currency ?? "USD"))", systemImage: "lock.fill") } }
+            Button { Task { await model.startCheckout(accessToken: session.accessToken, buyer: buyer); if let checkoutUrl = model.checkout?.checkoutUrl { openURL(checkoutUrl) } else if let checkout = model.checkout, let token = model.hold?.token { openURL(AppEnvironment.current.checkoutResultURL(token: token, clientTransactionId: checkout.clientTransactionId)) } } } label: { if model.isSubmitting { ProgressView() } else { Label("Pagar \(formatMoney(model.totalCents, currency: model.ticketing?.currency ?? "USD"))", systemImage: "lock.fill") } }
                 .disabled(model.isSubmitting || buyer.name.trimmingCharacters(in: .whitespacesAndNewlines).count < 2 || !buyer.email.contains("@") || buyer.phone.filter(\.isNumber).count < 7)
         }
     }

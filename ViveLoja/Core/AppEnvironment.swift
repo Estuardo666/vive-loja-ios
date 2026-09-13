@@ -71,6 +71,12 @@ enum AppEnvironment: Sendable {
         ]
         return components.url!
     }
+
+    func ticketCheckoutURL(token: String) -> URL {
+        var components = URLComponents(url: webBaseURL.appending(path: "checkout/payphone"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "token", value: token)]
+        return components.url!
+    }
 }
 
 /// Content that has a public web page and can be opened by a Universal Link.

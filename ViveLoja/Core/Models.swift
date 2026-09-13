@@ -131,6 +131,10 @@ struct MobileRecommendations: Decodable, Sendable {
     let followingVenues: [MobileFollowingRecord]
     let relatedEvents: [ExploreEvent]
     let relatedVenues: [ExploreVenue]
+
+    var hasDiscoverySignals: Bool {
+        !interests.categories.isEmpty || !interests.preferences.isEmpty || !followingVenues.isEmpty
+    }
 }
 
 struct ViewRequest: Codable, Sendable {

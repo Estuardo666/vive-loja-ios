@@ -138,7 +138,7 @@ struct AccountView: View {
                             Label("Mis colecciones", systemImage: "folder")
                         }
                         NavigationLink(destination: InterestsView()) {
-                            Label("Mis intereses", systemImage: "sparkles")
+                            Label("Preferencias del inicio", systemImage: "slider.horizontal.3")
                         }
                         NavigationLink(destination: ReservationsView()) {
                             Label("Mis reservas", systemImage: "calendar.badge.clock")
@@ -170,7 +170,9 @@ struct AccountView: View {
                                         Text(badge.description).font(.caption).foregroundStyle(.secondary)
                                     }
                                 } icon: {
-                                    Text(badge.icon ?? "🏅").font(.title3)
+                                    Image(systemName: badge.icon == "compass" ? "safari" : "medal")
+                                        .font(.title3)
+                                        .foregroundStyle(VLTheme.indigo)
                                 }
                                 .accessibilityElement(children: .combine)
                             }

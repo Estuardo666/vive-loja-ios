@@ -149,7 +149,7 @@ final class OwnerClaimViewModel {
 
     func selectPlan(token: String?) async {
         guard let token, let claimId else { return }
-        guard selectedPlanSlug != "red" else { errorMessage = "El plan Red se configura con Vive Loja."; return }
+        guard selectedPlanSlug != "enterprise" else { errorMessage = "El plan Enterprise se configura con Vive Loja."; return }
         isSubmitting = true
         defer { isSubmitting = false }
         do {
@@ -330,7 +330,7 @@ private extension OwnerClaimView {
                         .foregroundStyle(VLTheme.emerald)
                 } else {
                     Picker("Plan", selection: $model.selectedPlanSlug) {
-                        ForEach(plans.filter { $0.slug != "red" }) { plan in
+                        ForEach(plans.filter { $0.slug != "enterprise" }) { plan in
                             Text(plan.name).tag(plan.slug)
                         }
                     }

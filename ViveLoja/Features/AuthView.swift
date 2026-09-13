@@ -5,6 +5,7 @@ import SwiftUI
 
 struct AuthView: View {
     @Environment(SessionStore.self) private var session
+    @Environment(\.dismiss) private var dismiss
     @State private var mode: Mode = .login
     @State private var name = ""
     @State private var email = ""
@@ -62,8 +63,10 @@ struct AuthView: View {
         isSubmitting = true
         Task { @MainActor in
             defer { isSubmitting = false }
-            if mode == .login { _ = await session.login(email: email, password: password) }
-            else { _ = await session.register(name: name, email: email, password: password) }
+            let succeeded: Bool
+            if mode == .login { succeeded = await session.login(email: email, password: password) }
+            else { succeeded = await session.register(name: name, email: email, password: password) }
+            if succeeded { dismiss() }
         }
     }
 
@@ -82,7 +85,9 @@ struct AuthView: View {
                 .joined(separator: " ")
             isSubmitting = true
             defer { isSubmitting = false }
-            _ = await session.loginWithApple(identityToken: token, nonce: Self.sha256(appleNonce), name: name.isEmpty ? nil : name)
+            if await session.loginWithApple(identityToken: token, nonce: Self.sha256(appleNonce), name: name.isEmpty ? nil : name) {
+                dismiss()
+            }
         } catch {
             session.errorMessage = "No se pudo completar el acceso con Apple."
         }

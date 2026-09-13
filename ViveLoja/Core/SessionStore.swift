@@ -4,6 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class SessionStore {
+    enum AuthenticationPurpose { case visitor, business }
     private let keychain: any SecureKeyValueStore
     private let api: APIClient
     private(set) var user: MobileUser?
@@ -23,6 +24,7 @@ final class SessionStore {
     private var refreshTask: Task<Bool, Never>?
     var isSessionExpired = false
     var errorMessage: String?
+    var shouldShowDiscoveryOnboarding = false
 
     init(api: APIClient = .shared, keychain: any SecureKeyValueStore = KeychainStore()) {
         self.api = api
@@ -78,13 +80,23 @@ final class SessionStore {
         }
     }
 
-    func login(email: String, password: String) async -> Bool {
-        do { let tokens: MobileTokens = try await api.post("/auth/login", body: LoginRequest(email: email, password: password)); persist(tokens); return true }
+    func login(email: String, password: String, purpose: AuthenticationPurpose = .visitor) async -> Bool {
+        do {
+            let tokens: MobileTokens = try await api.post("/auth/login", body: LoginRequest(email: email, password: password))
+            persist(tokens)
+            await prepareDiscoveryOnboarding(for: purpose)
+            return true
+        }
         catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo iniciar sesión."; return false }
     }
 
-    func register(name: String, email: String, password: String) async -> Bool {
-        do { let tokens: MobileTokens = try await api.post("/auth/register", body: RegisterRequest(name: name, email: email, password: password)); persist(tokens); return true }
+    func register(name: String, email: String, password: String, purpose: AuthenticationPurpose = .visitor) async -> Bool {
+        do {
+            let tokens: MobileTokens = try await api.post("/auth/register", body: RegisterRequest(name: name, email: email, password: password))
+            persist(tokens)
+            await prepareDiscoveryOnboarding(for: purpose)
+            return true
+        }
         catch { errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo crear la cuenta."; return false }
     }
 
@@ -126,10 +138,11 @@ final class SessionStore {
         }
     }
 
-    func loginWithApple(identityToken: String, nonce: String?, name: String?) async -> Bool {
+    func loginWithApple(identityToken: String, nonce: String?, name: String?, purpose: AuthenticationPurpose = .visitor) async -> Bool {
         do {
             let tokens: MobileTokens = try await api.post("/auth/apple", body: AppleLoginRequest(identityToken: identityToken, nonce: nonce, name: name))
             persist(tokens)
+            await prepareDiscoveryOnboarding(for: purpose)
             return true
         } catch {
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No se pudo iniciar sesión con Apple."
@@ -156,6 +169,19 @@ final class SessionStore {
         avatarURL = profile?.image
     }
 
+    func finishDiscoveryOnboarding() {
+        shouldShowDiscoveryOnboarding = false
+    }
+
+    private func prepareDiscoveryOnboarding(for purpose: AuthenticationPurpose) async {
+        guard purpose == .visitor, let accessToken else {
+            shouldShowDiscoveryOnboarding = false
+            return
+        }
+        let profile: MobileProfile? = try? await api.get("/me/profile", bearer: accessToken)
+        shouldShowDiscoveryOnboarding = profile?.onboardingCompletedAt == nil && profile?.onboardingSkippedAt == nil
+    }
+
     private func persist(_ tokens: MobileTokens) {
         accessToken = tokens.accessToken; refreshToken = tokens.refreshToken; user = tokens.user; errorMessage = nil
         accessTokenExpiry = Date().addingTimeInterval(TimeInterval(tokens.expiresIn))
@@ -168,7 +194,7 @@ final class SessionStore {
     }
 
     private func clear() {
-        user = nil; accessToken = nil; refreshToken = nil; avatarURL = nil; accessTokenExpiry = nil
+        user = nil; accessToken = nil; refreshToken = nil; avatarURL = nil; accessTokenExpiry = nil; shouldShowDiscoveryOnboarding = false
         keychain.delete("accessToken"); keychain.delete("refreshToken"); keychain.delete("user")
     }
 }

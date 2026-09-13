@@ -69,6 +69,10 @@ final class HomeViewModel {
         return try? await APIClient.shared.get("/me/recommendations", bearer: accessToken)
     }
 
+    func reloadRecommendations(accessToken: String?) async {
+        recommendations = await loadRecommendations(accessToken: accessToken)
+    }
+
     static let fixtures: [ExploreItem] = [
         .venue(ExploreVenue(id: "fixture-venue-1", name: "Café Loja", slug: "cafe-loja", description: "Café de altura y ambiente acogedor.", image: URL(string: "https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800"), location: "Centro histórico", address: "Calle Bolívar, Loja", lat: -4.0079, lng: -79.2045, featured: true, phone: nil, website: nil, priceRange: "$$", avgRating: 4.8, reviewCount: 32, verified: true, categories: [], openState: nil)),
         .event(ExploreEvent(id: "fixture-event-1", title: "Música en vivo", slug: "musica-en-vivo", description: "Una noche para disfrutar artistas locales.", image: URL(string: "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=800"), startDate: HomeViewModel.fixtureEventDate, endDate: nil, location: "Teatro Benjamín Carrión", address: "Loja", lat: -3.9931, lng: -79.2042, featured: true, price: 0, avgRating: nil, reviewCount: 0, categories: []))
@@ -99,18 +103,23 @@ struct HomeView: View {
                                 .disabled(model.isLoading)
                             if model.isLoading { ProgressView() }
                         }
-                    } else if model.sections.isEmpty {
-                        // No configured composition (older backend, or the very
-                        // first run before seeding): keep the previous screen.
-                        legacyHome
                     } else {
-                        ForEach(model.sections) { section in
-                            if section.type == .todayInLoja {
-                                if showsTodayInLoja {
-                                    TodayInLojaView(model: model.today).padding(.horizontal, homeSectionInset)
+                        if let recommendations = model.recommendations, recommendations.hasDiscoverySignals {
+                            personalizedHome(recommendations)
+                        }
+                        if model.sections.isEmpty {
+                            // No configured composition (older backend, or the very
+                            // first run before seeding): keep the previous screen.
+                            legacyHome
+                        } else {
+                            ForEach(model.sections) { section in
+                                if section.type == .todayInLoja {
+                                    if showsTodayInLoja {
+                                        TodayInLojaView(model: model.today).padding(.horizontal, homeSectionInset)
+                                    }
+                                } else {
+                                    HomeSectionView(section: section)
                                 }
-                            } else {
-                                HomeSectionView(section: section)
                             }
                         }
                     }
@@ -127,7 +136,66 @@ struct HomeView: View {
             .navigationDestination(for: DeepLinkRouter.Destination.self) { DeepLinkDestinationView(destination: $0) }
             .toolbarTitleDisplayMode(.inline)
             .refreshable { await model.load(accessToken: session.accessToken) }
+            .onReceive(NotificationCenter.default.publisher(for: .discoveryPreferencesChanged)) { _ in
+                Task { await model.reloadRecommendations(accessToken: session.accessToken) }
+            }
         }
+    }
+
+    private func personalizedHome(_ recommendations: MobileRecommendations) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("TU CARTELERA").font(.caption2.weight(.bold)).tracking(1.2).foregroundStyle(VLTheme.indigo)
+                    Text("Elegido para ti").font(.title2.weight(.semibold))
+                    Text("Tus preferencias deciden qué aparece primero.").font(.subheadline).foregroundStyle(.secondary)
+                }
+                Spacer()
+                NavigationLink(destination: InterestsView()) {
+                    Image(systemName: "slider.horizontal.3")
+                        .frame(width: 44, height: 44)
+                        .background(VLTheme.surface, in: Circle())
+                        .overlay { Circle().stroke(VLTheme.outline) }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Editar preferencias del inicio")
+            }
+
+            if !recommendations.relatedEvents.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Próximos planes").font(.headline)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 14) {
+                            ForEach(recommendations.relatedEvents.prefix(4)) { event in
+                                NavigationLink(destination: ItemDetailView(item: .event(event))) {
+                                    VLItemCard(item: .event(event))
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !recommendations.relatedVenues.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Lugares que encajan contigo").font(.headline)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        LazyHStack(spacing: 14) {
+                            ForEach(recommendations.relatedVenues.prefix(4)) { venue in
+                                NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
+                                    VLItemCard(item: .venue(venue))
+                                        .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, homeSectionInset)
     }
 
     /// Entry point to search: the home only shows the field, the typing happens
@@ -225,22 +293,6 @@ struct HomeView: View {
                             }
                         }
                     }
-                    if let recommendations = model.recommendations, !recommendations.relatedVenues.isEmpty {
-                        VStack(alignment: .leading, spacing: 14) {
-                            VLSectionHeader(title: "Recomendado para ti", action: nil)
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                LazyHStack(spacing: 14) {
-                                    ForEach(recommendations.relatedVenues) { venue in
-                                        NavigationLink(destination: ItemDetailView(item: .venue(venue))) {
-                                            VLItemCard(item: .venue(venue))
-                                                .containerRelativeFrame(.horizontal, count: dynamicTypeSize.isAccessibilitySize ? 1 : 2, span: 1, spacing: 14)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                            }
-                        }
-                    }
                     if !model.relatedEvents.isEmpty {
                         VStack(alignment: .leading, spacing: 14) {
                             VLSectionHeader(title: "Eventos relacionados", action: nil)
@@ -311,7 +363,7 @@ struct HomeView: View {
                                 category(systemImage: "leaf.fill", title: "Rutas", color: VLTheme.emerald)
                             } else {
                                 ForEach(model.categories.prefix(6), id: \.id) { value in
-                                    category(value.icon ?? "✨", value.name, color(for: value.color))
+                                    category(systemImage: categorySystemImage(value), title: value.name, color: color(for: value.color))
                                 }
                             }
                         }
@@ -361,21 +413,6 @@ struct HomeView: View {
             repeating: GridItem(.flexible()),
             count: dynamicTypeSize.isAccessibilitySize ? 1 : 2
         )
-    }
-
-    private func category(_ emoji: String, _ title: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(emoji).font(.title).accessibilityHidden(true)
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(Color(uiColor: .label))
-                .fixedSize(horizontal: false, vertical: true)
-        }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(16)
-            .background(Color(uiColor: .systemBackground), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay { RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(color, lineWidth: 2) }
-            .accessibilityElement(children: .combine)
-            .accessibilityHint("Explorar categoría")
     }
 
     private func category(systemImage: String, title: String, color: Color) -> some View {
