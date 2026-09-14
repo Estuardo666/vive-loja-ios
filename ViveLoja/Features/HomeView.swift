@@ -248,11 +248,15 @@ struct HomeView: View {
     /// on Explorar, which already owns the query, the filters and the map.
     private var searchEntry: some View {
         NavigationLink(destination: ExploreView(initialShowMap: false)) {
+            // Explicit palette colours rather than `.secondary`: the bar behind
+            // this field is a material, and SwiftUI vibrancy-blends
+            // hierarchical styles over materials. That washed the placeholder
+            // out to 3.32:1 on the capsule even though `subtext` is 7.58:1.
             HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
-                Text("Descubre Loja").foregroundStyle(.secondary)
+                Image(systemName: "magnifyingglass").foregroundStyle(VLTheme.subtext)
+                Text("Descubre Loja").foregroundStyle(VLTheme.subtext)
                 Spacer()
-                Image(systemName: "slider.horizontal.3").foregroundStyle(.secondary)
+                Image(systemName: "slider.horizontal.3").foregroundStyle(VLTheme.subtext)
             }
             .font(.body)
             .padding(.horizontal, 16)

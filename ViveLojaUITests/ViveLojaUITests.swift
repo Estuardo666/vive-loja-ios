@@ -169,7 +169,11 @@ final class ViveLojaUITests: XCTestCase {
         XCTAssertTrue(openNow.waitForExistence(timeout: 5))
         openNow.tap()
         app.buttons["Aplicar"].tap()
-        XCTAssertTrue(app.navigationBars["Explorar"].waitForExistence(timeout: 5))
+        // Explore hides its navigation bar so the map can run full bleed, so
+        // "back on Explore" is the sheet being gone and the map controls being
+        // reachable again — there is no "Explorar" bar to wait for.
+        XCTAssertTrue(app.buttons["explore-filters"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Filtros"].exists)
         attachScreenshot(named: "explore-map-filter-applied")
     }
 

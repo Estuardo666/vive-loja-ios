@@ -27,7 +27,9 @@ struct AppearanceView: View {
                     .accessibilityAddTraits(theme.palette == palette ? .isSelected : [])
                 }
             }
-            .accessibilityIdentifier("palette-picker")
+            // No identifier on the Section: SwiftUI propagates it down and it
+            // wins over each row's own, so every palette button came out as
+            // "palette-picker" and "palette-catppuccin" matched nothing.
 
             if theme.palette.variations.count > 1 {
                 Section {
