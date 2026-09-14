@@ -120,7 +120,7 @@ final class ViveLojaUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = [
             "-uiTesting",
-            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility5"
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL"
         ]
         app.launch()
 
@@ -179,7 +179,7 @@ final class ViveLojaUITests: XCTestCase {
 
     func testTabsRemainReachableWithAccessibilityDynamicType() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibility3"]
+        app.launchArguments = ["-uiTesting", "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXL"]
         app.launch()
 
         XCTAssertTrue(app.tabBars.buttons["Inicio"].waitForExistence(timeout: 8))
@@ -187,12 +187,18 @@ final class ViveLojaUITests: XCTestCase {
         attachScreenshot(named: "tabs-dynamic-type-accessibility3")
     }
 
+    /// UIKit names the accessibility steps `AccessibilityM/L/XL/XXL/XXXL`;
+    /// there is no `Accessibility3` or `Accessibility5`. Those spellings were
+    /// simply ignored, so every "accessibility size" run here rendered at the
+    /// default size — the Accessibility5 venue capture was pixel-identical to
+    /// the default one. `AccessibilityXL` and `AccessibilityXXXL` are the
+    /// categories `DynamicTypeSize.accessibility3` and `.accessibility5` map to.
     func testCoreAccessibilityMatrixAcrossDynamicTypeSizes() {
         let categories: [String?] = [
             nil,
             "UICTContentSizeCategoryXS",
-            "UICTContentSizeCategoryAccessibility3",
-            "UICTContentSizeCategoryAccessibility5"
+            "UICTContentSizeCategoryAccessibilityXL",
+            "UICTContentSizeCategoryAccessibilityXXXL"
         ]
 
         for category in categories {
