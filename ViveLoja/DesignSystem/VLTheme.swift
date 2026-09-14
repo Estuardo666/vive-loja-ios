@@ -109,12 +109,29 @@ enum VLTheme {
         light: KeyPath<VLFlavor, UInt32>,
         dark: KeyPath<VLFlavor, UInt32>
     ) -> Color {
-        Color(uiColor: uiColor(light: light, dark: dark))
+        VLColorCache.shared.color(light: light, dark: dark)
     }
 
     /// UIKit needs the dynamic colour itself, not a SwiftUI wrapper, or the bar
     /// appearances resolve once and stop following the appearance.
     static func uiColor(
+        light: KeyPath<VLFlavor, UInt32>,
+        dark: KeyPath<VLFlavor, UInt32>
+    ) -> UIColor {
+        VLColorCache.shared.uiColor(light: light, dark: dark)
+    }
+
+    /// Drops the cached colours. UIKit memoises a dynamic colour's resolved
+    /// value per trait collection, so a cached instance would keep handing back
+    /// the old flavour after the user picks a new one in Apariencia — the
+    /// flavour is not a trait. `ThemeStore` calls this the moment the selection
+    /// changes, before SwiftUI renders again.
+    static func invalidateColorCache() { VLColorCache.shared.invalidate() }
+
+    /// Builds the dynamic colour for a pair of slots. Nothing here is captured
+    /// by value: the block re-reads the user's palette and appearance every
+    /// time UIKit resolves it.
+    fileprivate static func makeUIColor(
         light: KeyPath<VLFlavor, UInt32>,
         dark: KeyPath<VLFlavor, UInt32>
     ) -> UIColor {
@@ -133,6 +150,63 @@ enum VLTheme {
 
     static func uiColor(_ slot: KeyPath<VLFlavor, UInt32>) -> UIColor {
         uiColor(light: slot, dark: slot)
+    }
+}
+
+/// Every `VLTheme` accessor is a computed property, so a single home screen
+/// used to allocate a fresh dynamic `UIColor` — and bridge a fresh `Color` —
+/// for each of the hundreds of colour reads in its body, on every render pass
+/// and again on every scroll. There are only a few dozen distinct slot pairs in
+/// the whole app, and each one's dynamic block already re-reads the palette
+/// when it resolves, so they can simply be made once and kept.
+///
+/// Reachable off the main actor on purpose: `ItemPhotoAnnotationView` and the
+/// bar appearances resolve colours from UIKit.
+private final class VLColorCache: @unchecked Sendable {
+    static let shared = VLColorCache()
+
+    private struct Slots: Hashable {
+        let light: KeyPath<VLFlavor, UInt32>
+        let dark: KeyPath<VLFlavor, UInt32>
+    }
+
+    private let lock = NSLock()
+    private var uiColors: [Slots: UIColor] = [:]
+    private var colors: [Slots: Color] = [:]
+
+    func uiColor(light: KeyPath<VLFlavor, UInt32>, dark: KeyPath<VLFlavor, UInt32>) -> UIColor {
+        let slots = Slots(light: light, dark: dark)
+        lock.lock()
+        if let hit = uiColors[slots] { lock.unlock(); return hit }
+        lock.unlock()
+        let made = VLTheme.makeUIColor(light: light, dark: dark)
+        lock.lock()
+        // A duplicate built by a racing caller is equivalent; keep whichever
+        // landed first so the two caches stay in step.
+        let stored = uiColors[slots] ?? made
+        uiColors[slots] = stored
+        lock.unlock()
+        return stored
+    }
+
+    func invalidate() {
+        lock.lock()
+        uiColors.removeAll(keepingCapacity: true)
+        colors.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+
+    func color(light: KeyPath<VLFlavor, UInt32>, dark: KeyPath<VLFlavor, UInt32>) -> Color {
+        let slots = Slots(light: light, dark: dark)
+        lock.lock()
+        if let hit = colors[slots] { lock.unlock(); return hit }
+        lock.unlock()
+        let made = Color(uiColor: uiColor(light: light, dark: dark))
+        lock.lock()
+        let stored = colors[slots] ?? made
+        colors[slots] = stored
+        lock.unlock()
+        return stored
     }
 }
 
@@ -247,6 +321,7 @@ extension View {
 @MainActor
 enum VLBarAppearance {
     static func apply() {
+        VLTheme.invalidateColorCache()
         let chrome = VLTheme.uiColor(light: \.crust, dark: \.mantle)
         let text = VLTheme.uiColor(\.text)
         let subtext = VLTheme.uiColor(\.subtext1)

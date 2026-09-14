@@ -15,13 +15,15 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     /// location-dependent feature is unavailable instead of failing silently.
     private(set) var isDenied = false
 
-    private let manager = CLLocationManager()
-
-    override init() {
-        super.init()
+    /// Lazy on purpose. `ExploreView` is constructed while the tab bar is
+    /// built at launch, which used to allocate a `CLLocationManager` — and wake
+    /// the location daemon — before the user had gone anywhere near the map.
+    @ObservationIgnored private lazy var manager: CLLocationManager = {
+        let manager = CLLocationManager()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-    }
+        return manager
+    }()
 
     func requestCurrentLocation() {
         errorMessage = nil

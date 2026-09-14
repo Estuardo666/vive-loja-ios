@@ -63,8 +63,12 @@ struct ViveLojaApp: App {
                 .task {
                     AppDelegate.pushService = push
                     push.attach(session: session, router: deepLinkRouter)
-                    await session.restore()
-                    await push.refreshAuthorization()
+                    // Independent work: the token exchange in `restore()` used
+                    // to hold the notification-settings check behind a network
+                    // round trip on every cold start.
+                    async let restored: Void = session.restore()
+                    async let authorization: Void = push.refreshAuthorization()
+                    _ = await (restored, authorization)
                 }
                 // An APNs token that arrived before sign-in belongs to nobody
                 // until a session exists, so it is claimed here.

@@ -40,11 +40,25 @@ final class TodayViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            payload = try await APIClient.shared.get("/today")
+            let fresh: TodayPayload = try await APIClient.shared.get("/today")
+            payload = fresh
             errorMessage = nil
+            Task.detached(priority: .utility) {
+                await SnapshotStore.shared.write(fresh, for: SnapshotStore.Key.today)
+            }
         } catch {
-            errorMessage = "No pudimos actualizar los planes de hoy."
+            // Keep a snapshot already on screen rather than replacing it with
+            // an error the user cannot act on.
+            if payload == nil { errorMessage = "No pudimos actualizar los planes de hoy." }
         }
+    }
+
+    /// First paint from the last successful load. See `SnapshotStore`.
+    func restoreSnapshot() async {
+        guard payload == nil, !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+        guard let cached: TodayPayload = await SnapshotStore.shared.read(SnapshotStore.Key.today) else { return }
+        guard payload == nil else { return }
+        payload = cached
     }
 }
 

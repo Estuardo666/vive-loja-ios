@@ -35,6 +35,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="BrandLogo" width="1024" height="1024"/>
+        <image name="BrandLogo" width="172" height="172"/>
     </resources>
 </document>

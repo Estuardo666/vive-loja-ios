@@ -324,17 +324,24 @@ final class ThemeStore {
     var palette: VLPalette {
         didSet {
             UserDefaults.standard.set(palette.rawValue, forKey: VLPalette.storageKey)
+            VLTheme.invalidateColorCache()
             // A flavour from the previous family means nothing here.
             if !palette.variations.contains(variation) { variation = palette.variations[0] }
         }
     }
 
     var variation: VLVariation {
-        didSet { UserDefaults.standard.set(variation.rawValue, forKey: VLVariation.storageKey) }
+        didSet {
+            UserDefaults.standard.set(variation.rawValue, forKey: VLVariation.storageKey)
+            VLTheme.invalidateColorCache()
+        }
     }
 
     var appearance: VLAppearance {
-        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: VLAppearance.storageKey) }
+        didSet {
+            UserDefaults.standard.set(appearance.rawValue, forKey: VLAppearance.storageKey)
+            VLTheme.invalidateColorCache()
+        }
     }
 
     /// Anything that must rebuild when the look changes keys off this.

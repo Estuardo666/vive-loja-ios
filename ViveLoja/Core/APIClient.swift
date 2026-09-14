@@ -60,6 +60,13 @@ actor APIClient {
         configuration.urlCache = URLCache(memoryCapacity: 10 * 1024 * 1024, diskCapacity: 50 * 1024 * 1024)
         configuration.requestCachePolicy = .useProtocolCachePolicy
         configuration.waitsForConnectivity = true
+        // `waitsForConnectivity` on its own has no ceiling, so a launch on a
+        // captive or half-dead network hung on the home request indefinitely.
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 60
+        // The launch fans out to /home, /today and /me/recommendations at once;
+        // the default of 6 is plenty but the value is worth pinning.
+        configuration.httpMaximumConnectionsPerHost = 6
         return URLSession(configuration: configuration)
     }
 

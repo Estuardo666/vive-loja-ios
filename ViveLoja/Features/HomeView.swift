@@ -38,25 +38,26 @@ final class HomeViewModel {
         isLoading = true
         errorMessage = nil
         defer { isLoading = false; initialLoadFinished = true }
+
+        // Everything the first screen needs leaves at once. `/home` used to be
+        // awaited before `/today` was even requested, which put two round trips
+        // end to end on the critical path of every launch.
+        let request = Task { () throws -> HomePayload in try await APIClient.shared.get("/home") }
+        async let personal = loadRecommendations(accessToken: accessToken)
+        // Speculative: nearly every composition includes the module, and the
+        // payload is small. Worth one redundant GET to keep it off the tail of
+        // the home request.
+        async let todayPrefetch: Void = today.load()
+
+        // Paints the last good response while the live one is in flight, so a
+        // warm launch reaches content without ever showing a spinner.
+        await restoreSnapshot()
+
         do {
-            async let personal = loadRecommendations(accessToken: accessToken)
-            let payload: HomePayload = try await APIClient.shared.get("/home")
-            // Resolve variable-height modules before publishing the composition.
-            let composition = (payload.sections ?? []).filter(\.isRenderable)
-            if composition.isEmpty || composition.contains(where: { $0.type == .todayInLoja }) {
-                await today.load()
-            }
+            let payload = try await request.value
+            await todayPrefetch
             let nextRecommendations = await personal
-            sections = composition
-            let featuredVenues = payload.featuredVenues ?? payload.venues
-            let featuredEvents = payload.featuredEvents ?? payload.events
-            featured = featuredVenues.map(ExploreItem.venue) + featuredEvents.map(ExploreItem.event)
-            categories = payload.categories
-            latestVenues = payload.latestVenues ?? featuredVenues
-            relatedEvents = payload.relatedEvents ?? []
-            popularNow = payload.popularNow ?? []
-            posts = payload.posts ?? []
-            promotions = payload.promotions ?? []
+            apply(payload)
             // The session can finish restoring while the public home request
             // is still in flight. Do not erase recommendations loaded by that
             // concurrent session task with this anonymous request's nil value.
@@ -66,9 +67,43 @@ final class HomeViewModel {
                 recommendations = nil
             }
             hasLoaded = true
+            let snapshot = payload
+            Task.detached(priority: .utility) {
+                await SnapshotStore.shared.write(snapshot, for: SnapshotStore.Key.home)
+            }
         } catch {
+            await todayPrefetch
+            _ = await personal
+            // A snapshot already on screen is better than an error panel.
+            guard !hasLoaded else { return }
             errorMessage = (error as? LocalizedError)?.errorDescription ?? "No pudimos cargar el inicio. Inténtalo de nuevo."
         }
+    }
+
+    /// Publishes a payload, whether it came from the network or from disk.
+    private func apply(_ payload: HomePayload) {
+        sections = (payload.sections ?? []).filter(\.isRenderable)
+        let featuredVenues = payload.featuredVenues ?? payload.venues
+        let featuredEvents = payload.featuredEvents ?? payload.events
+        featured = featuredVenues.map(ExploreItem.venue) + featuredEvents.map(ExploreItem.event)
+        categories = payload.categories
+        latestVenues = payload.latestVenues ?? featuredVenues
+        relatedEvents = payload.relatedEvents ?? []
+        popularNow = payload.popularNow ?? []
+        posts = payload.posts ?? []
+        promotions = payload.promotions ?? []
+    }
+
+    /// Best-effort first paint from the last successful launch. Never overwrites
+    /// live data: if the network already answered, this does nothing.
+    private func restoreSnapshot() async {
+        guard !hasLoaded, !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
+        await today.restoreSnapshot()
+        guard let cached: HomePayload = await SnapshotStore.shared.read(SnapshotStore.Key.home) else { return }
+        guard !hasLoaded else { return }
+        apply(cached)
+        hasLoaded = true
+        initialLoadFinished = true
     }
 
     private func loadRecommendations(accessToken: String?) async -> MobileRecommendations? {

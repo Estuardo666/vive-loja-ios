@@ -6,16 +6,27 @@ import UIKit
 @Observable
 final class LaunchGate {
     private(set) var isPresented = true
+    /// Ceiling, not a duration: the splash goes away the moment the first
+    /// screen has something to draw, and this only bounds how long it may wait
+    /// for that. It used to be a flat 700 ms that every launch paid whether or
+    /// not the content was already on screen.
     private let delay: Duration
 
-    init(delay: Duration = .milliseconds(700)) {
+    init(delay: Duration = .milliseconds(300)) {
         self.delay = delay
+        // UI tests launch straight onto the fixtures, so there is nothing for
+        // the splash to cover and every screen assertion would otherwise race
+        // its dismissal.
+        if ProcessInfo.processInfo.arguments.contains("-uiTesting") { isPresented = false }
     }
 
     func dismissAfterDelay() async {
         do { try await Task.sleep(for: delay) } catch { return }
         isPresented = false
     }
+
+    /// Called as soon as the home screen has content, cached or live.
+    func dismissNow() { isPresented = false }
 }
 
 struct RootView: View {
@@ -29,15 +40,26 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var session = session
-        Group {
-            if launchGate.isPresented { VLLaunchSplash().transition(.opacity) }
-            else { MainTabView(selectedTab: $selectedTab, home: home).transition(.opacity) }
+        // The tab bar is built behind the splash rather than after it, so the
+        // cost of constructing the first screen overlaps the splash instead of
+        // landing on the user the instant it disappears.
+        MainTabView(selectedTab: $selectedTab, home: home)
+        .overlay {
+            if launchGate.isPresented {
+                VLLaunchSplash().transition(.opacity)
+            }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.25), value: launchGate.isPresented)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: launchGate.isPresented)
         .task {
             // Launch presentation is local and deterministic. Network and
             // session restoration must never be able to pin this screen.
             await launchGate.dismissAfterDelay()
+        }
+        // Cached home content lands within a frame or two of launch; there is
+        // nothing left for the splash to cover once it has.
+        .onChange(of: home.initialLoadFinished) { _, finished in
+            guard finished else { return }
+            launchGate.dismissNow()
         }
         .task {
             // Public home data can load immediately while the saved session is
