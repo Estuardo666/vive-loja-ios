@@ -35,6 +35,9 @@ struct ViveLojaApp: App {
     /// Lives here, above the .id() below, so rebuilding for a palette change
     /// does not throw the user back to the first tab.
     @State private var selectedTab = MainTabView.Tab.home
+    /// Also above the .id(): Apariencia is reached from Cuenta, and picking a
+    /// palette there is exactly what triggers the rebuild.
+    @State private var accountPath: [AccountRoute] = []
 
     private var uiTestingColorScheme: ColorScheme? {
         guard ProcessInfo.processInfo.arguments.contains("-uiTesting-dark") else { return nil }
@@ -45,7 +48,7 @@ struct ViveLojaApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(selectedTab: $selectedTab)
+            RootView(selectedTab: $selectedTab, accountPath: $accountPath)
                 // VLTheme resolves colours from UserDefaults, outside the
                 // SwiftUI graph, so rebuild RootView when the theme changes.
                 // Kept innermost so the .task below is not re-run by the swap.

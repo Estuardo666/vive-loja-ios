@@ -78,10 +78,19 @@ final class AccountViewModel {
 
 private struct PasswordUpdateResponse: Decodable, Sendable { let updated: Bool }
 
+/// Screens under Cuenta that have to survive the theme rebuild. Changing the
+/// palette re-creates the whole view tree (see `ViveLojaApp`), which threw the
+/// user out of Apariencia and back to the Cuenta root the moment they picked a
+/// flavour. A value-based route restores from a path held above that rebuild.
+enum AccountRoute: Hashable {
+    case appearance
+}
+
 struct AccountView: View {
     @Environment(SessionStore.self) private var session
     @Environment(ThemeStore.self) private var theme
     @Environment(PushService.self) private var push
+    @Binding var path: [AccountRoute]
     @State private var showAuth = false
     @State private var showPasswordSheet = false
     @State private var model = AccountViewModel()
@@ -91,7 +100,7 @@ struct AccountView: View {
     var body: some View {
         @Bindable var theme = theme
 
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if let user = session.user {
                     Section {
@@ -219,7 +228,7 @@ struct AccountView: View {
                     }
                 }
                 Section("Preferencias") {
-                    NavigationLink(destination: AppearanceView()) {
+                    NavigationLink(value: AccountRoute.appearance) {
                         Label {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Apariencia")
@@ -246,6 +255,11 @@ struct AccountView: View {
             }
             .vlScreen()
             .navigationTitle("Cuenta")
+            .navigationDestination(for: AccountRoute.self) { route in
+                switch route {
+                case .appearance: AppearanceView()
+                }
+            }
             .toolbarTitleDisplayMode(.inlineLarge)
             .sheet(isPresented: $showAuth) { AuthView() }
             .sheet(isPresented: $showPasswordSheet) {

@@ -18,6 +18,11 @@ struct RotatingSearchPlaceholder: View {
 
     private static let interval: Duration = .seconds(2.4)
 
+    /// A word that changes every 2.4 seconds cannot appear in a snapshot
+    /// baseline: the Explore captures came out with whichever word happened to
+    /// be up. Pin it for UI tests, the same way the fixtures pin their dates.
+    private static let isUITesting = ProcessInfo.processInfo.arguments.contains("-uiTesting")
+
     @State private var index = 0
 
     var body: some View {
@@ -35,7 +40,7 @@ struct RotatingSearchPlaceholder: View {
         .allowsHitTesting(false)
         .accessibilityHidden(true)
         .task {
-            guard !reduceMotion else { return }
+            guard !reduceMotion, !Self.isUITesting else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: Self.interval)
                 guard !Task.isCancelled else { return }

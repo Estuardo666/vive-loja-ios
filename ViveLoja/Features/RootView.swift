@@ -31,6 +31,7 @@ final class LaunchGate {
 
 struct RootView: View {
     @Binding var selectedTab: MainTabView.Tab
+    @Binding var accountPath: [AccountRoute]
     @Environment(SessionStore.self) private var session
     @Environment(DeepLinkRouter.self) private var deepLinkRouter
     @State private var showAuth = false
@@ -43,7 +44,7 @@ struct RootView: View {
         // The tab bar is built behind the splash rather than after it, so the
         // cost of constructing the first screen overlaps the splash instead of
         // landing on the user the instant it disappears.
-        MainTabView(selectedTab: $selectedTab, home: home)
+        MainTabView(selectedTab: $selectedTab, accountPath: $accountPath, home: home)
         .overlay {
             if launchGate.isPresented {
                 VLLaunchSplash().transition(.opacity)
@@ -103,6 +104,9 @@ struct MainTabView: View {
     @Environment(SessionStore.self) private var session
     /// Owned by the app so a palette change cannot reset it. See ViveLojaApp.
     @Binding var selectedTab: Tab
+    /// Same reason: Apariencia is pushed onto this stack, and changing the
+    /// palette from it used to pop the user straight back out.
+    @Binding var accountPath: [AccountRoute]
     let home: HomeViewModel
     @State private var avatarIcon: UIImage?
 
@@ -114,7 +118,7 @@ struct MainTabView: View {
             ExploreView(initialShowMap: false).tabItem { tabLabel("Explorar", symbol: "map.fill", tab: .explore) }.tag(Tab.explore)
             SavedView().tabItem { tabLabel("Guardados", symbol: "heart.fill", tab: .saved) }.tag(Tab.saved)
             MessagesView().tabItem { tabLabel("Mensajes", symbol: "message.fill", tab: .messages) }.tag(Tab.messages)
-            AccountView().tabItem { accountTabLabel }.tag(Tab.account)
+            AccountView(path: $accountPath).tabItem { accountTabLabel }.tag(Tab.account)
         }
         // Environment-backed, so it reaches every List and ScrollView below.
         // This used to be a TapGesture attached to the whole TabView, which
