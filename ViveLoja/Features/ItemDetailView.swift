@@ -91,7 +91,19 @@ struct ItemDetailView: View {
         .toolbar(.visible, for: .navigationBar)
         .navigationTitle("Detalle")
         .navigationBarTitleDisplayMode(.inline)
-        .task { if !isUITesting { await loadDetail() } }
+        .task {
+            guard !isUITesting else { return }
+            if isDeepLinkPlaceholder {
+                // A deep link only contains a slug. Resolve the lightweight
+                // search card in parallel so the header gets real text while
+                // the full detail payload loads its secondary sections.
+                async let preview: Void = loadPreview()
+                await loadDetail()
+                await preview
+            } else {
+                await loadDetail()
+            }
+        }
         .sheet(item: $replyingTo) { review in
             OwnerReplyComposerView(review: review) { Task { await loadDetail() } }
         }
@@ -407,6 +419,46 @@ private extension ItemDetailView {
     }
     private var isVenue: Bool { if case .venue = displayedItem { return true }; return false }
     private var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("-uiTesting") }
+    private var isDeepLinkPlaceholder: Bool {
+        switch item {
+        case .venue(let value): return value.id.hasPrefix("deep-link-venue-")
+        case .event(let value): return value.id.hasPrefix("deep-link-event-")
+        }
+    }
+
+    private func loadPreview() async {
+        let slug: String
+        let kind: String
+        switch item {
+        case .venue(let value): slug = value.slug; kind = "venue"
+        case .event(let value): slug = value.slug; kind = "event"
+        }
+
+        var searchWords = slug.split(separator: "-").map(String.init)
+        if let last = searchWords.last,
+           last.count > 1,
+           (last.first == "l" || last.first == "e"),
+           last.dropFirst().allSatisfy({ $0.isNumber }) {
+            searchWords.removeLast()
+        }
+        let query = [
+            URLQueryItem(name: "q", value: searchWords.joined(separator: " ")),
+            URLQueryItem(name: "type", value: "all"),
+            URLQueryItem(name: "take", value: "1"),
+            URLQueryItem(name: "venueSkip", value: "0"),
+            URLQueryItem(name: "eventSkip", value: "0"),
+        ]
+
+        guard let payload: ExplorePayload = try? await APIClient.shared.get("/explore", query: query), !Task.isCancelled else { return }
+        let preview: ExploreItem?
+        if kind == "venue" {
+            preview = payload.venues.first(where: { $0.slug == slug }).map(ExploreItem.venue)
+        } else {
+            preview = payload.events.first(where: { $0.slug == slug }).map(ExploreItem.event)
+        }
+        guard let preview, venueDetail == nil, eventDetail == nil else { return }
+        resolvedItem = preview
+    }
 
     func loadDetail() async {
         do {

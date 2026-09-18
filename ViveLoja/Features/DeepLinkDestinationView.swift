@@ -1,5 +1,24 @@
 import SwiftUI
 
+private enum DeepLinkPlaceholder {
+    static func title(from slug: String) -> String {
+        var words = slug
+            .split(separator: "-")
+            .map(String.init)
+        if let last = words.last,
+           last.count > 1,
+           (last.first == "l" || last.first == "e"),
+           last.dropFirst().allSatisfy({ $0.isNumber }) {
+            words.removeLast()
+        }
+
+        return words.map { word in
+            word.prefix(1).uppercased() + word.dropFirst()
+        }
+        .joined(separator: " ")
+    }
+}
+
 /// Renders a destination reached through a Universal Link, the `viveloja://`
 /// scheme or a push notification tap. Pushed onto a tab's `NavigationStack`
 /// (see `DeepLinkRouter`), so the tab bar stays reachable and the screen keeps
@@ -36,12 +55,12 @@ extension MobileWatchEvent {
 
 extension ExploreVenue {
     static func placeholder(slug: String) -> ExploreVenue {
-        ExploreVenue(id: "deep-link-venue-\(slug)", name: "Cargando…", slug: slug, description: nil, image: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [], openState: nil)
+        ExploreVenue(id: "deep-link-venue-\(slug)", name: DeepLinkPlaceholder.title(from: slug), slug: slug, description: nil, image: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, phone: nil, website: nil, priceRange: nil, avgRating: nil, reviewCount: 0, verified: false, categories: [], openState: nil)
     }
 }
 
 extension ExploreEvent {
     static func placeholder(slug: String) -> ExploreEvent {
-        ExploreEvent(id: "deep-link-event-\(slug)", title: "Cargando…", slug: slug, description: nil, image: nil, startDate: .now, endDate: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, price: nil, avgRating: nil, reviewCount: 0, categories: [])
+        ExploreEvent(id: "deep-link-event-\(slug)", title: DeepLinkPlaceholder.title(from: slug), slug: slug, description: nil, image: nil, startDate: .now, endDate: nil, location: nil, address: nil, lat: nil, lng: nil, featured: false, price: nil, avgRating: nil, reviewCount: 0, categories: [])
     }
 }

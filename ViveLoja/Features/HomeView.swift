@@ -53,6 +53,29 @@ final class HomeViewModel {
         // warm launch reaches content without ever showing a spinner.
         await restoreSnapshot()
 
+        // `/explore` is a smaller, faster public payload. On a cold install it
+        // can populate real cards while the server-driven composition finishes.
+        // It never replaces a disk snapshot or the complete `/home` response.
+        let fastExplore: Task<ExplorePayload, Error>? = hasLoaded ? nil : Task {
+            let query = [
+                URLQueryItem(name: "type", value: "all"),
+                URLQueryItem(name: "take", value: "12"),
+                URLQueryItem(name: "venueSkip", value: "0"),
+                URLQueryItem(name: "eventSkip", value: "0"),
+            ]
+            return try await APIClient.shared.get("/explore", query: query)
+        }
+        if let fastExplore {
+            Task { @MainActor [weak self] in
+                guard let preview = try? await fastExplore.value,
+                      let self,
+                      !self.hasLoaded else { return }
+                self.applyFastExplore(preview)
+                self.hasLoaded = true
+                self.initialLoadFinished = true
+            }
+        }
+
         do {
             let payload = try await request.value
 
@@ -67,6 +90,7 @@ final class HomeViewModel {
             // is still in flight. Do not erase recommendations loaded by that
             // concurrent session task with this anonymous request's nil value.
             let nextRecommendations = await personal
+            fastExplore?.cancel()
             if let nextRecommendations {
                 recommendations = nextRecommendations
             } else if accessToken != nil {
@@ -102,6 +126,13 @@ final class HomeViewModel {
         popularNow = payload.popularNow ?? []
         posts = payload.posts ?? []
         promotions = payload.promotions ?? []
+    }
+
+    private func applyFastExplore(_ payload: ExplorePayload) {
+        sections = []
+        featured = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
+        latestVenues = payload.venues
+        relatedEvents = payload.events
     }
 
     /// Best-effort first paint from the last successful launch. Never overwrites
