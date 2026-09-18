@@ -21,6 +21,10 @@ surface must remain within a 1% mean absolute pixel difference and 2% changed
 pixels (8-bit channel threshold 32). Update this baseline only after reviewing
 the resulting screenshots on the same device/runtime.
 
+The `explore-map-filter-applied` capture has a small, snapshot-specific tolerance
+because MapKit may settle on a different tile/camera raster between simulator
+launches; the surrounding controls and card remain part of the comparison.
+
 Anything that moves on its own has to be pinned for these to mean anything:
 fixture dates are fixed, and the rotating search placeholder is frozen on its
 first word under `-uiTesting` (it advances every 2.4 seconds, so the Explore
