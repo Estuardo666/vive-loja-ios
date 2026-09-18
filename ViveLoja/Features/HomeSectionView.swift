@@ -233,7 +233,6 @@ struct HomeItemCard: View {
     var rank: Int?
     /// `nil` in a grid, where the column already constrains the card.
     var width: CGFloat?
-    @State private var eventImageFailed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -272,28 +271,14 @@ struct HomeItemCard: View {
 
     private var artwork: some View {
         GeometryReader { geometry in
-            Group {
-                if item.kind == .event, let imageURL = item.imageUrl {
-                    AsyncImage(url: imageURL) { phase in
-                        switch phase {
-                        case .success(let image): image.resizable().scaledToFill()
-                        case .failure: Color.clear.onAppear { eventImageFailed = true }
-                        default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                    }
-                    .frame(width: geometry.size.width, height: geometry.size.width)
-                    .clipped()
-                } else {
-                    VLAsyncImage(
-                        url: item.imageUrl,
-                        height: geometry.size.width,
-                        width: geometry.size.width,
-                        googleVenueSlug: item.kind == .venue ? item.slug : nil,
-                        cornerRadius: 16,
-                        compactAttribution: true
-                    )
-                }
-            }
+            VLAsyncImage(
+                url: item.imageUrl,
+                height: geometry.size.width,
+                width: geometry.size.width,
+                googleVenueSlug: item.kind == .venue ? item.slug : nil,
+                cornerRadius: 16,
+                compactAttribution: true
+            )
             .overlay(alignment: .topLeading) {
                 if let badge = item.badge {
                     Text(badge)
@@ -323,7 +308,7 @@ struct HomeItemCard: View {
     }
 
     private var showsArtwork: Bool {
-        item.kind != .event || (item.imageUrl != nil && !eventImageFailed)
+        item.kind != .event || item.imageUrl != nil
     }
 
     /// "★ 4,6 · Sant Jordi Club · sáb 12 sep" — only the parts that exist.

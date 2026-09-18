@@ -153,11 +153,15 @@ struct TodayInLojaView: View {
                     } label: {
                         HStack(alignment: .top, spacing: 12) {
                             if let url = item.image {
-                                AsyncImage(url: url) { image in image.resizable().scaledToFill() } placeholder: {
-                                    Color.secondary.opacity(0.15)
-                                }
-                                .frame(width: 72, height: 72).clipShape(RoundedRectangle(cornerRadius: 12))
-                                .accessibilityHidden(true)
+                                VLAsyncImage(
+                                    url: url,
+                                    height: 72,
+                                    width: 72,
+                                    googleVenueSlug: item.kind == "venue" ? item.slug : nil,
+                                    cornerRadius: 12,
+                                    compactAttribution: true
+                                )
+                                    .accessibilityHidden(true)
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(item.title).font(.headline)

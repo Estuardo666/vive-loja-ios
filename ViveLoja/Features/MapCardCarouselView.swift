@@ -159,13 +159,14 @@ struct MapPreviewCard: View {
     private var thumbnail: some View {
         Group {
             if let imageURL {
-                AsyncImage(url: imageURL) { phase in
-                    switch phase {
-                    case .success(let image): image.resizable().scaledToFill()
-                    case .failure: fallbackThumbnail
-                    default: placeholderThumbnail
-                    }
-                }
+                VLAsyncImage(
+                    url: imageURL,
+                    height: 88,
+                    width: 88,
+                    googleVenueSlug: googleVenueSlug,
+                    cornerRadius: 14,
+                    compactAttribution: true
+                )
             } else {
                 fallbackThumbnail
             }
@@ -197,6 +198,11 @@ struct MapPreviewCard: View {
     }
 
     private var isVenue: Bool { if case .venue = item { return true }; return false }
+
+    private var googleVenueSlug: String? {
+        if case .venue(let venue) = item { return venue.slug }
+        return nil
+    }
 
     private var categoryIcon: String {
         switch item {

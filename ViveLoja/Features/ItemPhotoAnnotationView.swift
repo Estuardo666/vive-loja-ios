@@ -10,34 +10,46 @@ import UIKit
 @MainActor
 final class RemoteImageCache {
     static let shared = RemoteImageCache()
+    private let session: URLSession
     private let cache = NSCache<NSString, UIImage>()
     private var inflight: [String: Task<UIImage?, Never>] = [:]
     private static let thumbnailSize = CGSize(width: 96, height: 96)
 
     private init() {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.waitsForConnectivity = false
+        configuration.timeoutIntervalForRequest = 12
+        configuration.timeoutIntervalForResource = 30
+        session = URLSession(configuration: configuration)
         cache.countLimit = 320
         cache.totalCostLimit = 24 * 1024 * 1024
     }
 
     func cached(_ url: URL, maxPixelSize: CGSize = Self.thumbnailSize) -> UIImage? {
+        guard !Self.isGoogleOwned(url) else { return nil }
         cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize))
     }
 
     func image(for url: URL, maxPixelSize: CGSize = Self.thumbnailSize) async -> UIImage? {
         let cacheKey = key(for: url, maxPixelSize: maxPixelSize)
-        if let hit = cache.object(forKey: cacheKey) { return hit }
+        let cacheable = !Self.isGoogleOwned(url)
+        if cacheable, let hit = cache.object(forKey: cacheKey) { return hit }
         if let running = inflight[cacheKey] { return await running.value }
 
         let task = Task { [weak self] in
             guard let self else { return nil }
-            guard let (data, response) = try? await URLSession.shared.data(from: url),
+            guard let (data, response) = try? await self.session.data(from: url),
                   let http = response as? HTTPURLResponse,
                   (200..<300).contains(http.statusCode),
                   // Pins are small; cards and detail galleries get a larger
                   // target. Never retain the original full-resolution bytes.
                   let image = UIImage(data: data)?.preparingThumbnail(of: maxPixelSize)
             else { return nil }
-            self.cache.setObject(image, forKey: cacheKey, cost: data.count)
+            if cacheable {
+                self.cache.setObject(image, forKey: cacheKey, cost: data.count)
+            }
             return image
         }
         inflight[cacheKey] = task
@@ -48,6 +60,22 @@ final class RemoteImageCache {
 
     private func key(for url: URL, maxPixelSize: CGSize) -> NSString {
         "\(url.absoluteString)|\(Int(maxPixelSize.width))x\(Int(maxPixelSize.height))" as NSString
+    }
+
+    private static func isGoogleOwned(_ url: URL) -> Bool {
+        let host = (url.host ?? "").lowercased()
+        let path = url.path.lowercased()
+        return host == "google.com"
+            || host.hasSuffix(".google.com")
+            || host == "googleapis.com"
+            || host.hasSuffix(".googleapis.com")
+            || host == "googleusercontent.com"
+            || host.hasSuffix(".googleusercontent.com")
+            || host == "ggpht.com"
+            || host.hasSuffix(".ggpht.com")
+            || host == "gstatic.com"
+            || host.hasSuffix(".gstatic.com")
+            || path.contains("/google-photo")
     }
 }
 

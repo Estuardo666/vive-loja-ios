@@ -206,7 +206,7 @@ actor APIClient {
     private func isPublicCacheable(path: String) -> Bool {
         let normalizedPath = "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         let privatePrefixes = ["/me/", "/admin/", "/auth/", "/ticketing/", "/views/", "/uploads/"]
-        guard !privatePrefixes.contains(where: normalizedPath.hasPrefix) else { return false }
+        guard !privatePrefixes.contains(where: { normalizedPath.hasPrefix($0) }) else { return false }
         // The Google photo proxy returns photo URI and attribution metadata;
         // it must remain uncached even though it sits below /venues/.
         return !normalizedPath.hasSuffix("/google-photo")
