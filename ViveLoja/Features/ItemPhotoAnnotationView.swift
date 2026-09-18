@@ -28,7 +28,7 @@ final class RemoteImageCache {
 
     func cached(_ url: URL, maxPixelSize: CGSize = CGSize(width: 96, height: 96)) -> UIImage? {
         guard !Self.isGoogleOwned(url) else { return nil }
-        cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize) as NSString)
+        return cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize) as NSString)
     }
 
     func image(for url: URL, maxPixelSize: CGSize = CGSize(width: 96, height: 96)) async -> UIImage? {
