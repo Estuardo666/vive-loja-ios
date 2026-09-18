@@ -5,6 +5,11 @@ private struct APIClientTestPayload: Decodable, Sendable, Equatable {
     let value: String
 }
 
+private struct VenueCacheTestPayload: Decodable, Sendable, Equatable {
+    let value: String
+    let googleRating: Double?
+}
+
 fileprivate final class APIClientURLProtocol: URLProtocol, @unchecked Sendable {
     fileprivate struct RequestRecord: Sendable {
         let reloadsIgnoringLocalCache: Bool
@@ -41,7 +46,12 @@ fileprivate final class APIClientURLProtocol: URLProtocol, @unchecked Sendable {
         ))
         Self.lock.unlock()
 
-        let responseBody = Data(#"{"data":{"value":"ok"}}"#.utf8)
+        let responseBody: Data
+        if url.path.contains("/venues/") {
+            responseBody = Data(#"{"data":{"value":"ok","googleRating":4.8,"googleReviewCount":32}}"#.utf8)
+        } else {
+            responseBody = Data(#"{"data":{"value":"ok"}}"#.utf8)
+        }
         guard let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil) else {
             client?.urlProtocol(self, didFailWithError: URLError(.badServerResponse))
             return
@@ -89,12 +99,14 @@ final class APIClientTests: XCTestCase {
         XCTAssertTrue(records.allSatisfy { $0.authorization == "Bearer secret" })
     }
 
-    func testVenueDetailsBypassPublicCacheBecauseTheyContainGoogleFields() async throws {
+    func testVenueDetailsCacheOnlyFirstPartyFields() async throws {
         let client = makeClient()
 
-        let _: APIClientTestPayload = try await client.get("/venues/cafe-central")
-        let _: APIClientTestPayload = try await client.get("/venues/cafe-central")
+        let first: VenueCacheTestPayload = try await client.get("/venues/cafe-central")
+        let second: VenueCacheTestPayload = try await client.get("/venues/cafe-central")
 
-        XCTAssertEqual(APIClientURLProtocol.requestRecords.count, 2)
+        XCTAssertEqual(first.googleRating, 4.8)
+        XCTAssertNil(second.googleRating, "Cached venue details must not retain Google-derived fields")
+        XCTAssertEqual(APIClientURLProtocol.requestRecords.count, 1)
     }
 }

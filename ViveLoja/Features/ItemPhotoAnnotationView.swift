@@ -2,26 +2,52 @@ import MapKit
 import SwiftUI
 import UIKit
 
-/// Downsampled remote artwork (map pins, avatars), kept in memory so panning
-/// and tab switches do not refetch.
+/// Downsampled remote artwork kept in memory so panning, tab switches and
+/// navigation back to a list do not refetch first-party images.
+///
+/// Google Places photos deliberately do not use this cache. They have a
+/// separate client because Google prohibits caching photo URIs and photos.
 @MainActor
 final class RemoteImageCache {
     static let shared = RemoteImageCache()
-    private let cache = NSCache<NSURL, UIImage>()
+    private let cache = NSCache<NSString, UIImage>()
+    private var inflight: [String: Task<UIImage?, Never>] = [:]
     private static let thumbnailSize = CGSize(width: 96, height: 96)
 
-    private init() { cache.countLimit = 240 }
+    private init() {
+        cache.countLimit = 320
+        cache.totalCostLimit = 24 * 1024 * 1024
+    }
 
-    func cached(_ url: URL) -> UIImage? { cache.object(forKey: url as NSURL) }
+    func cached(_ url: URL, maxPixelSize: CGSize = Self.thumbnailSize) -> UIImage? {
+        cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize))
+    }
 
-    func image(for url: URL) async -> UIImage? {
-        if let hit = cached(url) { return hit }
-        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return nil }
-        // Pins are 46pt; keeping full-resolution photos for every marker is what
-        // makes map memory blow up, so downsample before caching.
-        guard let image = UIImage(data: data)?.preparingThumbnail(of: Self.thumbnailSize) else { return nil }
-        cache.setObject(image, forKey: url as NSURL)
+    func image(for url: URL, maxPixelSize: CGSize = Self.thumbnailSize) async -> UIImage? {
+        let cacheKey = key(for: url, maxPixelSize: maxPixelSize)
+        if let hit = cache.object(forKey: cacheKey) { return hit }
+        if let running = inflight[cacheKey] { return await running.value }
+
+        let task = Task { [weak self] in
+            guard let self else { return nil }
+            guard let (data, response) = try? await URLSession.shared.data(from: url),
+                  let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode),
+                  // Pins are small; cards and detail galleries get a larger
+                  // target. Never retain the original full-resolution bytes.
+                  let image = UIImage(data: data)?.preparingThumbnail(of: maxPixelSize)
+            else { return nil }
+            self.cache.setObject(image, forKey: cacheKey, cost: data.count)
+            return image
+        }
+        inflight[cacheKey] = task
+        let image = await task.value
+        inflight[cacheKey] = nil
         return image
+    }
+
+    private func key(for url: URL, maxPixelSize: CGSize) -> NSString {
+        "\(url.absoluteString)|\(Int(maxPixelSize.width))x\(Int(maxPixelSize.height))" as NSString
     }
 }
 

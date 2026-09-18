@@ -17,6 +17,7 @@ struct VLGoogleVenuePhoto: View {
     var compactAttribution = false
     @State private var image: UIImage?
     @State private var photo: GoogleVenuePhoto?
+    @State private var loadedKey: String?
     @State private var showAttribution = false
 
     private func attributionText(for photo: GoogleVenuePhoto) -> String {
@@ -76,9 +77,15 @@ struct VLGoogleVenuePhoto: View {
                 .presentationDetents([.medium, .large])
             }
         }
-        .task(id: "\(slug)-\(large)") {
-            image = nil
-            photo = nil
+        .task(id: requestKey) {
+            // Keep the current image visible while a returning view refreshes
+            // Google content. This is view state, not a shared/persistent
+            // cache, and avoids flashing back to the placeholder on navigation.
+            if loadedKey != requestKey {
+                image = nil
+                photo = nil
+                loadedKey = requestKey
+            }
             do {
                 guard let (metadata, data) = try await GoogleVenuePhotoClient.shared.load(slug: slug, large: large) else { return }
                 guard let decoded = UIImage(data: data) else {
@@ -94,4 +101,6 @@ struct VLGoogleVenuePhoto: View {
             }
         }
     }
+
+    private var requestKey: String { "\(slug)-\(large)" }
 }

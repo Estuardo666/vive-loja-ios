@@ -19,21 +19,44 @@ struct VLAsyncImage: View {
     /// Card-sized images credit Google with the short capsule; full-width ones
     /// have room for the authors.
     var compactAttribution = false
+    @State private var loadedImage: UIImage?
+    @State private var finishedLoading = false
 
     var body: some View {
-        AsyncImage(url: url) { phase in
-            switch phase {
-            case .success(let image): image.resizable().scaledToFill()
-            case .failure:
+        Group {
+            if let loadedImage {
+                Image(uiImage: loadedImage).resizable().scaledToFill()
+            } else if finishedLoading {
                 fallback
-            case .empty:
-                if url == nil { fallback } else { placeholder }
-            default: Rectangle().fill(.quaternary).overlay { Image(systemName: "photo").foregroundStyle(.secondary) }
+            } else {
+                placeholder
             }
         }
         .frame(maxWidth: width ?? .infinity)
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .task(id: imageTaskKey) {
+            loadedImage = nil
+            finishedLoading = false
+            guard let url else {
+                finishedLoading = true
+                return
+            }
+            let image = await RemoteImageCache.shared.image(for: url, maxPixelSize: targetPixelSize)
+            guard !Task.isCancelled else { return }
+            loadedImage = image
+            finishedLoading = true
+        }
+    }
+
+    private var imageTaskKey: String {
+        guard let url else { return "placeholder" }
+        return "\(url.absoluteString)|\(Int(targetPixelSize.width))x\(Int(targetPixelSize.height))"
+    }
+
+    private var targetPixelSize: CGSize {
+        let displayWidth = max(width ?? 390, 1)
+        return CGSize(width: displayWidth * 3, height: max(height, 1) * 3)
     }
 
     @ViewBuilder private var fallback: some View {
@@ -71,7 +94,6 @@ struct VLSectionHeader: View {
 struct VLItemCard: View {
     let item: ExploreItem
     @State private var showPhoto = false
-    @State private var eventImageFailed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -90,17 +112,14 @@ struct VLItemCard: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 150)
             case .event(let event):
-                if let imageURL = event.image, !eventImageFailed {
+                if let imageURL = event.image {
                     GeometryReader { geometry in
-                        AsyncImage(url: imageURL) { phase in
-                            switch phase {
-                            case .success(let image): image.resizable().scaledToFill()
-                            case .failure: Color.clear.onAppear { eventImageFailed = true }
-                            default: ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
-                        }
-                        .frame(width: geometry.size.width, height: 150)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        VLAsyncImage(
+                            url: imageURL,
+                            height: 150,
+                            width: geometry.size.width,
+                            cornerRadius: 18
+                        )
                     }
                     .frame(height: 150)
                 }

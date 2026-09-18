@@ -74,8 +74,7 @@ actor APIClient {
     /// The client owns a small in-memory public cache, so the URL session does
     /// not need a disk cache at all. That makes the no-persistence guarantee
     /// for bearer requests independent of server response headers. Venue detail
-    /// responses are intentionally excluded from this cache because they also
-    /// contain Google-derived rating/badge fields.
+    /// responses are cached only after Google-derived fields are stripped.
     private static func makeSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
@@ -168,7 +167,11 @@ actor APIClient {
 
         if method == "GET", bearer == nil, isPublicCacheable(path: path) {
             let cacheKey = url.absoluteString
-            let data = try await publicData(for: request, key: cacheKey)
+            let data = try await publicData(
+                for: request,
+                key: cacheKey,
+                stripGoogleContent: isVenueDetail(path: path)
+            )
             return try decode(data, as: Value.self)
         }
 
@@ -202,34 +205,47 @@ actor APIClient {
 
     private func isPublicCacheable(path: String) -> Bool {
         let normalizedPath = "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return !normalizedPath.hasPrefix("/venues/")
+        let privatePrefixes = ["/me/", "/admin/", "/auth/", "/ticketing/", "/views/", "/uploads/"]
+        guard !privatePrefixes.contains(where: normalizedPath.hasPrefix) else { return false }
+        // The Google photo proxy returns photo URI and attribution metadata;
+        // it must remain uncached even though it sits below /venues/.
+        return !normalizedPath.hasSuffix("/google-photo")
     }
 
-    private func publicData(for request: URLRequest, key: String) async throws -> Data {
+    private func isVenueDetail(path: String) -> Bool {
+        let normalizedPath = "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return normalizedPath.hasPrefix("/venues/") && !normalizedPath.hasSuffix("/google-photo")
+    }
+
+    private func publicData(for request: URLRequest, key: String, stripGoogleContent: Bool) async throws -> Data {
         let now = Date()
         if let entry = publicCache[key] {
             if entry.freshUntil > now {
                 return entry.data
             }
             if entry.staleUntil > now {
-                schedulePublicRefresh(for: request, key: key)
+                schedulePublicRefresh(for: request, key: key, stripGoogleContent: stripGoogleContent)
                 return entry.data
             }
             publicCache.removeValue(forKey: key)
         }
-        return try await refreshPublicData(for: request, key: key)
+        return try await refreshPublicData(for: request, key: key, stripGoogleContent: stripGoogleContent)
     }
 
     /// Returns a stale public response immediately and refreshes it in the
     /// background. The in-flight map also deduplicates cold concurrent loads.
-    private func schedulePublicRefresh(for request: URLRequest, key: String) {
+    private func schedulePublicRefresh(for request: URLRequest, key: String, stripGoogleContent: Bool) {
         guard publicInflight[key] == nil else { return }
         Task { [weak self] in
-            _ = try? await self?.refreshPublicData(for: request, key: key)
+            _ = try? await self?.refreshPublicData(
+                for: request,
+                key: key,
+                stripGoogleContent: stripGoogleContent
+            )
         }
     }
 
-    private func refreshPublicData(for request: URLRequest, key: String) async throws -> Data {
+    private func refreshPublicData(for request: URLRequest, key: String, stripGoogleContent: Bool) async throws -> Data {
         if let running = publicInflight[key] {
             return try await running.value
         }
@@ -243,7 +259,10 @@ actor APIClient {
         do {
             let data = try await task.value
             publicInflight[key] = nil
-            storePublicData(data, for: key)
+            storePublicData(
+                stripGoogleContent ? Self.removingGoogleContent(from: data) : data,
+                for: key
+            )
             return data
         } catch {
             publicInflight[key] = nil
@@ -264,6 +283,33 @@ actor APIClient {
             guard let oldest = publicCache.min(by: { $0.value.storedAt < $1.value.storedAt })?.key else { break }
             publicCache.removeValue(forKey: oldest)
         }
+    }
+
+    /// Google Place Photos and photo-derived content are not retained in the
+    /// app cache. Venue details can still be reused immediately on back-nav by
+    /// removing every Google-prefixed field before storing the public response.
+    private static func removingGoogleContent(from data: Data) -> Data {
+        guard let object = try? JSONSerialization.jsonObject(with: data),
+              let sanitized = removingGoogleContent(from: object),
+              JSONSerialization.isValidJSONObject(sanitized),
+              let result = try? JSONSerialization.data(withJSONObject: sanitized)
+        else { return data }
+        return result
+    }
+
+    private static func removingGoogleContent(from value: Any) -> Any? {
+        if let dictionary = value as? [String: Any] {
+            return dictionary.reduce(into: [String: Any]()) { result, entry in
+                guard !entry.key.lowercased().hasPrefix("google") else { return }
+                if let sanitized = removingGoogleContent(from: entry.value) {
+                    result[entry.key] = sanitized
+                }
+            }
+        }
+        if let array = value as? [Any] {
+            return array.compactMap { removingGoogleContent(from: $0) }
+        }
+        return value
     }
 
     private func networkData(for request: URLRequest) async throws -> Data {
