@@ -13,48 +13,97 @@ concurrency:
   group: ios-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  XCODE_VERSION: "26.2"
+  IOS_RUNTIME: "26.2"
+  PROJECT: ViveLoja.xcodeproj
+  SCHEME: ViveLoja
+  CONFIGURATION: Production
+
 jobs:
   build-and-test:
     runs-on: macos-26
-    timeout-minutes: 35
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Select Xcode 26.2
-        run: sudo xcode-select -s /Applications/Xcode_26.2.app/Contents/Developer
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          xcode_path="/Applications/Xcode_${XCODE_VERSION}.app"
+          if [[ ! -d "$xcode_path" ]]; then
+            echo "Xcode $XCODE_VERSION is not installed on this runner" >&2
+            ls -ld /Applications/Xcode*.app >&2 || true
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_path/Contents/Developer"
+          echo "DEVELOPER_DIR=$xcode_path/Contents/Developer" >> "$GITHUB_ENV"
+          xcodebuild -version
 
-      - name: Install XcodeGen
-        run: HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew install xcodegen
-
-      - name: Install SwiftLint
-        run: HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew install swiftlint
+      - name: Install CI tools
+        run: HOMEBREW_NO_REQUIRE_TAP_TRUST=1 brew install xcodegen swiftlint
 
       - name: Generate project
         run: xcodegen generate
 
-      # macos-26 images do not always ship a downloaded iOS runtime, and the
-      # runner's simulator names drift with every image update. Install the
-      # runtime if it is missing, then resolve whatever iPhone actually exists
-      # rather than pinning a model that may not be there.
+      # Keep the runtime aligned with project.yml and the Xcode version used by
+      # this job. The runner image normally includes it; the fallback makes the
+      # workflow resilient if an image update omits the runtime.
       - name: Ensure an iOS simulator runtime
         run: |
-          if ! xcrun simctl list runtimes | grep -q "iOS "; then
-            xcodebuild -downloadPlatform iOS
+          set -euo pipefail
+          runtime_id="com.apple.CoreSimulator.SimRuntime.iOS-${IOS_RUNTIME//./-}"
+          has_runtime() {
+            xcrun simctl list devices available --json \
+              | jq -e --arg runtime "$runtime_id" '
+                  (.devices[$runtime] // [])
+                  | any(.[]; .isAvailable == true)
+                ' >/dev/null
+          }
+
+          if ! has_runtime; then
+            xcodebuild -downloadPlatform iOS -buildVersion "$IOS_RUNTIME"
           fi
-          xcrun simctl list runtimes
+
+          if ! has_runtime; then
+            echo "iOS simulator runtime $IOS_RUNTIME is unavailable" >&2
+            xcrun simctl list runtimes >&2
+            exit 1
+          fi
+          xcrun simctl list runtimes available
 
       - name: Resolve simulator
         id: sim
         run: |
-          udid=$(xcrun simctl list devices available --json | jq -r '.devices | to_entries | map(select(.key | test("iOS"))) | map(.value[]) | map(select(.isAvailable and (.name | test("iPhone")))) | (map(select(.name | test("Pro"))) + .) | .[0].udid')
+          set -euo pipefail
+          runtime_id="com.apple.CoreSimulator.SimRuntime.iOS-${IOS_RUNTIME//./-}"
+          udid=$(xcrun simctl list devices available --json \
+            | jq -r --arg runtime "$runtime_id" '
+                (.devices[$runtime] // [])
+                | map(select(.isAvailable == true and (.name | startswith("iPhone")))) as $iphones
+                | (($iphones | map(select(.name | contains("Pro"))))
+                   + ($iphones | map(select(.name | contains("Pro") | not))))
+                | .[0].udid // empty
+              ')
           if [ -z "$udid" ] || [ "$udid" = "null" ]; then
-            echo "No available iPhone simulator on this runner" >&2
+            echo "No available iPhone simulator for iOS $IOS_RUNTIME on this runner" >&2
             xcrun simctl list devices >&2
             exit 1
           fi
           echo "Using simulator $udid"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
+
+      - name: Reset and boot simulator
+        run: |
+          set -euo pipefail
+          xcrun simctl shutdown "${{ steps.sim.outputs.udid }}" || true
+          xcrun simctl erase "${{ steps.sim.outputs.udid }}"
+          xcrun simctl boot "${{ steps.sim.outputs.udid }}"
+          xcrun simctl bootstatus "${{ steps.sim.outputs.udid }}" -b
 
       - name: Lint Swift
         run: swiftlint lint --quiet
@@ -67,57 +116,69 @@ jobs:
           done < <(find ViveLoja ViveLojaTests ViveLojaUITests -name '*.swift' -print0)
 
       - name: Build
-        run: >-
-          xcodebuild build-for-testing
-          -project ViveLoja.xcodeproj
-          -scheme ViveLoja
-          -configuration Production
-          -sdk iphonesimulator
-          -destination "id=${{ steps.sim.outputs.udid }}"
-          -derivedDataPath DerivedData
-          CODE_SIGNING_ALLOWED=NO
-          CODE_SIGNING_REQUIRED=NO
-          ENABLE_TESTABILITY=YES
+        run: |
+          set -euo pipefail
+          xcodebuild build-for-testing \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -sdk iphonesimulator \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -destination-timeout 120 \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ENABLE_TESTABILITY=YES
 
       - name: Test
-        run: >-
-          xcodebuild test-without-building
-          -project ViveLoja.xcodeproj
-          -scheme ViveLoja
-          -configuration Production
-          -destination "id=${{ steps.sim.outputs.udid }}"
-          -derivedDataPath DerivedData
-          -resultBundlePath TestResults.xcresult
-          CODE_SIGNING_ALLOWED=NO
-          CODE_SIGNING_REQUIRED=NO
+        id: tests
+        run: |
+          set -euo pipefail
+          xcodebuild test-without-building \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            -destination-timeout 120 \
+            -parallel-testing-enabled NO \
+            -derivedDataPath DerivedData \
+            -resultBundlePath TestResults.xcresult \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
 
       - name: Export screenshot attachments
+        id: export_attachments
         if: always()
-        continue-on-error: true
-        run: >-
-          xcrun xcresulttool export attachments
-          --path TestResults.xcresult
-          --output-path ExportedScreenshots
+        run: |
+          set -euo pipefail
+          if [[ ! -d TestResults.xcresult ]]; then
+            echo "Test result bundle was not created; skipping attachment export" >&2
+            exit 0
+          fi
+          xcrun xcresulttool export attachments \
+            --path TestResults.xcresult \
+            --output-path ExportedScreenshots
 
       - name: Verify snapshot baseline
-        if: success()
-        run: >-
-          xcrun swift scripts/verify_snapshots.swift
-          --baseline ViveLojaUITests/Snapshots
-          --exported ExportedScreenshots
+        if: ${{ success() && steps.tests.outcome == 'success' }}
+        run: |
+          xcrun swift scripts/verify_snapshots.swift \
+            --baseline ViveLojaUITests/Snapshots \
+            --exported ExportedScreenshots
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-test-results
+          if-no-files-found: warn
           path: |
             TestResults.xcresult
             DerivedData/Logs/Test
 
       - name: Upload exported screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-screenshots
           if-no-files-found: ignore

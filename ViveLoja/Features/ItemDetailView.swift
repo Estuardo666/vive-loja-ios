@@ -415,8 +415,10 @@ private extension ItemDetailView {
                 let detail: VenueDetail = try await APIClient.shared.get("/venues/\(value.slug)")
                 venueDetail = detail
                 resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories, openState: detail.openState))
-                await loadFollowing(for: detail.id)
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "venue", itemId: detail.id), bearer: session.accessToken)
+                // The detail payload is the critical path. Following state and
+                // analytics are secondary and must not hold the first render.
+                Task { await loadFollowing(for: detail.id) }
+                recordView(kind: "venue", itemID: detail.id)
             case .event(let value):
                 let detail: EventDetail = try await APIClient.shared.get("/events/\(value.slug)")
                 eventDetail = detail
@@ -425,9 +427,22 @@ private extension ItemDetailView {
                     reminderScheduled = false
                 }
                 resolvedItem = .event(ExploreEvent(id: detail.id, title: detail.title, slug: detail.slug, description: detail.description, image: detail.image, startDate: detail.startDate, endDate: detail.endDate, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, price: detail.price, avgRating: detail.avgRating, reviewCount: detail.reviewCount, categories: detail.categories))
-                let _: ViewResponse? = try? await APIClient.shared.post("/views", body: ViewRequest(kind: "event", itemId: detail.id), bearer: session.accessToken)
+                recordView(kind: "event", itemID: detail.id)
             }
         } catch { actionMessage = (error as? LocalizedError)?.errorDescription }
+    }
+
+    /// Analytics must never extend the visible detail load. The request is
+    /// best-effort and carries the same optional bearer as before.
+    private func recordView(kind: String, itemID: String) {
+        let token = session.accessToken
+        Task(priority: .utility) {
+            let _: ViewResponse? = try? await APIClient.shared.post(
+                "/views",
+                body: ViewRequest(kind: kind, itemId: itemID),
+                bearer: token
+            )
+        }
     }
 
     func loadFollowing(for venueID: String) async {

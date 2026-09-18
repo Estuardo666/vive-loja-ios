@@ -25,6 +25,7 @@ actor SnapshotStore {
     /// Anything older than this is discarded rather than shown: a day-old home
     /// screen is still a reasonable first paint, a stale week is not.
     private static let maximumAge: TimeInterval = 24 * 60 * 60
+    private static let publicKeys: Set<String> = [Key.home, Key.today]
 
     init(directory: URL? = nil) {
         let base = directory ?? FileManager.default
@@ -39,9 +40,11 @@ actor SnapshotStore {
     }
 
     func read<Value: Decodable & Sendable>(_ key: String) -> Value? {
+        guard Self.publicKeys.contains(key) else { return nil }
         let file = url(for: key)
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path(percentEncoded: false)),
               let modified = attributes[.modificationDate] as? Date,
+              Date().timeIntervalSince(modified) >= 0,
               Date().timeIntervalSince(modified) < Self.maximumAge,
               let data = try? Data(contentsOf: file, options: .mappedIfSafe)
         else { return nil }
@@ -49,6 +52,7 @@ actor SnapshotStore {
     }
 
     func write<Value: Encodable & Sendable>(_ value: Value, for key: String) {
+        guard Self.publicKeys.contains(key) else { return }
         guard let data = try? encoder.encode(value) else { return }
         try? data.write(to: url(for: key), options: .atomic)
     }

@@ -47,26 +47,45 @@ actor APIClient {
     private let environment: AppEnvironment
     private let decoder: JSONDecoder
 
+    private struct PublicCacheEntry: Sendable {
+        let data: Data
+        let storedAt: Date
+        let freshUntil: Date
+        let staleUntil: Date
+        var cost: Int { data.count }
+    }
+
+    /// Public responses are safe to keep only in memory. This avoids putting
+    /// account data in URLCache while still making repeated home/explore/list
+    /// loads instant during the current session.
+    private var publicCache: [String: PublicCacheEntry] = [:]
+    private var publicInflight: [String: Task<Data, Error>] = [:]
+    private let publicFreshLifetime: TimeInterval = 30
+    private let publicStaleLifetime: TimeInterval = 5 * 60
+    private let publicCacheMaxEntries = 40
+    private let publicCacheMaxBytes = 16 * 1024 * 1024
+
     init(environment: AppEnvironment = .current, session: URLSession? = nil) {
         self.environment = environment
         self.session = session ?? Self.makeSession()
         self.decoder = .viveLoja
     }
 
-    /// Public GET responses use the server's cache headers while authenticated
-    /// requests always revalidate to avoid persisting private account data.
+    /// The client owns a small in-memory public cache, so the URL session does
+    /// not need a disk cache at all. That makes the no-persistence guarantee
+    /// for bearer requests independent of server response headers. Venue detail
+    /// responses are intentionally excluded from this cache because they also
+    /// contain Google-derived rating/badge fields.
     private static func makeSession() -> URLSession {
-        let configuration = URLSessionConfiguration.default
-        configuration.urlCache = URLCache(memoryCapacity: 10 * 1024 * 1024, diskCapacity: 50 * 1024 * 1024)
-        configuration.requestCachePolicy = .useProtocolCachePolicy
-        configuration.waitsForConnectivity = true
-        // `waitsForConnectivity` on its own has no ceiling, so a launch on a
-        // captive or half-dead network hung on the home request indefinitely.
-        configuration.timeoutIntervalForRequest = 15
-        configuration.timeoutIntervalForResource = 60
-        // The launch fans out to /home, /today and /me/recommendations at once;
-        // the default of 6 is plenty but the value is worth pinning.
-        configuration.httpMaximumConnectionsPerHost = 6
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.waitsForConnectivity = false
+        configuration.timeoutIntervalForRequest = 12
+        configuration.timeoutIntervalForResource = 30
+        configuration.httpMaximumConnectionsPerHost = 8
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
         return URLSession(configuration: configuration)
     }
 
@@ -95,10 +114,14 @@ actor APIClient {
         components.queryItems = nil
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         let boundary = "Boundary-\(UUID().uuidString)"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
+        if let bearer {
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+            request.setValue("no-store", forHTTPHeaderField: "Cache-Control")
+        }
         let safeFileName = fileName.replacingOccurrences(of: "\"", with: "")
         var body = Data()
         body.append(Data("--\(boundary)\r\n".utf8))
@@ -132,13 +155,22 @@ actor APIClient {
         guard let url = components.url else { throw APIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.cachePolicy = method == "GET" && bearer == nil ? .useProtocolCachePolicy : .reloadIgnoringLocalCacheData
+        request.cachePolicy = .reloadIgnoringLocalCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if bearer != nil { request.setValue("no-store", forHTTPHeaderField: "Cache-Control") }
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
+        // Callers may add headers such as Idempotency-Key, but never get to
+        // weaken the no-persistence rule for an authenticated request.
+        if bearer != nil { request.setValue("no-store", forHTTPHeaderField: "Cache-Control") }
         if let body { request.httpBody = try JSONEncoder().encode(body) }
+
+        if method == "GET", bearer == nil, isPublicCacheable(path: path) {
+            let cacheKey = url.absoluteString
+            let data = try await publicData(for: request, key: cacheKey)
+            return try decode(data, as: Value.self)
+        }
 
         let data: Data
         let response: URLResponse
@@ -159,6 +191,92 @@ actor APIClient {
     private func decodeEmpty<Value: Decodable & Sendable>(_ type: Value.Type) throws -> Value {
         if Value.self == EmptyResponse.self, let value = EmptyResponse() as? Value { return value }
         throw APIError.decoding("Respuesta vacía")
+    }
+
+    private func decode<Value: Decodable & Sendable>(_ data: Data, as type: Value.Type) throws -> Value {
+        do {
+            if let wrapped = try? decoder.decode(APIEnvelope<Value>.self, from: data) { return wrapped.data }
+            return try decoder.decode(Value.self, from: data)
+        } catch { throw APIError.decoding(error.localizedDescription) }
+    }
+
+    private func isPublicCacheable(path: String) -> Bool {
+        let normalizedPath = "/" + path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        return !normalizedPath.hasPrefix("/venues/")
+    }
+
+    private func publicData(for request: URLRequest, key: String) async throws -> Data {
+        let now = Date()
+        if let entry = publicCache[key] {
+            if entry.freshUntil > now {
+                return entry.data
+            }
+            if entry.staleUntil > now {
+                schedulePublicRefresh(for: request, key: key)
+                return entry.data
+            }
+            publicCache.removeValue(forKey: key)
+        }
+        return try await refreshPublicData(for: request, key: key)
+    }
+
+    /// Returns a stale public response immediately and refreshes it in the
+    /// background. The in-flight map also deduplicates cold concurrent loads.
+    private func schedulePublicRefresh(for request: URLRequest, key: String) {
+        guard publicInflight[key] == nil else { return }
+        Task { [weak self] in
+            _ = try? await self?.refreshPublicData(for: request, key: key)
+        }
+    }
+
+    private func refreshPublicData(for request: URLRequest, key: String) async throws -> Data {
+        if let running = publicInflight[key] {
+            return try await running.value
+        }
+
+        let task = Task { [weak self] in
+            guard let self else { throw APIError.transport("La sesión de red no está disponible.") }
+            return try await self.networkData(for: request)
+        }
+        publicInflight[key] = task
+
+        do {
+            let data = try await task.value
+            publicInflight[key] = nil
+            storePublicData(data, for: key)
+            return data
+        } catch {
+            publicInflight[key] = nil
+            throw error
+        }
+    }
+
+    private func storePublicData(_ data: Data, for key: String) {
+        let now = Date()
+        publicCache[key] = PublicCacheEntry(
+            data: data,
+            storedAt: now,
+            freshUntil: now.addingTimeInterval(publicFreshLifetime),
+            staleUntil: now.addingTimeInterval(publicStaleLifetime)
+        )
+        publicCache = publicCache.filter { $0.value.staleUntil > now }
+        while publicCache.count > publicCacheMaxEntries || publicCache.values.reduce(0, { $0 + $1.cost }) > publicCacheMaxBytes {
+            guard let oldest = publicCache.min(by: { $0.value.storedAt < $1.value.storedAt })?.key else { break }
+            publicCache.removeValue(forKey: oldest)
+        }
+    }
+
+    private func networkData(for request: URLRequest) async throws -> Data {
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await session.data(for: request) }
+        catch { throw APIError.transport(error.localizedDescription) }
+        guard let http = response as? HTTPURLResponse else { throw APIError.transport("Respuesta inválida del servicio.") }
+        guard (200..<300).contains(http.statusCode) else {
+            let envelope = try? decoder.decode(APIErrorEnvelope.self, from: data)
+            throw APIError.server(code: envelope?.error.code ?? "HTTP_\(http.statusCode)", message: envelope?.error.message ?? "No se pudo completar la solicitud.", status: http.statusCode)
+        }
+        return data
     }
 }
 

@@ -46,6 +46,19 @@ final class LaunchPerformanceTests: XCTestCase {
         XCTAssertNil(restored)
     }
 
+    func testSnapshotStoreIgnoresKeysOutsidePublicAllowlist() async {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "snapshot-tests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        let store = SnapshotStore(directory: directory)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        await store.write("private", for: "me-profile")
+        let restored: String? = await store.read("me-profile")
+
+        XCTAssertNil(restored)
+        XCTAssertFalse(FileManager.default.fileExists(at: directory.appending(path: "me-profile.json")))
+    }
+
     /// `VLTheme` caches its dynamic colours, and UIKit memoises a dynamic
     /// colour per trait collection — so without invalidation a palette change
     /// would keep drawing the previous flavour.

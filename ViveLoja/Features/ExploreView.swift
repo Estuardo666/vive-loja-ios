@@ -80,8 +80,14 @@ struct ExploreView: View {
                 // Explore opens on the map, so ask for the position up front
                 // instead of waiting for the crosshair to be pressed.
                 if !useNearMe { useNearMe = true; location.requestCurrentLocation() }
-                await model.search()
-                await model.loadCategories()
+
+                // Search results and filter chips are independent public reads.
+                // Run them together so the chips never sit behind the much
+                // larger explore payload on a cold screen.
+                async let search: Void = model.search()
+                async let categories: Void = model.loadCategories()
+                await search
+                await categories
             }
             .onChange(of: model.type) { _, _ in
                 guard !isUITesting else { return }
@@ -112,10 +118,6 @@ struct ExploreView: View {
                 guard showMap || useNearMe, !isUITesting else { return }
                 Task { await runSearch() }
             }
-            // Most venues are illustrated by their Google photo, and the rail
-            // is the first place that photo is asked for. Starting the fetch as
-            // the pin is selected means the card usually scrolls in with the
-            // picture already decoded instead of on a placeholder.
             .onChange(of: selectedMapItemID) { _, id in
                 guard let id, let item = model.items.first(where: { $0.id == id }) else { return }
                 // Swiping the rail is also a way of moving around the map, so
@@ -129,10 +131,6 @@ struct ExploreView: View {
                     withAnimation(reduceMotion ? nil : Animation.snappy) {
                         mapRegion = MKCoordinateRegion(center: center, span: mapRegion.span)
                     }
-                }
-                guard case .venue(let venue) = item else { return }
-                Task.detached(priority: .userInitiated) {
-                    _ = try? await GoogleVenuePhotoClient.shared.load(slug: venue.slug, large: false)
                 }
             }
             .sheet(isPresented: $showRouteSteps) {

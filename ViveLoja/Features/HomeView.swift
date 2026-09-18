@@ -55,22 +55,32 @@ final class HomeViewModel {
 
         do {
             let payload = try await request.value
-            await todayPrefetch
-            let nextRecommendations = await personal
+
+            // Publish the public home payload as soon as it arrives. Today and
+            // recommendations are secondary sections; waiting for either one
+            // kept the cards behind an unrelated request on slow networks.
             apply(payload)
+            hasLoaded = true
+            initialLoadFinished = true
+
             // The session can finish restoring while the public home request
             // is still in flight. Do not erase recommendations loaded by that
             // concurrent session task with this anonymous request's nil value.
+            let nextRecommendations = await personal
             if let nextRecommendations {
                 recommendations = nextRecommendations
             } else if accessToken != nil {
                 recommendations = nil
             }
-            hasLoaded = true
+
+            // Keep the home snapshot write off the main actor. It is written
+            // independently from the first paint and is only a warm-launch
+            // optimisation, never a reason to delay content.
             let snapshot = payload
             Task.detached(priority: .utility) {
                 await SnapshotStore.shared.write(snapshot, for: SnapshotStore.Key.home)
             }
+            await todayPrefetch
         } catch {
             await todayPrefetch
             _ = await personal

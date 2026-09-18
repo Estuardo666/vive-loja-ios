@@ -177,7 +177,13 @@ struct MapPreviewCard: View {
     @ViewBuilder
     private var fallbackThumbnail: some View {
         if case .venue(let venue) = item {
-            VLGoogleVenuePhoto(slug: venue.slug, large: false, height: 88, showsAttribution: false)
+            VLGoogleVenuePhoto(
+                slug: venue.slug,
+                large: false,
+                height: 88,
+                showsAttribution: true,
+                compactAttribution: true
+            )
         } else {
             placeholderThumbnail
         }

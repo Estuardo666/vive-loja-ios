@@ -78,16 +78,16 @@ final class GoogleVenuePhotoTests: XCTestCase {
         XCTAssertNil(invalid)
     }
 
-    /// A venue revisited inside the session must not hit the network again:
-    /// each load costs one Places lookup plus one photo download upstream.
-    func testRepeatedLoadIsServedFromSessionCache() async throws {
+    /// Google content is not cached; each completed load fetches fresh metadata
+    /// and a fresh image. Only concurrent callers are coalesced.
+    func testRepeatedLoadDoesNotCacheGoogleContent() async throws {
         let client = makeClient()
         let first = try await client.load(slug: "local", large: true)
         let afterFirst = PhotoURLProtocol.requestCount
         let second = try await client.load(slug: "local", large: true)
 
         XCTAssertEqual(afterFirst, 2, "Expected one metadata and one image request")
-        XCTAssertEqual(PhotoURLProtocol.requestCount, afterFirst, "Second load must not touch the network")
+        XCTAssertEqual(PhotoURLProtocol.requestCount, 4, "Completed loads must not cache Google content")
         XCTAssertEqual(first?.1, second?.1)
         XCTAssertEqual(second?.0.googleMapsUri, first?.0.googleMapsUri)
     }
@@ -101,16 +101,6 @@ final class GoogleVenuePhotoTests: XCTestCase {
 
         XCTAssertEqual(PhotoURLProtocol.requestCount, 2, "Both callers must share one metadata and one image request")
         XCTAssertEqual(results[0]?.1, results[1]?.1)
-    }
-
-    /// Invalidation exists for images that arrive but fail to decode.
-    func testInvalidateForcesAReload() async throws {
-        let client = makeClient()
-        _ = try await client.load(slug: "local", large: true)
-        await client.invalidate(slug: "local", large: true)
-        _ = try await client.load(slug: "local", large: true)
-
-        XCTAssertEqual(PhotoURLProtocol.requestCount, 4, "Expected a fresh fetch after invalidation")
     }
 
     func testRateLimitDoesNotAttemptImageDownload() async {

@@ -67,7 +67,7 @@ struct ItemDetailHeader: View {
     @ViewBuilder
     private var googleBadgeRow: some View {
         let badges = venueDetail?.googleBadges ?? []
-        if !badges.isEmpty {
+        if venueDetail?.googleMapsUrl != nil, !badges.isEmpty {
             // At most two of these, so they sit in a plain row rather than in a
             // scroll view that would fight the page's own vertical drag.
             HStack(spacing: 8) {
@@ -99,7 +99,11 @@ struct ItemDetailHeader: View {
     }
 
     private var googleRating: Double? {
-        guard let rating = venueDetail?.googleRating, rating > 0 else { return nil }
+        // Google content is shown only when the payload includes the required
+        // source link. Without it, fall back to the ViveLoja rating below.
+        guard venueDetail?.googleMapsUrl != nil,
+              let rating = venueDetail?.googleRating,
+              rating > 0 else { return nil }
         return rating
     }
 

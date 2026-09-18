@@ -32,6 +32,10 @@ final class ExploreViewModel {
     /// Repeated so "load more" keeps the same search area as the first page.
     private var lastCenter: CLLocationCoordinate2D?
     private var lastRadiusMeters: CLLocationDistance?
+    /// Only the newest search may publish results. Filter, location and map
+    /// changes can arrive before an older request finishes.
+    private var searchGeneration = 0
+    private var activeSearch: Task<ExplorePayload, Error>?
 
     private static let pageSize = 60
 
@@ -47,24 +51,45 @@ final class ExploreViewModel {
     }
 
     func search(center: CLLocationCoordinate2D? = nil, radiusMeters: CLLocationDistance? = nil) async {
+        activeSearch?.cancel()
+        searchGeneration &+= 1
+        let generation = searchGeneration
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if generation == searchGeneration { isLoading = false }
+        }
         lastCenter = center
         lastRadiusMeters = radiusMeters
         let queryItems = buildQuery(center: center, radiusMeters: radiusMeters, venueSkip: 0, eventSkip: 0)
+
+        let request = Task { () throws -> ExplorePayload in
+            try await APIClient.shared.get("/explore", query: queryItems)
+        }
+        activeSearch = request
+        defer {
+            if generation == searchGeneration { activeSearch = nil }
+        }
+
         do {
-            let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
+            let payload = try await request.value
+            guard !Task.isCancelled, generation == searchGeneration else { return }
             items = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
             pageInfo = payload.pageInfo
-        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+        } catch {
+            guard !Task.isCancelled, generation == searchGeneration else { return }
+            errorMessage = (error as? LocalizedError)?.errorDescription
+        }
     }
 
     /// Next page of the current search. The skips come from the backend, which
     /// counts rows read rather than rows returned, so filtered pages do not repeat.
     func loadMore() async {
         guard !isLoading, !isLoadingMore, let pageInfo, canLoadMore else { return }
+        let generation = searchGeneration
         isLoadingMore = true
-        defer { isLoadingMore = false }
+        defer {
+            if generation == searchGeneration { isLoadingMore = false }
+        }
         let queryItems = buildQuery(
             center: lastCenter,
             radiusMeters: lastRadiusMeters,
@@ -73,11 +98,15 @@ final class ExploreViewModel {
         )
         do {
             let payload: ExplorePayload = try await APIClient.shared.get("/explore", query: queryItems)
+            guard !Task.isCancelled, generation == searchGeneration else { return }
             let existing = Set(items.map(\.id))
             let incoming = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
             items += incoming.filter { !existing.contains($0.id) }
             self.pageInfo = payload.pageInfo
-        } catch { errorMessage = (error as? LocalizedError)?.errorDescription }
+        } catch {
+            guard !Task.isCancelled, generation == searchGeneration else { return }
+            errorMessage = (error as? LocalizedError)?.errorDescription
+        }
     }
 
     private func buildQuery(

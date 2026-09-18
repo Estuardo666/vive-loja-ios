@@ -16,30 +16,14 @@ struct GoogleVenuePhotoResponse: Decodable, Sendable {
 
 /// No API key, photo reference, metadata or image is persisted on the device.
 ///
-/// Results are held in memory for `ttl` so that revisiting a venue within one
-/// session does not re-fetch. The store lives on the instance, never on disk,
-/// so it dies with the app — Google's terms forbid persisting photo content,
-/// and the `photoUri` is a short-lived signed URL that would break long before
-/// any storage limit applied. `ttl` sits far below that lifetime.
+/// Google content is never cached. The only retained state is an in-flight
+/// task, so views appearing together share one metadata lookup and one image
+/// download; once that task finishes, its result is released.
 actor GoogleVenuePhotoClient {
     static let shared = GoogleVenuePhotoClient()
     private let session: URLSession
     private let environment: AppEnvironment
 
-    private struct CacheEntry {
-        let result: (GoogleVenuePhoto, Data)?
-        let storedAt: Date
-        let expiresAt: Date
-        var cost: Int { result?.1.count ?? 0 }
-    }
-
-    /// Well under the signed URL's lifetime, so a hit is never a dead link.
-    private let ttl: TimeInterval = 5 * 60
-    /// Full-size JPEGs add up; evict rather than grow without bound.
-    private let maxBytes = 24 * 1024 * 1024
-    private let maxEntries = 60
-
-    private var cache: [String: CacheEntry] = [:]
     /// In-flight loads, so views appearing together fetch once. These are
     /// unstructured tasks: one view disappearing must not cancel the others.
     private var inflight: [String: Task<(GoogleVenuePhoto, Data)?, Error>] = [:]
@@ -48,7 +32,13 @@ actor GoogleVenuePhotoClient {
         self.environment = environment
         let configuration = URLSessionConfiguration.ephemeral
         configuration.urlCache = nil
-        configuration.timeoutIntervalForRequest = 20
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.waitsForConnectivity = false
+        configuration.timeoutIntervalForRequest = 12
+        configuration.timeoutIntervalForResource = 30
+        configuration.httpMaximumConnectionsPerHost = 4
+        configuration.httpCookieStorage = nil
+        configuration.urlCredentialStorage = nil
         self.session = session ?? URLSession(configuration: configuration)
     }
 
@@ -56,35 +46,19 @@ actor GoogleVenuePhotoClient {
         guard !slug.isEmpty, !slug.contains("/"), slug != ".", slug != ".." else { return nil }
         let key = "\(slug)-\(large)"
 
-        if let entry = cache[key], entry.expiresAt > Date() { return entry.result }
-
         if let running = inflight[key] { return try await running.value }
 
         let task = Task { try await self.fetch(slug: slug, large: large) }
         inflight[key] = task
         defer { inflight[key] = nil }
 
-        // A venue with no photo is worth remembering too. Failures are not
-        // stored, so the next appearance retries.
-        let result = try await task.value
-        store(result, forKey: key)
-        return result
+        return try await task.value
     }
 
-    /// Drops an entry after the image fails to decode or display.
+    /// Kept as a source-compatible no-op for callers that invalidate a failed
+    /// image. There is no Google content cache to invalidate.
     func invalidate(slug: String, large: Bool) {
-        cache.removeValue(forKey: "\(slug)-\(large)")
-    }
-
-    private func store(_ result: (GoogleVenuePhoto, Data)?, forKey key: String) {
-        let now = Date()
-        cache[key] = CacheEntry(result: result, storedAt: now, expiresAt: now.addingTimeInterval(ttl))
-        cache = cache.filter { $0.value.expiresAt > now }
-        // Oldest first, until both bounds are satisfied.
-        while cache.count > maxEntries || cache.values.reduce(0, { $0 + $1.cost }) > maxBytes {
-            guard let oldest = cache.min(by: { $0.value.storedAt < $1.value.storedAt })?.key else { break }
-            cache.removeValue(forKey: oldest)
-        }
+        _ = (slug, large)
     }
 
     private func fetch(slug: String, large: Bool) async throws -> (GoogleVenuePhoto, Data)? {
