@@ -56,7 +56,7 @@ final class LaunchPerformanceTests: XCTestCase {
         let restored: String? = await store.read("me-profile")
 
         XCTAssertNil(restored)
-        XCTAssertFalse(FileManager.default.fileExists(at: directory.appending(path: "me-profile.json")))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: directory.appending(path: "me-profile.json").path))
     }
 
     /// `VLTheme` caches its dynamic colours, and UIKit memoises a dynamic
