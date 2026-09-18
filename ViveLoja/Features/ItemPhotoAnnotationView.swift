@@ -13,7 +13,6 @@ final class RemoteImageCache {
     private let session: URLSession
     private let cache = NSCache<NSString, UIImage>()
     private var inflight: [String: Task<UIImage?, Never>] = [:]
-    private static let thumbnailSize = CGSize(width: 96, height: 96)
 
     private init() {
         let configuration = URLSessionConfiguration.ephemeral
@@ -27,15 +26,15 @@ final class RemoteImageCache {
         cache.totalCostLimit = 24 * 1024 * 1024
     }
 
-    func cached(_ url: URL, maxPixelSize: CGSize = Self.thumbnailSize) -> UIImage? {
+    func cached(_ url: URL, maxPixelSize: CGSize = CGSize(width: 96, height: 96)) -> UIImage? {
         guard !Self.isGoogleOwned(url) else { return nil }
-        cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize))
+        cache.object(forKey: key(for: url, maxPixelSize: maxPixelSize) as NSString)
     }
 
-    func image(for url: URL, maxPixelSize: CGSize = Self.thumbnailSize) async -> UIImage? {
+    func image(for url: URL, maxPixelSize: CGSize = CGSize(width: 96, height: 96)) async -> UIImage? {
         let cacheKey = key(for: url, maxPixelSize: maxPixelSize)
         let cacheable = !Self.isGoogleOwned(url)
-        if cacheable, let hit = cache.object(forKey: cacheKey) { return hit }
+        if cacheable, let hit = cache.object(forKey: cacheKey as NSString) { return hit }
         if let running = inflight[cacheKey] { return await running.value }
 
         let task = Task { [weak self] in
@@ -48,7 +47,7 @@ final class RemoteImageCache {
                   let image = UIImage(data: data)?.preparingThumbnail(of: maxPixelSize)
             else { return nil }
             if cacheable {
-                self.cache.setObject(image, forKey: cacheKey, cost: data.count)
+                self.cache.setObject(image, forKey: cacheKey as NSString, cost: data.count)
             }
             return image
         }
@@ -58,8 +57,8 @@ final class RemoteImageCache {
         return image
     }
 
-    private func key(for url: URL, maxPixelSize: CGSize) -> NSString {
-        "\(url.absoluteString)|\(Int(maxPixelSize.width))x\(Int(maxPixelSize.height))" as NSString
+    private func key(for url: URL, maxPixelSize: CGSize) -> String {
+        "\(url.absoluteString)|\(Int(maxPixelSize.width))x\(Int(maxPixelSize.height))"
     }
 
     private static func isGoogleOwned(_ url: URL) -> Bool {
