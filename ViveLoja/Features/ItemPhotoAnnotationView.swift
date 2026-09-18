@@ -37,7 +37,7 @@ final class RemoteImageCache {
         if cacheable, let hit = cache.object(forKey: cacheKey as NSString) { return hit }
         if let running = inflight[cacheKey] { return await running.value }
 
-        let task = Task { [weak self] in
+        let task: Task<UIImage?, Never> = Task { [weak self] in
             guard let self else { return nil }
             guard let (data, response) = try? await self.session.data(from: url),
                   let http = response as? HTTPURLResponse,
