@@ -461,11 +461,12 @@ struct HomeView: View {
                     NavigationLink(destination: ContentHubView()) {
                         Label("Todo lo que pasa en Loja", systemImage: "sparkles")
                             .font(.headline)
+                            .foregroundStyle(VLTheme.background)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(16)
+                            .background(VLTheme.indigo, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     }
-                    .buttonStyle(.bordered)
-                    .tint(VLTheme.indigo)
+                    .buttonStyle(.plain)
         }
         .padding(.horizontal, homeSectionInset)
     }
