@@ -210,9 +210,30 @@ private struct HomeItemLink<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        if let destination = item.destination {
-            NavigationLink(value: destination) { content }.buttonStyle(.plain)
-        } else {
+        switch item.kind {
+        case .venue:
+            NavigationLink(destination: ItemDetailView(item: .venue(ExploreVenue(
+                id: item.itemId, name: item.title, slug: item.slug,
+                description: nil, image: item.imageUrl, location: item.subtitle,
+                address: nil, lat: item.lat, lng: item.lng, featured: false,
+                phone: nil, website: nil, priceRange: nil,
+                avgRating: item.rating, reviewCount: item.reviewCount ?? 0,
+                verified: false, categories: [], openState: nil
+            )))) { content }.buttonStyle(.plain)
+        case .event:
+            NavigationLink(destination: ItemDetailView(item: .event(ExploreEvent(
+                id: item.itemId, title: item.title, slug: item.slug,
+                description: nil, image: item.imageUrl, startDate: .now,
+                endDate: nil, location: item.subtitle, address: nil,
+                lat: item.lat, lng: item.lng, featured: false, price: nil,
+                avgRating: item.rating, reviewCount: item.reviewCount ?? 0,
+                categories: []
+            )))) { content }.buttonStyle(.plain)
+        case .promotion, .post, .route, .collection:
+            if let destination = item.destination {
+                NavigationLink(value: destination) { content }.buttonStyle(.plain)
+            }
+        default:
             content
         }
     }

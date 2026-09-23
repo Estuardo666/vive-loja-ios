@@ -48,33 +48,11 @@ final class HomeViewModel {
         // payload is small. Worth one redundant GET to keep it off the tail of
         // the home request.
         async let todayPrefetch: Void = today.load()
+        Task { await today.restoreSnapshot() }
 
         // Paints the last good response while the live one is in flight, so a
         // warm launch reaches content without ever showing a spinner.
         await restoreSnapshot()
-
-        // `/explore` is a smaller, faster public payload. On a cold install it
-        // can populate real cards while the server-driven composition finishes.
-        // It never replaces a disk snapshot or the complete `/home` response.
-        let fastExplore: Task<ExplorePayload, Error>? = hasLoaded ? nil : Task {
-            let query = [
-                URLQueryItem(name: "type", value: "all"),
-                URLQueryItem(name: "take", value: "12"),
-                URLQueryItem(name: "venueSkip", value: "0"),
-                URLQueryItem(name: "eventSkip", value: "0"),
-            ]
-            return try await APIClient.shared.get("/explore", query: query)
-        }
-        if let fastExplore {
-            Task { @MainActor [weak self] in
-                guard let preview = try? await fastExplore.value,
-                      let self,
-                      !self.hasLoaded else { return }
-                self.applyFastExplore(preview)
-                self.hasLoaded = true
-                self.initialLoadFinished = true
-            }
-        }
 
         do {
             let payload = try await request.value
@@ -85,12 +63,12 @@ final class HomeViewModel {
             apply(payload)
             hasLoaded = true
             initialLoadFinished = true
+            prefetchVisibleDetails()
 
             // The session can finish restoring while the public home request
             // is still in flight. Do not erase recommendations loaded by that
             // concurrent session task with this anonymous request's nil value.
             let nextRecommendations = await personal
-            fastExplore?.cancel()
             if let nextRecommendations {
                 recommendations = nextRecommendations
             } else if accessToken != nil {
@@ -128,23 +106,45 @@ final class HomeViewModel {
         promotions = payload.promotions ?? []
     }
 
-    private func applyFastExplore(_ payload: ExplorePayload) {
-        sections = []
-        featured = payload.venues.map(ExploreItem.venue) + payload.events.map(ExploreItem.event)
-        latestVenues = payload.venues
-        relatedEvents = payload.events
-    }
-
     /// Best-effort first paint from the last successful launch. Never overwrites
     /// live data: if the network already answered, this does nothing.
     private func restoreSnapshot() async {
         guard !hasLoaded, !ProcessInfo.processInfo.arguments.contains("-uiTesting") else { return }
-        await today.restoreSnapshot()
         guard let cached: HomePayload = await SnapshotStore.shared.read(SnapshotStore.Key.home) else { return }
         guard !hasLoaded else { return }
         apply(cached)
         hasLoaded = true
         initialLoadFinished = true
+        prefetchVisibleDetails()
+    }
+
+    /// Warm only the first visible venue/event cards; details remain first-party
+    /// in the API client's short-lived in-memory cache, never on disk.
+    private func prefetchVisibleDetails() {
+        let cards = sections.flatMap { $0.items.prefix(2) }
+        var seen = Set<String>()
+        let unique = cards.compactMap { card -> (HomeItem.Kind, String)? in
+            guard card.kind == .venue || card.kind == .event,
+                  seen.insert(card.id).inserted else { return nil }
+            return (card.kind, card.slug)
+        }
+        let targets = Array(unique.filter { $0.0 == .venue }.prefix(2))
+            + Array(unique.filter { $0.0 == .event }.prefix(2))
+        Task(priority: .utility) {
+            await withTaskGroup(of: Void.self) { group in
+                for (kind, slug) in targets {
+                    group.addTask {
+                        switch kind {
+                        case .venue:
+                            let _: VenueDetail? = try? await APIClient.shared.get("/venues/\(slug)")
+                        case .event:
+                            let _: EventDetail? = try? await APIClient.shared.get("/events/\(slug)")
+                        default: break
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private func loadRecommendations(accessToken: String?) async -> MobileRecommendations? {
@@ -336,7 +336,6 @@ struct HomeView: View {
         // Keeps the page margin the fixed sections were written for; the
         // configured ones apply their own.
         VStack(alignment: .leading, spacing: 28) {
-                    hero
                     if showsTodayInLoja { TodayInLojaView(model: model.today) }
                     VStack(alignment: .leading, spacing: 14) {
                         VLSectionHeader(title: "Destacados", action: nil)
@@ -469,27 +468,6 @@ struct HomeView: View {
                     .tint(VLTheme.indigo)
         }
         .padding(.horizontal, homeSectionInset)
-    }
-
-    private var hero: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Loja está viva")
-                .font(.largeTitle.weight(.bold))
-                .fontDesign(.rounded)
-                .tracking(-1.2)
-                .minimumScaleFactor(0.75)
-            Text("Descubre eventos, locales y planes cerca de ti.").font(.title3).foregroundStyle(.secondary)
-            NavigationLink(destination: ExploreView(initialShowMap: true)) {
-                Label("Explorar el mapa", systemImage: "map.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .foregroundStyle(.white)
-                    .background(VLTheme.indigo, in: Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(20).vlGlass(tint: VLTheme.indigo.opacity(0.12), radius: 26)
     }
 
     /// Screenshot runs skip the live "Hoy en Loja" block unless the dedicated
