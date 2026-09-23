@@ -216,7 +216,9 @@ struct HomeView: View {
             .scrollDismissesKeyboard(.interactively)
             // Sticky: the field stays reachable however far down the page goes.
             .safeAreaInset(edge: .top, spacing: 0) { searchBar }
-            .overlay(alignment: .bottom) { mapButton }
+            // Reserve space for the floating map action so it never covers a
+            // card or the content CTA at the bottom of the scroll view.
+            .safeAreaInset(edge: .bottom, spacing: 0) { mapButton }
             .vlScreen()
             .navigationTitle("")
             .toolbar(.hidden, for: .navigationBar)
