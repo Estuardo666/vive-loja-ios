@@ -214,7 +214,7 @@ private struct HomeItemLink<Content: View>: View {
         case .venue:
             NavigationLink(destination: ItemDetailView(item: .venue(ExploreVenue(
                 id: item.itemId, name: item.title, slug: item.slug,
-                description: nil, image: item.imageUrl, location: item.subtitle,
+                description: item.description, image: item.imageUrl, location: item.subtitle,
                 address: nil, lat: item.lat, lng: item.lng, featured: false,
                 phone: nil, website: nil, priceRange: nil,
                 avgRating: item.rating, reviewCount: item.reviewCount ?? 0,
@@ -223,7 +223,7 @@ private struct HomeItemLink<Content: View>: View {
         case .event:
             NavigationLink(destination: ItemDetailView(item: .event(ExploreEvent(
                 id: item.itemId, title: item.title, slug: item.slug,
-                description: nil, image: item.imageUrl, startDate: .now,
+                description: item.description, image: item.imageUrl, startDate: .now,
                 endDate: nil, location: item.subtitle, address: nil,
                 lat: item.lat, lng: item.lng, featured: false, price: nil,
                 avgRating: item.rating, reviewCount: item.reviewCount ?? 0,
