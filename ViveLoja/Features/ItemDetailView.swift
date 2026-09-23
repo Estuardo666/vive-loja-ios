@@ -34,7 +34,8 @@ struct ItemDetailView: View {
                     gallery(width: max(0, geometry.size.width - 40))
                     ItemDetailHeader(item: displayedItem, venueDetail: venueDetail)
                     actionBar
-                    if case .event(let event) = displayedItem, eventDetail?.status != "CANCELLED", eventDetail?.ticketing?.mode != "NONE" {
+                    if case .event(let event) = displayedItem, let eventDetail,
+                       eventDetail.status != "CANCELLED", eventDetail.ticketing?.mode != "NONE" {
                         Button {
                             showTicketing = true
                         } label: {
@@ -390,7 +391,7 @@ struct ItemDetailView: View {
     @ViewBuilder
     private var detailInfoSections: some View {
         if case .venue(let value) = displayedItem {
-            ItemInfoSection(address: value.address ?? value.location, phone: value.phone?.nilIfBlank ?? nil, website: value.website, priceRange: value.priceRange?.nilIfBlank ?? nil)
+            ItemInfoSection(address: value.address, phone: value.phone?.nilIfBlank ?? nil, website: value.website, priceRange: value.priceRange?.nilIfBlank ?? nil)
             if let category = value.categories.first { ItemCategorySection(category: category) }
         } else if case .event(let value) = displayedItem, let category = value.categories.first {
             ItemCategorySection(category: category)
@@ -464,9 +465,18 @@ private extension ItemDetailView {
         do {
             switch item {
             case .venue(let value):
-                let detail: VenueDetail = try await APIClient.shared.get("/venues/\(value.slug)")
-                venueDetail = detail
-                resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: value.priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories, openState: detail.openState))
+                let path = "/venues/\(value.slug)"
+                let wasCached = await APIClient.shared.hasCachedPublic(path)
+                let detail: VenueDetail = try await APIClient.shared.get(path)
+                applyVenueDetail(detail, priceRange: value.priceRange)
+                if wasCached {
+                    // The cached response is first-party only. Refresh Google's
+                    // attributed fields on display without persisting them.
+                    Task {
+                        guard let fresh: VenueDetail = try? await APIClient.shared.getFreshPublic(path) else { return }
+                        applyVenueDetail(fresh, priceRange: value.priceRange)
+                    }
+                }
                 // The detail payload is the critical path. Following state and
                 // analytics are secondary and must not hold the first render.
                 Task { await loadFollowing(for: detail.id) }
@@ -533,6 +543,13 @@ private extension ItemDetailView {
             return
         }
         openURL(url)
+    }
+}
+
+private extension ItemDetailView {
+    func applyVenueDetail(_ detail: VenueDetail, priceRange: String?) {
+        venueDetail = detail
+        resolvedItem = .venue(ExploreVenue(id: detail.id, name: detail.name, slug: detail.slug, description: detail.description, image: detail.image, location: detail.location, address: detail.address, lat: detail.lat, lng: detail.lng, featured: detail.featured, phone: detail.phone, website: detail.website, priceRange: priceRange, avgRating: detail.avgRating, reviewCount: detail.reviewCount, verified: detail.verified, categories: detail.categories, openState: detail.openState))
     }
 }
 

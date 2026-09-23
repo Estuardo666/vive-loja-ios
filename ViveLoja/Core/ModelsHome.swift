@@ -25,6 +25,8 @@ struct HomeItem: Codable, Identifiable, Hashable, Sendable {
     let title: String
     let subtitle: String?
     var description: String? = nil
+    var address: String? = nil
+    var startDate: Date? = nil
     let imageUrl: URL?
     /// Wording is decided by the backend so campaigns do not need a release.
     let badge: String?
@@ -48,7 +50,7 @@ struct HomeItem: Codable, Identifiable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case kind
         case rawId = "id"
-        case slug, title, subtitle, description, imageUrl, badge, priceLabel, rating, reviewCount
+        case slug, title, subtitle, description, address, startDate, imageUrl, badge, priceLabel, rating, reviewCount
         case venueName, dateLabel, lat, lng, color, icon, deeplink
         case categories, excludedFromOpenNowDefault
     }
